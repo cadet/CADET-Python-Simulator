@@ -8,7 +8,8 @@ from scikits.odes.dae import dae
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
-    Constant, Typed, UnsignedInteger, UnsignedFloat, SizedNdArray, NdPolynomial
+    Constant, Typed, String, UnsignedInteger, UnsignedFloat,
+    SizedNdArray, SizedUnsignedNdArray, NdPolynomial
 )
 from CADETProcess.dynamicEvents import Section
 
@@ -19,16 +20,20 @@ class UnitOperation(Structure):
 
     Attributes
     ----------
-    initial_state : np.ndarray
-        Initial state of unit operation
+    name: str
+        Name of the unit operation
     component_system : ComponentSystem
         Component system
-    inlet_ports : int
+    initial_state : np.ndarray
+        Initial state of unit operation
+    initial_state_dot : np.ndarray
+        Initial state derivative of unit operation
+    n_inlet_ports : int
         Number of ports at the unit operation inlet.
-    outlet_ports : int
+    n_outlet_ports : int
         Number of ports at the unit operation outlet.
     """
-
+    name = String()
     component_system = Typed(ty=ComponentSystem)
     initial_state = SizedNdArray(size='n_dof_total')
     initial_state_dot = SizedNdArray(size='n_dof_total')
@@ -38,9 +43,12 @@ class UnitOperation(Structure):
     _parameters = []
     _section_dependent_parameters = []
 
-    def __init__(self, component_system, *args, **kwargs):
+    def __init__(self, component_system, name, *args, **kwargs):
         self.component_system = component_system
+        self.name = name
+
         super().__init__(*args, **kwargs)
+
         self.parameter_sections = {}
 
     @property
@@ -308,26 +316,52 @@ class UnitOperation(Structure):
 
         Raises
         ------
-        AttributeError
-            If parameter cannot be found.
         ValueError
-            If parameter cannot is not section dependent.
+            If not all section dependent parameters are provided.
         """
-        if len(self.parameter_sections) == 0:
-            self.parameters_sections = {param: None for param in parameters}
+        if list(parameters.keys()) != self.section_dependent_parameters:
+            raise ValueError(
+                "All (and only) section dependent parameters must be provided."
+            )
 
         for param, value in parameters.items():
-            if param not in self.parameters:
-                raise AttributeError(f"Unknown parameter: {param}")
-            if param not in self.section_dependent_parameters:
-                raise ValueError(f"Parameter is not section dependent: {param}")
-            setattr(self, param, value)
-
             is_polynomial = param in self.polynomial_parameters
+            setattr(self, param, value)
             coeffs = getattr(self, param)
             self.parameter_sections[param] = Section(start, end, coeffs, is_polynomial)
-            # TODO: Once defined via sections, a parameter must always be updated to
-            # avoid inconsitent values. E.g. pop from dict
+
+    def get_current_parameter_values(
+            self,
+            t: float,
+            ) -> Dict[str, np.typing.ArrayLike]:
+        """
+        Get current parameter values.
+
+        Parameters
+        ----------
+        t : float
+            Current timeDESCRIPTION.
+
+        Returns
+        -------
+        list
+            current parameter values.
+        """
+        if len(self.section_dependent_parameters) != len(self.parameter_sections):
+            raise Exception("Section dependent parameters are not initialized.")
+
+        current_parameters = {}
+        for param in self.parameters:
+            if param in self.section_dependent_parameters:
+                value = self.parameter_sections[param](t)
+            else:
+                value = getattr(self, param)
+            current_parameters[param] = value
+
+        return current_parameters
+
+    def __str__(self):
+        return self.name
 
 
 class Inlet(UnitOperation):
@@ -336,8 +370,8 @@ class Inlet(UnitOperation):
 
     Attributes
     ----------
-    c : MultiTimeLine
-        Piecewise cubic concentration profile.
+    c : NdPolynomial
+        Polynomial coefficients for component concentration.
     viscosity : float
         Viscosity of the solvent.
     """
@@ -347,7 +381,7 @@ class Inlet(UnitOperation):
 
     n_inlet_ports = Constant(value=0)
 
-    _parameters = ['c']
+    _parameters = ['c', 'viscosity']
     _polynomial_parameters = ['c']
     _section_dependent_parameters = ['c']
 
@@ -388,7 +422,10 @@ class Inlet(UnitOperation):
             Residual of the unit operation.
 
         """
-        raise NotImplementedError()
+        parameters = self.get_current_parameter_values(t)
+
+        for i in range(self.n_comp):
+            residual[i] = self.parameters_sections[i](t)
 
 
 class Outlet(UnitOperation):
@@ -433,6 +470,68 @@ class Outlet(UnitOperation):
             Residual of the unit operation.
 
         """
+        raise NotImplementedError()
+
+
+class Cstr(UnitOperation):
+    """
+    Continuous stirred tank reactor.
+
+    Attributes
+    ----------
+    volume : float
+        Viscosity of the solvent.
+    """
+
+    c = SizedUnsignedNdArray(size='n_comp')
+    volume = UnsignedFloat()
+
+    _parameters = ['c', 'volume']
+
+    @property
+    def internal_state_structure(self) -> Dict[str, int]:
+        """
+        Internal structure of the unit operation state.
+
+        Returns a dictionary where each key is a state variable name and its value is
+        the number of entries for that state.
+
+        Returns
+        -------
+        Dict[str, int]
+            The structure of the unit state.
+        """
+        return {
+            'volume': 1
+        }
+
+    def compute_residual(
+            self,
+            t: float,
+            y: np.ndarray,
+            y_dot: np.ndarray,
+            residual: np.ndarray,
+            ) -> None:
+        """
+        Calculate the residual of the unit operation at time `t`.
+
+        Parameters
+        ----------
+        t : float
+            Time at which to evaluate the residual.
+        y : np.ndarray
+            Current state of the unit operation.
+        y_dot : np.ndarray
+            Current state derivative of the unit operation.
+        residual : np.ndarray
+            Residual of the unit operation.
+
+        """
+        c_in = y[0:self.n_comp]
+        viscosity_in = y[self.n_comp]
+
+        residual[self.n_dof_inlet:self.n_dof_inlet + self.n_comp] = c_in
+
         raise NotImplementedError()
 
 
@@ -514,6 +613,10 @@ class SystemSolver():
     def _setup_units(self, units):
         self.units = units
 
+        self.units_dict = {}
+        for unit in self.units:
+            self.units_dict[str(unit)] = unit
+
         self.unit_slices = {}
         start_index = 0
         for unit in self.units:
@@ -550,6 +653,8 @@ class SystemSolver():
         self.n_destination_ports = destination_counter
 
     def _setup_sections(self, sections):
+        # TODO: Check section continuity.
+
         self.sections = sections
 
     @property
@@ -766,8 +871,11 @@ class SystemSolver():
 
         """
         for unit, parameters in section_states.items():
+            # TODO: Check if unit is part of SystemSolver
+            if isinstance(unit, str):
+                unit = self.units_dict[unit]
+
             unit.update_section_dependent_parameters(start, end, parameters)
-        self.previous_end = end
 
     def couple_units(
             self,
