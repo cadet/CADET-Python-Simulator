@@ -1,18 +1,17 @@
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Dict, List, Any, NoReturn
+from typing import Any, NoReturn
 
-from addict import Dict as ADict
 import numpy as np
 
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
-    Typed, String, UnsignedInteger, UnsignedFloat,
-    SizedNdArray, SizedUnsignedNdArray, NdPolynomial
+    Typed, String, UnsignedInteger, UnsignedFloat, SizedUnsignedNdArray, NdPolynomial
 )
 from CADETProcess.dynamicEvents import Section
 
+from CADETPythonSimulator.state import State, state_factory
 from CADETPythonSimulator.rejection import RejectionBase
 from CADETPythonSimulator.cake_compressibility import CakeCompressibilityBase
 
@@ -27,18 +26,13 @@ class UnitOperationBase(Structure):
         Name of the unit operation
     component_system : ComponentSystem
         Component system
-    initial_state : np.ndarray
-        Initial state of unit operation
-    initial_state_dot : np.ndarray
-        Initial state derivative of unit operation
+
     """
 
     name = String()
     component_system = Typed(ty=ComponentSystem)
 
-    initial_state = SizedNdArray(size='n_dof')
-    initial_state_dot = SizedNdArray(size='n_dof')
-
+    _states = []
     _parameters = []
     _section_dependent_parameters = []
 
@@ -55,133 +49,53 @@ class UnitOperationBase(Structure):
         """int: Number of components."""
         return self.component_system.n_comp
 
-    @property
-    @abstractmethod
-    def state_structure(self) -> Dict[str, Dict[str, Any]]:
-        """
-        Return the structure of the unit operation state blocks.
-
-        Provides a dictionary that maps state names to their respective configurations.
-        Each state configuration includes:
-        - 'dimensions': An integer or tuple indicating the dimensions associated with
-        the state.
-        - 'structure': A dictionary detailing the components of the state.
-
-        Returns
-        -------
-        Dict[str, Dict[str, Any]]
-            A dictionary where each key is a state block name and each value is a
-            dictionary describing that state's configuration.
-        """
-        pass
+    def initialize_state(self) -> NoReturn:
+        """Initialize the state."""
+        _states = []
+        for state in self._states:
+            state_structure = getattr(self, state)
+            state = state_factory(self, state, **state_structure)
+            _states.append(state)
+        self.__states = _states
 
     @property
-    def n_dof_state_blocks(self) -> Dict[str, int]:
-        """Dict[str, int]: Number of degrees of freedom per state block."""
-        state_dofs = {}
-        for state, state_information in self.state_structure.items():
-            n_cells_state = np.prod(state_information['dimensions'], dtype=int)
-            n_components_state = sum(state_information['structure'].values())
-            state_dofs[state] = n_cells_state * n_components_state
-        return state_dofs
+    def states(self) -> list[State]:
+        """The different state blocks of the unit operation."""
+        return self.__states
+
+    @property
+    def states_dict(self) -> dict[str, State]:
+        """The different state blocks of the unit operation, indexed by their name."""
+        return {state.name: state for state in self.states}
 
     @property
     def n_dof(self) -> int:
-        """int: Number of degrees of freedom."""
-        return sum([n_states for n_states in self.n_dof_state_blocks.values()])
+        """int: Total number of degrees of freedom."""
+        return sum([state.n_dof for state in self.states])
 
-    def split_state_blocks(self, y) -> Dict[str, np.ndarray]:
-        """
-        Separate state into its individual blocks.
+    @property
+    def y_flat(self) -> np.ndarray:
+        """np.ndarray: The state array flattened into one dimension."""
+        return np.concatenate([state.y_flat for state in self.states])
 
-        Parameters
-        ----------
-        y : np.ndarray
-            Current state of the unit operation.
+    @y_flat.setter
+    def y_flat(self, y_flat: np.ndarray) -> NoReturn:
 
-        Returns
-        -------
-        Dict[str, np.ndarray]
-            The state of the unit operation.
-        """
-        split_state = {}
         start_index = 0
-        for state, n_dof in self.n_dof_state_blocks.items():
-            end_index = start_index + n_dof
-            split_state[state] = y[start_index:end_index]
+        for state in self.states:
+            end_index = start_index + state.n_dof
+            state.y_flat = y_flat[start_index:end_index]
             start_index = end_index
 
-        return split_state
+    @property
+    def y_split(self) -> dict[str, np.ndarray]:
+        """dict: State arrays mapped to their state's names."""
+        return {name: state for name, state in self.states_dict.items()}
 
-    def split_state(self, y):
-        """
-        Separate state into its individual components.
-
-        Parameters
-        ----------
-        y : np.ndarray
-            Current state of the unit operation.
-
-        Returns
-        -------
-        Dict[str, np.ndarray]
-            The state of the unit operation.
-        """
-        y_components = {}
-
-        for state, y_block in self.split_state_blocks(y).items():
-            y_components[state] = {}
-
-            dimensions = tuple(self.state_structure[state]['dimensions'])
-            components = self.state_structure[state]['structure']
-
-            y_block = y_block.reshape((*dimensions, -1))
-
-            start_index = 0
-            for state_s, n_s in components.items():
-                end_index = start_index + n_s
-                y_components[state][state_s] = y_block[..., start_index:end_index]
-                start_index = end_index
-
-        return dict(y_components)
-
-    def split_state_ports(
-            self,
-            y: np.ndarray,
-            target: str
-            ) -> Dict[int, Dict[str, np.ndarray]]:
-        """
-        Return current state at the unit operation inlet or outlet ports.
-
-        Parameters
-        ----------
-        y : np.ndarray
-            Current state of the unit operation.
-        target : str, {'inlet', 'outlet'}
-            Flag to indicate whether if inlet or outlet ports are to be returned.
-
-        Returns
-        -------
-        Dict[int, Dict[str, np.ndarray]]
-            The current state at the unit operation inlet or outlet ports.
-        """
-        split_state_ports = {}
-
-        port_mapping = self.port_mapping[target]
-        split_state = self.split_state(y)
-
-        for port, mapping_info in port_mapping.items():
-            split_state_ports[port] = {}
-            mapped_state = mapping_info['mapped_state']
-            port_index = mapping_info['port_index']
-
-            y_state = split_state[mapped_state]
-            for component, n_entries in self.coupling_state_structure.items():
-                y_port = y_state[component][0, ...]
-
-                split_state_ports[port_index][component] = y_port
-
-        return split_state_ports
+    @y_split.setter
+    def y_split(self, y_split: dict[str, np.ndarray]):
+        for name, state in self.states_dict.items():
+            state.y = y_split[name]
 
     @property
     def coupling_state_structure(self):
@@ -196,67 +110,36 @@ class UnitOperationBase(Structure):
         """int: Number of coupling DOFs."""
         return sum(self.coupling_state_structure.values())
 
-    def construct_coupling_state(self, s: np.ndarray) -> Dict[str, np.ndarray]:
-        """
-        Construct state dict from np.ndarray.
-
-        Parameters
-        ----------
-        s : np.ndarray
-            New coupling state.
-
-        Returns
-        -------
-        Dict[str, np.ndarray]
-            Dictionary with coupling state structure.
-        """
-        coupling_state = {}
-        start_index = 0
-        for component, n_entries in self.coupling_state_structure.items():
-            end_index = start_index + n_entries
-            coupling_state[component] = s[start_index:end_index]
-            start_index = end_index
-
-        return coupling_state
-
     @property
-    def inlet_ports(self) -> Dict[str, int]:
+    def inlet_ports(self) -> dict[str, int]:
         """dict: Number of inlet ports per state."""
-        return {}
+        return {
+            state.name: state.n_inlet_ports
+            for state in self._states.values()
+        }
 
     @property
-    def n_inlet_ports(self):
+    def n_inlet_ports(self) -> int:
         """int: Number of inlet ports."""
-        return sum(self.inlet_ports.values())
+        return sum(state.n_inlet_ports for state in self.states)
 
     @property
-    def outlet_ports(self) -> Dict[str, int]:
+    def outlet_ports(self) -> dict[str, int]:
         """dict: Number of outlet ports per state."""
-        return {}
+        return {
+            state.name: state.n_outlet_ports
+            for state in self._states.values()
+        }
 
     @property
-    def outlet_port_mapping(self) -> Dict[int, str]:
-        """dict: Mapping of outlet port indices to corresponding state."""
-        outlet_port_mapping = {}
-
-        counter = 0
-        for mapped_state, n_ports in self.outlet_ports.items():
-            for port in range(n_ports):
-                outlet_port_mapping[counter] = {}
-                outlet_port_mapping[counter]['mapped_state'] = mapped_state
-                outlet_port_mapping[counter]['port_index'] = port
-                counter += 1
-
-        return outlet_port_mapping
-
-    @property
-    def n_outlet_ports(self):
+    def n_outlet_ports(self) -> int:
         """int: Number of inlet ports."""
-        return sum(self.outlet_ports.values())
+        return sum(state.n_outlet_ports for state in self.states)
 
     @property
-    def port_mapping(self) -> Dict[int, str]:
+    def port_mapping(self) -> dict[int, str]:
         """dict: Mapping of port indices to corresponding state entries."""
+        # TODO: Let this be handled by the SystemSolver?
         port_mapping = defaultdict(dict)
 
         counter = 0
@@ -277,82 +160,105 @@ class UnitOperationBase(Structure):
 
         return dict(port_mapping)
 
-    # def _validate_coupling_structure(self) -> NoReturn:
-    #     for state, n_ports in self.inlet_ports:
-    #         print(state, n_ports)
-    #         # TODO: Read state structure and verify all coupling state entries are present.
-    #     for state, n_ports in self.inlet_ports:
-    #         print(state, n_ports)
-    #         # TODO: Read state structure and verify all coupling state entries are present.
-
     def set_inlet_state(
             self,
-            y: np.ndarray,
-            s: np.ndarray,
-            port: int,
+            inlet_state: dict[str, np.ndarray],
+            state: str,
+            state_port_index: int
             ) -> NoReturn:
         """
         Set the state of the unit operation inlet for a given port.
 
         Parameters
         ----------
-        y : np.ndarray
-            Current state of the unit operation.
-        s : np.ndarray
-            New state of the unit operation inlet.
-        port : int
-            Port of the unit operation for which to set the inlet state.
+        inlet_state : Dict[str, np.ndarray]
+            A dictionary mapping each state entry to its new values at the inlet port.
+        state : str
+            Name of the state for with to update the inlet state.
+        state_port_index : int
+            The state port index for which to update the state.
+
+        Raises
+        ------
+        ValueError
+            If state is not found.
         """
-        if self.n_inlet_ports == 0:
-            raise Exception(
-                "Cannot set inlet state for unit operation without inlet ports."
-            )
-        if port > self.n_inlet_ports - 1:
-            raise ValueError("Port exceeds number of inlet ports.")
+        if state not in self.states_dict:
+            raise ValueError(f"Unknown state {state}.")
 
-        port_mapping_info = self.port_mapping['inlet'][port]
-        inlet_port = port_mapping_info['port_index']
+        self.states_dict[state].set_inlet_port_state(inlet_state, state_port_index)
 
-        y_port = self.split_state_ports(y, 'inlet')[inlet_port]
-
-        coupling_state = self.construct_coupling_state(s)
-        for key, value in coupling_state.items():
-            y_port[key][:] = value[:]
-
-    def get_outlet_state(
+    def set_inlet_state_flat(
             self,
-            y: np.ndarray,
-            port: int,
-            ) -> np.ndarray:
+            inlet_state: dict[str, np.ndarray],
+            unit_port_index: int
+            ) -> NoReturn:
         """
-        Return the state of the unit operation outlet for a given port.
+        Set the state of the unit operation inlet for a given port.
 
         Parameters
         ----------
-        y : np.ndarray
-            Current state of the unit operation.
-        port : int
-            Port of the unit operation for which to return the outlet state.
+        inlet_state : Dict[str, np.ndarray]
+            A dictionary mapping each state entry to its new values at the inlet port.
+        unit_port_index : int
+            The index of the unit operation inlet port.
+        """
+        port_info = self.port_mapping['inlet'][unit_port_index]
+
+        self.set_inlet_state(
+            inlet_state, port_info['mapped_state'], port_info['port_index']
+        )
+
+    def get_outlet_state(
+            self,
+            state: str,
+            state_port_index: int
+            ) -> NoReturn:
+        """
+        Get the state of the unit operation outlet for a given port.
+
+        Parameters
+        ----------
+        state : str
+            Name of the state for with to retrieve the outlet state.
+        state_port_index : int
+            The state port index for which to retrieve the state.
 
         Returns
         -------
-        np.ndarray
-            State outlet state of the unit operation at given port.
+        Dict[str, np.ndarray]
+            A dictionary mapping each state entry to the values at the outlet port.
 
+        Raises
+        ------
+        ValueError
+            If state is not found.
         """
-        if self.n_outlet_ports == 0:
-            raise Exception(
-                "Cannot retrieve outlet state for unit operation without outlet ports."
-            )
-        if port > self.n_outlet_ports - 1:
-            raise ValueError("Port exceeds number of outlet ports.")
+        if state not in self.states_dict:
+            raise ValueError(f"Unknown state {state}.")
 
-        port_mapping_info = self.port_mapping['outlet'][port]
-        outlet_port = port_mapping_info['port_index']
+        return self.states_dict[state].get_outlet_port_state(state_port_index)
 
-        y_port = self.split_state_ports(y, 'outlet')[outlet_port]
+    def get_outlet_state_flat(
+            self,
+            unit_port_index: int
+            ) -> NoReturn:
+        """
+        Get the state of the unit operation outlet for a given port.
 
-        return np.concatenate(list(y_port.values()))
+        Parameters
+        ----------
+        unit_port_index : int
+            The index of the unit operation outlet port.
+
+        Returns
+        -------
+        Dict[str, np.ndarray]
+            A dictionary mapping each state entry to the values at the outlet port.
+        """
+        port_info = self.port_mapping['outlet'][unit_port_index]
+
+        return self.get_inlet_state(port_info['mapped_state'], port_info['port_index'])
 
     @abstractmethod
     def compute_residual(
@@ -380,7 +286,7 @@ class UnitOperationBase(Structure):
         pass
 
     @property
-    def section_dependent_parameters(self) -> List[str]:
+    def section_dependent_parameters(self) -> list[str]:
         """list: Section depdendent parameters."""
         return self._section_dependent_parameters
 
@@ -388,7 +294,7 @@ class UnitOperationBase(Structure):
             self,
             start: float,
             end: float,
-            parameters: Dict[str, float | np.ndarray]
+            parameters: dict[str, float | np.ndarray]
             ) -> NoReturn:
         """
         Update section dependent parameters.
@@ -399,7 +305,7 @@ class UnitOperationBase(Structure):
             Start time of the section.
         end: float
             End time of the section.
-        parameters : Dict[str, float | np.ndarray]
+        parameters : dict[str, float | np.ndarray]
             A dict with new parameters.
 
         Raises
@@ -421,7 +327,7 @@ class UnitOperationBase(Structure):
     def get_parameter_values_at_time(
             self,
             t: float,
-            ) -> Dict[str, np.typing.ArrayLike]:
+            ) -> dict[str, np.typing.ArrayLike]:
         """
         Get parameter values at t.
 
@@ -459,38 +365,25 @@ class Inlet(UnitOperationBase):
 
     Attributes
     ----------
-    c : NdPolynomial
+    c_poly : NdPolynomial
         Polynomial coefficients for component concentration.
     viscosity : float
         Viscosity of the solvent.
     """
 
-    c = NdPolynomial(size=('n_comp', 4), default=0)
+    c_poly = NdPolynomial(size=('n_comp', 4), default=0)
     viscosity = UnsignedFloat()
 
-    _parameters = ['c', 'viscosity']
-    _polynomial_parameters = ['c']
-    _section_dependent_parameters = ['c']
+    _parameters = ['c_poly', 'viscosity']
+    _polynomial_parameters = ['c_poly']
+    _section_dependent_parameters = ['c_poly']
 
-    @property
-    def state_structure(self) -> Dict[str, Dict[str, Any]]:
-        """dict: The state structure for the Inlet unit operation."""
-        return {
-            'outlet': {
-                'dimensions': (1,),
-                'structure': {
-                    'c': self.n_comp,
-                    'viscosity': 1,
-                },
-            },
-        }
-
-    @property
-    def outlet_ports(self) -> Dict[str, int]:
-        """dict: Number of outlet ports per state."""
-        return {
-            'outlet': 1,
-        }
+    outlet = {
+        'dimensions': (),
+        'entries': {'c': 'n_comp', 'viscosity': 1},
+        'n_outlet_ports': 1,
+    }
+    _states = ['outlet']
 
     def compute_residual(
             self,
@@ -522,25 +415,12 @@ class Inlet(UnitOperationBase):
 class Outlet(UnitOperationBase):
     """System outlet."""
 
-    @property
-    def state_structure(self) -> Dict[str, Dict[str, Any]]:
-        """dict: The state structure for the Outlet unit operation."""
-        return {
-            'inlet': {
-                'dimensions': (1,),
-                'structure': {
-                    'c': self.n_comp,
-                    'viscosity': 1,
-                },
-            },
-        }
-
-    @property
-    def inlet_ports(self) -> Dict[str, int]:
-        """dict: Number of inlet ports per state."""
-        return {
-            'inlet': 1,
-        }
+    inlet = {
+        'dimensions': (),
+        'entries': {'c': 'n_comp', 'viscosity': 1},
+        'n_inlet_ports': 1,
+    }
+    _states = ['inlet']
 
     def compute_residual(
             self,
@@ -571,51 +451,19 @@ class Cstr(UnitOperationBase):
     """
     Continuous stirred tank reactor.
 
-    Attributes
-    ----------
-    volume : float
-        Viscosity of the solvent.
     """
 
-    volume = UnsignedFloat()
-    c = SizedUnsignedNdArray(size='n_comp')
-
-    _parameters = ['c', 'volume']
-
-    @property
-    def state_structure(self) -> Dict[str, Dict[str, Any]]:
-        """dict: The state structure for the Cstr unit operation."""
-        return {
-            'inlet': {
-                'dimensions': (1,),
-                'structure': {
-                    'c': self.n_comp,
-                    'viscosity': 1,
-                },
-            },
-            'bulk': {
-                'dimensions': (1,),
-                'structure': {
-                    'c': self.n_comp,
-                    'viscosity': 1,
-                    'V': 1,
-                },
-            },
-        }
-
-    @property
-    def inlet_ports(self) -> Dict[str, int]:
-        """dict: Number of inlet ports per state."""
-        return {
-            'inlet': 1,
-        }
-
-    @property
-    def outlet_ports(self) -> Dict[str, int]:
-        """dict: Number of outlet ports per state."""
-        return {
-            'bulk': 1,
-        }
+    inlet = {
+        'dimensions': (),
+        'entries': {'c': 'n_comp', 'viscosity': 1},
+        'n_inlet_ports': 1,
+    }
+    bulk = {
+        'dimensions': (),
+        'entries': {'c': 'n_comp', 'viscosity': 1, 'Volume': 1},
+        'n_outlet_ports': 1,
+    }
+    _states = ['inlet', 'bulk']
 
     def compute_residual(
             self,
@@ -668,58 +516,28 @@ class DeadEndFiltration(UnitOperationBase):
         Model for cake compressibility.
 
     """
+    retentate = {
+        'dimensions': (),
+        'entries': {'c': 'n_comp', 'viscosity': 1, 'Rc': 1, 'mc': 'n_comp'},
+        'n_inlet_ports': 1,
+    }
+    permeate = {
+        'dimensions': (),
+        'entries': {'c': 'n_comp', 'viscosity': 1, 'Volume': 1},
+        'n_outlet_ports': 1,
+    }
+    _states = ['retentate', 'permeate']
+
+    rejection_model = Typed(ty=RejectionBase)
+    cake_compressibility_model = Typed(ty=CakeCompressibilityBase)
 
     membrane_area = UnsignedFloat()
     membrane_resistance = UnsignedFloat()
-    rejection_model = Typed(ty=RejectionBase)
-    cake_compressibility_model = Typed(ty=CakeCompressibilityBase)
 
     _parameters = [
         'membrane_area',
         'membrane_resistance',
     ]
-
-    @property
-    def state_structure(self) -> Dict[str, Dict[str, Any]]:
-        """dict: The state structure for the DeadEndFiltration unit operation."""
-        return {
-            'inlet': {
-                'dimensions': (1,),
-                'structure': {
-                    'c': self.n_comp,
-                    'viscosity': 1,
-                },
-            },
-            'retentate': {
-                'dimensions': (1,),
-                'structure': {
-                    'Rc': 1,
-                    'mc': self.n_comp,
-                    'Vp': 1,
-                },
-            },
-            'permeate': {
-                'dimensions': (1,),
-                'structure': {
-                    'c': self.n_comp,
-                    'viscosity': 1,
-                },
-            },
-        }
-
-    @property
-    def inlet_ports(self) -> Dict[str, int]:
-        """dict: Number of inlet ports per state."""
-        return {
-            'inlet': 1,
-        }
-
-    @property
-    def outlet_ports(self) -> Dict[str, int]:
-        """dict: Number of outlet ports per state."""
-        return {
-            'permeate': 1,
-        }
 
     def delta_p(self):
         raise NotImplementedError()
@@ -770,78 +588,101 @@ class CrossFlowFiltration(UnitOperationBase):
 
     Attributes
     ----------
+    n_axial : int
+        Number of axial discretization cells.
     membrane_area : float
         Area of the membrane.
     membrane_resistance : float
         Membrane resistance.
     rejection_model : RejectionBase
         Model for size dependent rejection.
-
     """
+
+    n_axial = UnsignedInteger(default=10)
+
+    retentate = {
+        'dimensions': ('n_axial', ),
+        'entries': {'c': 'n_comp', 'viscosity': 1, 'Volume': 1},
+        'n_inlet_ports': 1,
+        'n_outlet_ports': 1,
+    }
+    permeate = {
+        'dimensions': ('n_axial', ),
+        'entries': {'c': 'n_comp', 'viscosity': 1, 'Volume': 1},
+        'n_outlet_ports': 1,
+    }
+    _states = ['retentate', 'permeate']
+
+    rejection_model = Typed(ty=RejectionBase)
 
     membrane_area = UnsignedFloat()
     membrane_resistance = UnsignedFloat()
-    rejection_model = Typed(ty=RejectionBase)
-
-    n_axial = UnsignedInteger(default=10)
 
     _parameters = [
         'membrane_area',
         'membrane_resistance',
-        'n_axial',
     ]
 
-    @property
-    def state_structure(self) -> Dict[str, Dict[str, Any]]:
-        """dict: The state structure for the Cstr unit operation."""
-        return {
-            'retentate': {
-                'dimensions': (self.n_axial, ),
-                'structure': {
-                    'c': self.n_comp,
-                    'viscosity': 1,
-                },
-            },
-            'permeate': {
-                'dimensions': (self.n_axial, ),
-                'structure': {
-                    'c': self.n_comp,
-                    'viscosity': 1,
-                },
-            },
-        }
-
-    @property
-    def inlet_ports(self) -> Dict[str, int]:
-        """dict: Number of inlet ports per state."""
-        return {
-            'retentate': 1,
-        }
-
-    @property
-    def outlet_ports(self) -> Dict[str, int]:
-        """dict: Number of outlet ports per state."""
-        return {
-            'retentate': 1,
-            'permeate': 1,
-        }
-
-    def specific_cake_resistance(self, delta_p: float) -> float:
+    def compute_residual(
+            self,
+            t: float,
+            y: np.ndarray,
+            y_dot: np.ndarray,
+            residual: np.ndarray
+            ) -> NoReturn:
         """
-        Compute specific resistance as a function of delta_p.
+        Calculate the residual of the unit operation at time `t`.
 
         Parameters
         ----------
-        delta_p : float
-            Pressure difference.
-
-        Returns
-        -------
-        float
-            Specific cake resistance.
+        t : float
+            Time at which to evaluate the residual.
+        y : np.ndarray
+            Current state of the unit operation.
+        y_dot : np.ndarray
+            Current state derivative of the unit operation.
+        residual : np.ndarray
+            Residual of the unit operation.
 
         """
-        raise self.cake_compressibility_model.specific_cake_resistance(delta_p)
+        raise NotImplementedError()
+
+
+class _2DGRM(UnitOperationBase):
+    """
+    2D-General Rate Model.
+
+    Attributes
+    ----------
+    n_axial : int
+        Number of axial discretization cells.
+    n_radial : int
+        Number of radial discretization cells.
+    n_particle : int
+        Number of particle discretization cells.
+    """
+
+    n_axial = UnsignedInteger(default=10)
+    n_radial = UnsignedInteger(default=3)
+    n_particle = UnsignedInteger(default=5)
+
+    bulk = {
+        'dimensions': ('n_radial', 'n_axial'),
+        'entries': {'c': 'n_comp', 'viscosity': 1},
+        'n_inlet_ports': 'n_radial',
+        'n_outlet_ports': 'n_radial',
+    }
+    particle = {
+        'dimensions': ('n_radial', 'n_axial', 'n_particle'),
+        'entries': {'c': 'n_comp', 'viscosity': 1, 'q': 'n_comp'},
+        'n_outlet_ports': 1,
+    }
+    flux = {
+        'dimensions': ('n_radial', 'n_axial', ),
+        'entries': {'c': 'n_comp'},
+        'n_outlet_ports': 1,
+    }
+    _states = ['bulk', 'particle', 'flux']
 
     def compute_residual(
             self,
