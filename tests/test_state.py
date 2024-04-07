@@ -381,8 +381,11 @@ class TestState():
             for port in range(state.n_outlet_ports):
                 s_out = state.get_outlet_port_state(port)
                 np.testing.assert_equal(s_out, expected['outlet_state'][port])
-                # TODO: Assert here
 
+
+# %% Test coupling structure
+# TODO: Add Test for coupling structure
+# TODO: Add Test for setting state if not all entries are in coupling structure
 
 # %% Run tests
 

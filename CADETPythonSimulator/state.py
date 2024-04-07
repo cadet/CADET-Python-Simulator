@@ -204,8 +204,8 @@ class State(Structure):
 
         # Assemble
         y_split = self.y_split
-        for component, n_entries in self.entries.items():
-            y_split[component][slice_tuple] = inlet_port_state[component]
+        for component, entry in inlet_port_state.items():
+            y_split[component][slice_tuple] = entry
 
     def get_outlet_port_state(
             self,
@@ -253,6 +253,7 @@ class State(Structure):
         # Assemble
         y_split = self.y_split
         outlet_port_state = {}
+
         for component, n_entries in self.entries.items():
             outlet_port_state[component] = y_split[component][slice_tuple]
 
