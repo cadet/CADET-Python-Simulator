@@ -11,6 +11,7 @@ from CADETProcess.dataStructure import (
 )
 from CADETProcess.dynamicEvents import Section
 
+from CADETPythonSimulator.exception import NotInitializedError
 from CADETPythonSimulator.state import State, state_factory
 from CADETPythonSimulator.rejection import RejectionBase
 from CADETPythonSimulator.cake_compressibility import CakeCompressibilityBase
@@ -32,7 +33,7 @@ class UnitOperationBase(Structure):
     name = String()
     component_system = Typed(ty=ComponentSystem)
 
-    _states = []
+    _state_structures = []
     _parameters = []
     _section_dependent_parameters = []
 
@@ -44,28 +45,49 @@ class UnitOperationBase(Structure):
 
         self.parameter_sections = {}
 
+        self._states = None
+        self._state_derivatives = None
+        self._residual = None
+
     @property
     def n_comp(self) -> int:
         """int: Number of components."""
         return self.component_system.n_comp
 
-    def initialize_state(self) -> NoReturn:
-        """Initialize the state."""
-        _states = []
-        for state in self._states:
+    def initialize(self) -> NoReturn:
+        """Initialize the unit operation state and residual."""
+        self._states = []
+        self._state_derivatives = []
+        for state in self._state_structures:
             state_structure = getattr(self, state)
+
             state = state_factory(self, state, **state_structure)
-            _states.append(state)
-        self.__states = _states
+            self._states.append(state)
+
+            state_derivative = state_factory(self, state, **state_structure)
+            self._state_derivatives.append(state_derivative)
+
+        self._residual = np.zeros(self.n_dof)
+
+    @property
+    def residual(self):
+        """np.ndarray: State derivative array blocks of the unit operation."""
+        if self._residual is None:
+            raise NotInitializedError("Unit operation state is not yet initialized.")
+
+        return self._residual
 
     @property
     def states(self) -> list[State]:
-        """The different state blocks of the unit operation."""
-        return self.__states
+        """list: State derivative array blocks of the unit operation."""
+        if self._states is None:
+            raise NotInitializedError("Unit operation state is not yet initialized.")
+
+        return self._states
 
     @property
     def states_dict(self) -> dict[str, State]:
-        """The different state blocks of the unit operation, indexed by their name."""
+        """dict: State array blocks of the unit operation, indexed by name."""
         return {state.name: state for state in self.states}
 
     @property
@@ -74,17 +96,16 @@ class UnitOperationBase(Structure):
         return sum([state.n_dof for state in self.states])
 
     @property
-    def y_flat(self) -> np.ndarray:
-        """np.ndarray: The state array flattened into one dimension."""
+    def y(self) -> np.ndarray:
+        """np.ndarray: State array flattened into one dimension."""
         return np.concatenate([state.y_flat for state in self.states])
 
-    @y_flat.setter
-    def y_flat(self, y_flat: np.ndarray) -> NoReturn:
-
+    @y.setter
+    def y(self, y: np.ndarray) -> NoReturn:
         start_index = 0
         for state in self.states:
             end_index = start_index + state.n_dof
-            state.y_flat = y_flat[start_index:end_index]
+            state.y_flat = y[start_index:end_index]
             start_index = end_index
 
     @property
@@ -96,6 +117,50 @@ class UnitOperationBase(Structure):
     def y_split(self, y_split: dict[str, np.ndarray]):
         for name, state in self.states_dict.items():
             state.y = y_split[name]
+
+    @property
+    def state_derivatives(self) -> list[State]:
+        """list: State derivative blocks of the unit operation."""
+        if self._state_derivatives is None:
+            raise NotInitializedError("Unit operation state is not yet initialized.")
+
+        return self._state_derivatives
+
+    @property
+    def state_derivatives_dict(self) -> dict[str, State]:
+        """dict: State derivative array blocks of the unit operation, indexed by name."""
+        return {
+            state_derivative.name: state_derivative
+            for state_derivative in self.state_derivatives
+        }
+
+    @property
+    def y_dot(self) -> np.ndarray:
+        """np.ndarray: State derivative array flattened into one dimension."""
+        return np.concatenate(
+            [state_derivative.y_dot_flat for state_derivative in self.state_derivatives]
+        )
+
+    @y_dot.setter
+    def y_dot(self, y_dot: np.ndarray) -> NoReturn:
+        start_index = 0
+        for state_derivative in self.state_derivatives:
+            end_index = start_index + state_derivative.n_dof
+            state_derivative.y_dot = y_dot[start_index:end_index]
+            start_index = end_index
+
+    @property
+    def y_dot_split(self) -> dict[str, np.ndarray]:
+        """dict: State derivative arrays mapped to their state's names."""
+        return {
+            name: state_derivative
+            for name, state_derivative in self.state_derivatives_dict.items()
+        }
+
+    @y_dot_split.setter
+    def y_dot_split(self, y_dot_split: dict[str, np.ndarray]):
+        for name, state_derivative in self.states_dict.items():
+            state_derivative.y = y_dot_split[name]
 
     @property
     def coupling_state_structure(self):
@@ -114,8 +179,7 @@ class UnitOperationBase(Structure):
     def inlet_ports(self) -> dict[str, int]:
         """dict: Number of inlet ports per state."""
         return {
-            state.name: state.n_inlet_ports
-            for state in self._states.values()
+            state.name: state.n_inlet_ports for state in self.states
         }
 
     @property
@@ -127,8 +191,7 @@ class UnitOperationBase(Structure):
     def outlet_ports(self) -> dict[str, int]:
         """dict: Number of outlet ports per state."""
         return {
-            state.name: state.n_outlet_ports
-            for state in self._states.values()
+            state.name: state.n_outlet_ports for state in self.states
         }
 
     @property
@@ -258,14 +321,12 @@ class UnitOperationBase(Structure):
         """
         port_info = self.port_mapping['outlet'][unit_port_index]
 
-        return self.get_inlet_state(port_info['mapped_state'], port_info['port_index'])
+        return self.get_outlet_state(port_info['mapped_state'], port_info['port_index'])
 
     @abstractmethod
     def compute_residual(
             self,
             t: float,
-            y: np.ndarray,
-            y_dot: np.ndarray,
             residual: np.ndarray,
             ) -> NoReturn:
         """
@@ -383,13 +444,11 @@ class Inlet(UnitOperationBase):
         'entries': {'c': 'n_comp', 'viscosity': 1},
         'n_outlet_ports': 1,
     }
-    _states = ['outlet']
+    _state_structures = ['outlet']
 
     def compute_residual(
             self,
             t: float,
-            y: np.ndarray,
-            y_dot: np.ndarray,
             residual: np.ndarray,
             ) -> NoReturn:
         """
@@ -399,17 +458,13 @@ class Inlet(UnitOperationBase):
         ----------
         t : float
             Time at which to evaluate the residual.
-        y : np.ndarray
-            Current state of the unit operation.
-        y_dot : np.ndarray
-            Current state derivative of the unit operation.
         residual : np.ndarray
             Residual of the unit operation.
 
         """
         # Inlet DOFs are simply copied to the residual.
         for i in range(self.n_dof_coupling):
-            residual[i] = y[i]
+            residual[i] = self.y[i]
 
 
 class Outlet(UnitOperationBase):
@@ -420,7 +475,7 @@ class Outlet(UnitOperationBase):
         'entries': {'c': 'n_comp', 'viscosity': 1},
         'n_inlet_ports': 1,
     }
-    _states = ['inlet']
+    _state_structures = ['inlet']
 
     def compute_residual(
             self,
@@ -463,7 +518,7 @@ class Cstr(UnitOperationBase):
         'entries': {'c': 'n_comp', 'viscosity': 1, 'Volume': 1},
         'n_outlet_ports': 1,
     }
-    _states = ['inlet', 'bulk']
+    _state_structures = ['inlet', 'bulk']
 
     def compute_residual(
             self,
@@ -526,7 +581,7 @@ class DeadEndFiltration(UnitOperationBase):
         'entries': {'c': 'n_comp', 'viscosity': 1, 'Volume': 1},
         'n_outlet_ports': 1,
     }
-    _states = ['retentate', 'permeate']
+    _state_structures = ['retentate', 'permeate']
 
     rejection_model = Typed(ty=RejectionBase)
     cake_compressibility_model = Typed(ty=CakeCompressibilityBase)
@@ -611,7 +666,7 @@ class CrossFlowFiltration(UnitOperationBase):
         'entries': {'c': 'n_comp', 'viscosity': 1, 'Volume': 1},
         'n_outlet_ports': 1,
     }
-    _states = ['retentate', 'permeate']
+    _state_structures = ['retentate', 'permeate']
 
     rejection_model = Typed(ty=RejectionBase)
 
@@ -682,7 +737,7 @@ class _2DGRM(UnitOperationBase):
         'entries': {'c': 'n_comp'},
         'n_outlet_ports': 1,
     }
-    _states = ['bulk', 'particle', 'flux']
+    _state_structures = ['bulk', 'particle', 'flux']
 
     def compute_residual(
             self,

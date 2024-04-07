@@ -27,7 +27,8 @@ class UnitOperationFixture(UnitOperationBase):
             component_system = TwoComponentFixture()
         super().__init__(component_system, name, *args, **kwargs)
 
-        self.initialize_state()
+        self.initialize()
+        self.add_section()
 
     def add_section(self, *args, **kwargs):
         pass
@@ -51,10 +52,10 @@ class InletFixture(UnitOperationFixture, Inlet):
 
         self.viscosity = viscosity
 
-    def add_section(self, c=None, start=0, end=1):
-        if c is None:
-            c = self.c
-        self.update_section_dependent_parameters(start, end, {'c': c})
+    def add_section(self, c_poly=None, start=0, end=1):
+        if c_poly is None:
+            c_poly = self.c_poly
+        self.update_section_dependent_parameters(start, end, {'c_poly': c_poly})
 
 
 class OutletFixture(UnitOperationFixture, Outlet):
@@ -116,114 +117,93 @@ class _2DGRMFixture(UnitOperationFixture, _2DGRM):
         (
             InletFixture(),
             {
-                'state_structure': {
-                    'outlet': {
-                        'dimensions': (1,),
-                        'structure': {'c': 2, 'viscosity': 1}
-                    },
-                },
+                'n_inlet_ports': 0,
+                'n_outlet_ports': 1,
                 'n_dof': 3,
                 'y_split': {
-                    'outlet': [0, 1, 2],
+                    'outlet': [0., 1., 2.],
                 },
                 'outlet_state': {
-                    0: [3, 4, 5],
+                    0: {
+                        'c': [0., 1.],
+                        'viscosity': [2.]
+                    },
                 },
-            }
+            },
+
         ),
         (
             OutletFixture(),
             {
-                'state_structure': {
-                    'inlet': {
-                        'dimensions': (1,),
-                        'structure': {'c': 2, 'viscosity': 1}
-                    },
-                },
+                'n_inlet_ports': 1,
+                'n_outlet_ports': 0,
                 'n_dof': 3,
                 'y_split': {
-                    'inlet': [0, 1, 2],
+                    'inlet': [0., 1., 2.],
+                },
+                'inlet_state': {
+                    0: {
+                        'slice': np.s_[:],
+                        'value': [.1, .2, .3],
+                    },
                 },
             },
         ),
         (
             CstrFixture(),
             {
-                'state_structure': {
-                    'inlet': {
-                        'dimensions': (1,),
-                        'structure': {'c': 2, 'viscosity': 1},
-                    },
-                    'bulk': {
-                        'dimensions': (1,),
-                        'structure': {'c': 2, 'viscosity': 1, 'V': 1},
-                    },
-                },
+                'n_inlet_ports': 1,
+                'n_outlet_ports': 1,
                 'n_dof': 7,
                 'y_split': {
-                    'inlet': [0, 1, 2],
-                    'bulk': [3, 4, 5, 6],
-                },
-                'split_state': {
-                    'inlet': {'c': [[0, 1]], 'viscosity': [[2]]},
-                    'bulk': {'c': [[3, 4]], 'viscosity': [[5]], 'V': [[6]]},
+                    'inlet': [0., 1., 2.],
+                    'bulk': [3., 4., 5., 6.],
                 },
                 'inlet_state': {
-                    0: [0, 0, 0, 3, 4, 5, 6],
+                    0: {
+                        'slice': np.s_[:],
+                        'value': [.1, .2, .3, 3., 4., 5., 6.],
+                    },
                 },
                 'outlet_state': {
-                    0: [3, 4, 5],
+                    0: {
+                        'c': [3., 4.],
+                        'viscosity': [5.],
+                        'Volume': [6.],
+                    },
                 },
             },
         ),
         (
             DeadEndFiltrationFixture(),
             {
-                'state_structure': {
-                    'inlet': {
-                        'dimensions': (1,),
-                        'structure': {'c': 2, 'viscosity': 1}
-                    },
-                    'retentate': {
-                        'dimensions': (1,),
-                        'structure': {'Rc': 1, 'mc': 2, 'Vp': 1}
-                    },
-                    'permeate': {
-                        'dimensions': (1,),
-                        'structure': {'c': 2, 'viscosity': 1}
-                    }
-                },
+                'n_inlet_ports': 1,
+                'n_outlet_ports': 1,
                 'n_dof': 10,
                 'y_split': {
-                    'retentate': [0, 1, 2, 3, 4, 5],
-                    'permeate': [6, 7, 8, 9],
-                },
-                'split_state': {
-                    'inlet': {'c': [[0, 1]], 'viscosity': [[2]]},
-                    'retentate': {'Rc': [[3]], 'mc': [[4, 5]], 'Vp': [[6]]},
-                    'permeate': {'c': [[7, 8]], 'viscosity': [[9]]},
+                    'retentate': [0., 1., 2., 3., 4., 5.],
+                    'permeate': [6., 7., 8., 9.],
                 },
                 'inlet_state': {
-                    0: [0, 0, 0, 3, 4, 5, 6, 7, 8, 9],
+                    0: {
+                        'slice': np.s_[:],
+                        'value': [.1, .2, .3, 3., 4., 5., 6., 7., 8., 9.],
+                    },
                 },
                 'outlet_state': {
-                    0: [7, 8, 9],
+                    0: {
+                        'c': [6., 7.],
+                        'viscosity': [8.],
+                        'Volume': [9.],
+                    },
                 },
             },
         ),
         (
             CrossFlowFiltrationFixture(),
             {
-                'state_structure': {
-                    'retentate': {
-                        'dimensions': (10,),
-                        'structure': {'c': 2, 'viscosity': 1, 'volume': 1},
-                    },
-                    'permeate': {
-                        'dimensions': (10,),
-                        'structure': {'c': 2, 'viscosity': 1, 'volume': 1},
-                    },
-                },
+                'n_inlet_ports': 1,
+                'n_outlet_ports': 2,
                 'n_dof': 80,
                 'y_split': {
                     'retentate': [
@@ -251,92 +231,31 @@ class _2DGRMFixture(UnitOperationFixture, _2DGRM):
                         [76, 77, 78, 79],
                     ],
                 },
-                'split_state': {
-                    'retentate': {
-                        'c': [
-                            [ 0,  1],
-                            [ 3,  4],
-                            [ 6,  7],
-                            [ 9, 10],
-                            [12, 13],
-                            [15, 16],
-                            [18, 19],
-                            [21, 22],
-                            [24, 25],
-                            [27, 28]
-                        ],
-                        'viscosity': [
-                            [ 2],
-                            [ 5],
-                            [ 8],
-                            [11],
-                            [14],
-                            [17],
-                            [20],
-                            [23],
-                            [26],
-                            [29]
-                        ]
-                    },
-                    'permeate': {
-                        'c': [
-                            [30, 31],
-                            [33, 34],
-                            [36, 37],
-                            [39, 40],
-                            [42, 43],
-                            [45, 46],
-                            [48, 49],
-                            [51, 52],
-                            [54, 55],
-                            [57, 58]
-                        ],
-                        'viscosity': [
-                            [32],
-                            [35],
-                            [38],
-                            [41],
-                            [44],
-                            [47],
-                            [50],
-                            [53],
-                            [56],
-                            [59]
-                        ],
-                    },
-                },
                 'inlet_state': {
-                    0: [
-                        0,  0,  0,  3,  4,  5,  6,  7,  8,  9,
-                        10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-                        20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
-                        30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
-                        40, 41, 42, 43, 44, 45, 46, 47, 48, 49,
-                        50, 51, 52, 53, 54, 55, 56, 57, 58, 59
-                    ],
+                    0: {
+                        'slice': np.s_[0:10],
+                        'value': [.1, .2, .3, 3., 4., 5., 6., 7., 8., 9.],
+                    },
                 },
                 'outlet_state': {
-                    0: [30, 31, 32],
-                    1: [57, 58, 59],
+                    0: {
+                        'c': [36., 37.],
+                        'viscosity': [38.],
+                        'Volume': [39.],
+                    },
+                    1: {
+                        'c': [76., 77.],
+                        'viscosity': [78.],
+                        'Volume': [79.],
+                    },
                 },
             },
         ),
         # (
         #     _2DGRMFixture(),
         #     {
-        #         'state_structure': {
-        #             'bulk': {
-        #                 'dimensions': (10, 3),
-        #                 'structure': {'c': 2, 'viscosity': 1}
-        #             },
-        #             'particle': {
-        #                 'dimensions': (10, 3, 5),
-        #                 'structure': {'c': 2, 'viscosity': 1, 'q': 2}
-        #             },
-        #             'flux': {
-        #                 'dimensions': (10, 3), 'structure': {'c': 2}
-        #             },
-        #         },
+        #         'n_inlet_ports': 3,
+        #         'n_outlet_ports': 3,
         #         'n_dof': 900,
         #         'y_split': {
         #             'retentate': [
@@ -370,37 +289,45 @@ class _2DGRMFixture(UnitOperationFixture, _2DGRM):
 )
 class TestUnitStateStructure:
 
-    def test_state_structure(self, unit_operation, expected):
-        # assert unit_operation.state_structure == expected['state_structure']
+    def test_state_structure(self, unit_operation: UnitOperationBase, expected: dict):
+        assert unit_operation.n_inlet_ports == expected['n_inlet_ports']
+        assert unit_operation.n_outlet_ports == expected['n_outlet_ports']
         assert unit_operation.n_dof == expected['n_dof']
 
     def test_y_split(self, unit_operation, expected):
-        y_new = np.arange(unit_operation.n_dof)
-        unit_operation.y_flat = y_new
+        y_new = np.arange(unit_operation.n_dof, dtype=float)
+        unit_operation.y = y_new
 
         for name, state in unit_operation.y_split.items():
             np.testing.assert_equal(state.y, expected['y_split'][name])
 
-    def test_set_inlet_state(self, unit_operation, expected):
-        if isinstance(unit_operation, Inlet):
-            return
-        y = np.arange(unit_operation.n_dof)
-        s = np.ones(unit_operation.n_dof_coupling)
-        for i_port in range(unit_operation.n_inlet_ports):
-            unit_operation.set_inlet_state(y, i_port*s, i_port)
-            np.testing.assert_equal(y, expected['inlet_state'][i_port])
+    def test_set_inlet_state(self, unit_operation: UnitOperationBase, expected: dict):
+        s_in = {
+            'c': [.1, .2],
+            'viscosity': [.3],
+        }
+        if unit_operation.n_inlet_ports == 0:
+            with pytest.raises(Exception):
+                unit_operation.set_inlet_port_state(s_in, 0)
+        else:
+            for port in range(unit_operation.n_inlet_ports):
+                unit_operation.set_inlet_state_flat(s_in, port)
 
-    def test_get_outlet_state(self, unit_operation, expected):
-        if isinstance(unit_operation, Outlet):
-            return
+                slice_information = expected['inlet_state'][port]
+                state_slice = unit_operation.y[slice_information['slice']]
+                np.testing.assert_array_equal(state_slice, slice_information['value'])
 
-        y = np.arange(unit_operation.n_dof)
-        for i_port in range(unit_operation.n_inlet_ports):
-            s = unit_operation.get_outlet_state(y, i_port)
-            np.testing.assert_equal(s, expected['outlet_state'][i_port])
+    def test_get_outlet_state(self, unit_operation: UnitOperationBase, expected: dict):
+        if unit_operation.n_outlet_ports == 0:
+            with pytest.raises(Exception):
+                unit_operation.get_outlet_port_state(0)
+        else:
+            for port in range(unit_operation.n_outlet_ports):
+                s_out = unit_operation.get_outlet_state_flat(port)
+                np.testing.assert_equal(s_out, expected['outlet_state'][port])
 
-    def test_initialize_state(self, unit_operation, expected):
-        unit_operation.initialize_state()
+    def test_initialize(self, unit_operation: UnitOperationBase, expected: dict):
+        unit_operation.initialize()
 
 # %% TODO: Unit operation residual
 
@@ -411,21 +338,21 @@ class TestUnitStateStructure:
             InletFixture(),
             {
                 'expected_residual': {
-                    },
+                },
             },
         ),
         (
             OutletFixture(),
             {
                 'expected_residual': {
-                    },
+                },
             },
         ),
         (
             CstrFixture(),
             {
                 'expected_residual': {
-                    },
+                },
             },
         ),
         # (
@@ -453,10 +380,8 @@ class TestUnitStateStructure:
 )
 class TestUnitResidual():
 
-    def test_unit_residual(self, unit_operation, expected):
+    def test_unit_residual(self, unit_operation: UnitOperationBase, expected: dict):
         """Test the residual of unit operations."""
-        unit_operation.add_section()
-
         y = np.arange(unit_operation.n_dof)
         y_dot = 2 * y
         residual = np.zeros((unit_operation.n_dof,))
