@@ -5,57 +5,57 @@ import numpy as np
 from scikits.odes.dae import dae
 
 from CADETProcess.dataStructure import Structure
-# from CADETProcess.dataStructure import ()
+from CADETPythonSimulator.exception import NotInitializedError
 from CADETPythonSimulator.unit_operation import UnitOperationBase
 
 
 class SystemSolver(Structure):
-    def __init__(self, units: List[UnitOperationBase], sections: List[dict]):
+    def __init__(self, unit_operations: List[UnitOperationBase], sections: List[dict]):
         self.initialize_solver()
 
-        self._setup_units(units)
+        self._setup_unit_operations(unit_operations)
         self._setup_sections(sections)
 
-    def _setup_units(self, units):
-        self.units = units
+    def _setup_unit_operations(self, unit_operations):
+        self.unit_operations: List[UnitOperationBase] = unit_operations
 
-        self.units_dict = {}
-        for unit in self.units:
-            self.units_dict[str(unit)] = unit
+        self.unit_operations_dict: Dict[str, UnitOperationBase] = {}
+        for unit in self.unit_operations:
+            self.unit_operations_dict[str(unit)] = unit
 
-        self.unit_slices = {}
+        self.unit_slices: Dict[UnitOperationBase, slice] = {}
         start_index = 0
-        for unit in self.units:
+        for unit in self.unit_operations:
             end_index = start_index + unit.n_dof
             self.unit_slices[unit] = slice(start_index, end_index)
             start_index = end_index
 
         # Dict with [origin_index]{unit, port}
-        origin_index_units = ADict()
-        # Nested dict with [units][ports]: origin_index in connectivity matrix
+        origin_index_unit_operations = ADict()
+        # Nested dict with [unit_operations][ports]: origin_index in connectivity matrix
         origin_unit_ports = ADict()
         origin_counter = 0
-        for i_unit, unit in enumerate(self.units):
+        for i_unit, unit in enumerate(self.unit_operations):
             for port in range(unit.n_outlet_ports):
                 origin_unit_ports[i_unit][port] = origin_counter
-                origin_index_units[origin_counter] = {'unit': i_unit, 'port': port}
+                origin_index_unit_operations[origin_counter] = {'unit': i_unit, 'port': port}
                 origin_counter += 1
         self.origin_unit_ports = origin_unit_ports
-        self.origin_index_units = origin_index_units
+        self.origin_index_unit_operations = origin_index_unit_operations
         self.n_origin_ports = origin_counter
 
         # Dict with [origin_index]{unit, port}
-        destination_index_units = ADict()
-        # Nested dict with [units][ports]: destination_index in connectivity matrix
+        destination_index_unit_operations = ADict()
+        # Nested dict with [unit_operations][ports]: destination_index in connectivity matrix
         destination_unit_ports = ADict()
         destination_counter = 0
-        for i_unit, unit in enumerate(self.units):
+        for i_unit, unit in enumerate(self.unit_operations):
             for port in range(unit.n_inlet_ports):
                 destination_unit_ports[i_unit][port] = destination_counter
-                destination_index_units[destination_counter] = {'unit': i_unit, 'port': port}
+                destination_index_unit_operations[destination_counter] = {'unit': i_unit, 'port': port}
                 destination_counter += 1
         self.destination_unit_ports = destination_unit_ports
-        self.destination_index_units = destination_index_units
+        self.destination_index_unit_operations = destination_index_unit_operations
         self.n_destination_ports = destination_counter
 
     def _setup_sections(self, sections):
@@ -64,9 +64,106 @@ class SystemSolver(Structure):
         self.sections = sections
 
     @property
-    def n_dof_system(self) -> NoReturn:
-        """int: Number of degrees of freedom of the system."""
-        return sum([unit.n_dof for unit in self.units])
+    def unit_operations(self) -> list[UnitOperationBase]:
+        """list: Unit operations of the system."""
+        return self._unit_operations
+
+    @property
+    def unit_operations_dict(self) -> dict[str, UnitOperationBase]:
+        """dict: Unit operations, indexed by name."""
+        return {
+            unit_operation.name: unit_operation
+            for unit_operation in self.unit_operations
+        }
+
+    @property
+    def n_dof(self) -> int:
+        """int: Total number of degrees of freedom."""
+        return sum([unit_operation.n_dof for unit_operation in self.unit_operations])
+
+    @property
+    def residual(self):
+        """np.ndarray: Residual array flattened into one dimension."""
+        return np.concatenate(
+            [unit_operation.residual for unit_operation in self.unit_operations]
+        )
+
+    @residual.setter
+    def residual(self, residual: np.ndarray) -> NoReturn:
+        start_index = 0
+        for unit_operation in self.unit_operations:
+            end_index = start_index + unit_operation.n_dof
+            unit_operation.y = residual[start_index:end_index]
+            start_index = end_index
+
+    @property
+    def residual_split(self) -> dict[str, np.ndarray]:
+        """dict: Unit operations residual arrays mapped to unit operation names."""
+        return {
+            name: unit_operation.residual
+            for name, unit_operation in self.unit_operations_dict.items()
+        }
+
+    @residual_split.setter
+    def residual_split(self, residual_split: dict[str, np.ndarray]):
+        for name, unit_operation in self.unit_operations_dict.items():
+            unit_operation.residual = residual_split[name]
+
+    @property
+    def y(self) -> np.ndarray:
+        """np.ndarray: State array flattened into one dimension."""
+        return np.concatenate(
+            [unit_operation.y for unit_operation in self.unit_operations]
+        )
+
+    @y.setter
+    def y(self, y: np.ndarray) -> NoReturn:
+        start_index = 0
+        for unit_operation in self.unit_operations:
+            end_index = start_index + unit_operation.n_dof
+            unit_operation.y = y[start_index:end_index]
+            start_index = end_index
+
+    @property
+    def y_split(self) -> dict[str, np.ndarray]:
+        """dict: Unit operations state arrays mapped to unit operation names."""
+        return {
+            name: unit_operation.y
+            for name, unit_operation in self.unit_operations_dict.items()
+        }
+
+    @y_split.setter
+    def y_split(self, y_split: dict[str, np.ndarray]):
+        for name, unit_operation in self.unit_operations_dict.items():
+            unit_operation.y = y_split[name]
+
+    @property
+    def y_dot(self) -> np.ndarray:
+        """np.ndarray: State derivative array flattened into one dimension."""
+        return np.concatenate(
+            [unit_operation.y_dot for unit_operation in self.unit_operations]
+        )
+
+    @y_dot.setter
+    def y_dot(self, y_dot: np.ndarray) -> NoReturn:
+        start_index = 0
+        for unit_operation in self.unit_operations:
+            end_index = start_index + unit_operation.n_dof
+            unit_operation.y_dot = y_dot[start_index:end_index]
+            start_index = end_index
+
+    @property
+    def y_dot_split(self) -> dict[str, np.ndarray]:
+        """dict: Unit operations state derivative arrays mapped to unit operation names."""
+        return {
+            name: unit_operation.y_dot
+            for name, unit_operation in self.unit_operations_dict.items()
+        }
+
+    @y_dot_split.setter
+    def y_dot_split(self, y_dot_split: dict[str, np.ndarray]):
+        for name, unit_operation in self.unit_operations_dict.items():
+            unit_operation.y_dot = y_dot_split[name]
 
     def initialize_solver(self, solver: str = 'ida') -> NoReturn:
         """
@@ -84,15 +181,16 @@ class SystemSolver(Structure):
 
     def initialize_solution_recorder(self) -> NoReturn:
         """
-        Initialize the solution recorder for all units.
+        Initialize the solution recorder for all unit_operations.
 
         Iterates over each unit in the system and initializes an empty numpy array for
         each state variable within the unit. The structure and size of the array for
         each state variable are determined by the unit's state structure.
         """
-        self.unit_solutions = ADict()
+        self.unit_solutions: Dict[UnitOperationBase, dict] = {}
 
-        for unit in self.units:
+        for unit in self.unit_operations:
+            self.unit_solutions[unit]: Dict[str, np.ndarray] = {}
             for state, size in unit.state_structure.items():
                 self.unit_solutions[unit][state] = np.empty((0, size))
                 self.unit_solutions[unit][f"{state}_dot"] = np.empty((0, size))
@@ -149,7 +247,7 @@ class SystemSolver(Structure):
                 section.end,
                 section.section_states,
             )
-            self.couple_units(
+            self.couple_unit_operations(
                 section.connections,
                 y_initial,
                 y_initial_dot
@@ -169,7 +267,7 @@ class SystemSolver(Structure):
         """
         Gather initial conditions for all unit operations.
 
-        Iterates over the units in the system, collecting their initial states
+        Iterates over the unit_operations in the system, collecting their initial states
         and initial derivatives of states, and returns them as NumPy arrays.
 
         Returns
@@ -178,8 +276,8 @@ class SystemSolver(Structure):
             A tuple containing two NumPy arrays: the first for initial states (y0)
             and the second for the derivatives of these states (y0dot).
         """
-        y0 = [unit.initial_state for unit in self.units]
-        y0dot = [unit.initial_state_dot for unit in self.units]
+        y0 = [unit.initial_state for unit in self.unit_operations]
+        y0dot = [unit.initial_state_dot for unit in self.unit_operations]
 
         return np.array(y0), np.array(y0dot)
 
@@ -279,11 +377,35 @@ class SystemSolver(Structure):
         for unit, parameters in section_states.items():
             # TODO: Check if unit is part of SystemSolver
             if isinstance(unit, str):
-                unit = self.units_dict[unit]
+                unit = self.unit_operations_dict[unit]
 
             unit.update_section_dependent_parameters(start, end, parameters)
 
-    def couple_units(
+    # @property
+    # def port_mapping(self) -> Dict[int, str]:
+    #     """dict: Mapping of port indices to corresponding state entries."""
+    #     # TODO: Let this be handled by the SystemSolver?
+    #     port_mapping = defaultdict(dict)
+
+    #     counter = 0
+    #     for mapped_state, n_ports in self.inlet_ports.items():
+    #         for port in range(n_ports):
+    #             port_mapping['inlet'][counter] = {}
+    #             port_mapping['inlet'][counter]['mapped_state'] = mapped_state
+    #             port_mapping['inlet'][counter]['port_index'] = port
+    #             counter += 1
+
+    #     counter = 0
+    #     for mapped_state, n_ports in self.outlet_ports.items():
+    #         for port in range(n_ports):
+    #             port_mapping['outlet'][counter] = {}
+    #             port_mapping['outlet'][counter]['mapped_state'] = mapped_state
+    #             port_mapping['outlet'][counter]['port_index'] = port
+    #             counter += 1
+
+    #     return dict(port_mapping)
+
+    def couple_unit_operations(
             self,
             connections: list,
             y_initial: np.ndarray,
@@ -308,8 +430,8 @@ class SystemSolver(Structure):
             if Q_destination_total == 0:
                 continue
 
-            destination_info = self.destination_index_units[destination_port_index]
-            destination_unit = self.units[destination_info['unit']]
+            destination_info = self.destination_index_unit_operations[destination_port_index]
+            destination_unit = self.unit_operations[destination_info['unit']]
             destination_port = destination_info['port']
 
             s_new = np.zeros((destination_unit.n_dof_coupling,))
@@ -317,8 +439,8 @@ class SystemSolver(Structure):
                 if Q_destination == 0:
                     continue
 
-                origin_info = self.origin_index_units[origin_port_index]
-                origin_unit = self.units[origin_info['unit']]
+                origin_info = self.origin_index_unit_operations[origin_port_index]
+                origin_unit = self.unit_operations[origin_info['unit']]
                 origin_port = origin_info['port']
 
                 y_origin_unit = y_initial[self.unit_slices[origin_unit]]
