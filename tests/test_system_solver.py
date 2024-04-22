@@ -65,7 +65,7 @@ class SystemSolverFixture(SystemSolver):
         (
             SystemSolverFixture(),
             {
-                'n_dof_system': 16,
+                'n_dof': 16,
                 'unit_slices': {
                     'inlet': slice(0, 3, None),
                     'dead_end_filtration': slice(3, 13, None),
@@ -143,7 +143,7 @@ class TestSystemSolverStateStructure():
 
     def test_state_structure(self, system_solver, expected):
         """Test the system state."""
-        assert system_solver.n_dof_system == expected['n_dof_system']
+        assert system_solver.n_dof == expected['n_dof']
         # Transform keys to unit objects
         expected_slices = {
             system_solver.units_dict[unit]: value
@@ -155,7 +155,7 @@ class TestSystemSolverStateStructure():
         """Test the solution recorder."""
         system_solver.initialize_solution_recorder()
 
-        solution = np.arange(system_solver.n_dof_system)
+        solution = np.arange(system_solver.n_dof)
         system_solver.write_solution(solution, 2 * solution)
         system_solver.write_solution(2 * solution, 4 * solution)
 
@@ -224,10 +224,10 @@ class TestSystemConnectivity():
             expected_state
             ):
 
-        y = np.arange(system_solver.n_dof_system)
+        y = np.arange(system_solver.n_dof)
         y_dot = 2 * y
 
-        system_solver.couple_units(connections, y, y_dot)
+        system_solver.couple_unit_operations(connections, y, y_dot)
         np.testing.assert_almost_equal(y, expected_state)
 
 # %% TODO: System Residual
