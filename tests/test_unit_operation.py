@@ -1,3 +1,5 @@
+from typing import NoReturn
+
 import numpy as np
 import pytest
 
@@ -331,28 +333,48 @@ class TestUnitStateStructure:
 
 # %% TODO: Unit operation residual
 
+
 @pytest.mark.parametrize(
-    "unit_operation, expected",
+    "unit_operation, case, expected",
     [
+        # (
+        #     InletFixture(),
+        #     {
+        #         'expected_residual': {
+        #         },
+        #     },
+        # ),
+        # (
+        #     OutletFixture(),
+        #     {
+        #         'expected_residual': {
+        #         },
+        #     },
+        # ),
         (
-            InletFixture(),
+            CstrFixture(),
             {
-                'expected_residual': {
-                },
+                'y': [0, 0, 1, 2, 1],
+                'y_dot': [0, 0, 0, 0, 0],
+                'Q_in': 0,
+                'Q_out': 0,
+                't': 0,
             },
-        ),
-        (
-            OutletFixture(),
             {
-                'expected_residual': {
-                },
+                'residual': [0, 0, 0, 0, 0]
             },
         ),
         (
             CstrFixture(),
             {
-                'expected_residual': {
-                },
+                'y': [1, 2, 1, 2, 1],
+                'y_dot': [0, 0, 0, 0, 0],
+                'Q_in': 0,
+                'Q_out': 0,
+                't': 0,
+            },
+            {
+                'residual': [1, 2, 0, 0, 0]
             },
         ),
         # (
@@ -380,13 +402,19 @@ class TestUnitStateStructure:
 )
 class TestUnitResidual():
 
-    def test_unit_residual(self, unit_operation: UnitOperationBase, expected: dict):
+    def test_unit_residual(
+            self,
+            unit_operation: UnitOperationBase,
+            case: dict,
+            expected: dict,
+            ) -> NoReturn:
         """Test the residual of unit operations."""
-        y = np.arange(unit_operation.n_dof)
-        y_dot = 2 * y
-        residual = np.zeros((unit_operation.n_dof,))
-        t = 0
-        unit_operation.compute_residual(t, y, y_dot, residual)
+        unit_operation.y = case['y']
+        unit_operation.y_dot = case['y_dot']
+
+        unit_operation.compute_residual(case['t'])
+
+        np.testing.assert_almost_equal(unit_operation.residual, expected['residual'])
 
 
 # %% Run tests

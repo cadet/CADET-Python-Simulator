@@ -23,10 +23,10 @@ class UnitOperationBase(Structure):
 
     Attributes
     ----------
-    name: str
-        Name of the unit operation
     component_system : ComponentSystem
         Component system
+    name: str
+        Name of the unit operation
 
     """
 
@@ -523,9 +523,6 @@ class Cstr(UnitOperationBase):
     def compute_residual(
             self,
             t: float,
-            y: np.ndarray,
-            y_dot: np.ndarray,
-            residual: np.ndarray,
             ) -> NoReturn:
         """
         Calculate the residual of the unit operation at time `t`.
@@ -534,25 +531,24 @@ class Cstr(UnitOperationBase):
         ----------
         t : float
             Time at which to evaluate the residual.
-        y : np.ndarray
-            Current state of the unit operation.
-        y_dot : np.ndarray
-            Current state derivative of the unit operation.
-        residual : np.ndarray
-            Residual of the unit operation.
-
         """
+        c_in = self.y[0:self.n_comp]
+        c_in_dot = self.y_dot[0:self.n_comp]
+
+        c = self.y[self.n_comp, 2*self.n_comp]
+        c_dot = self.y_dot[self.n_comp, 2*self.n_comp]
+
+        V = self.y[-1]
+        V_dot = self.y_dot[-1]
+
         # Handle inlet DOFs, which are simply copied to the residual
-        for i in range(self.n_inlet_ports):
-            residual[i] = y[i]
+        self.residual[0: self.n_comp] = c_in
 
-        v = None
-        v_dot = None
-        offset = self.n_dof_coupling
-        for i in range(self.n_dof):
-            residual[offset + i] = y_dot[i] * v + v_dot * y[i]
+        # TODO: What about Q_in / Q_out? How are they passed to the unit operation?
+        for i in self.range(self.n_comp):
+            self.residual[self.n_comp + i] = c_dot[i] * V + V_dot * c[i] - Q_in * c_in[i] + Q_out * c[i]
 
-        raise NotImplementedError()
+        self.residual[-1] = V_dot - Q_in + Q_out
 
 
 class DeadEndFiltration(UnitOperationBase):
