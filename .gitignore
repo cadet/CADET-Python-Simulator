@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints
+debug*
+*.h5
+*.egg-info
