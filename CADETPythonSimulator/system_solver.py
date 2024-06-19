@@ -187,9 +187,9 @@ class SystemSolver(Structure):
 
         for unit in self.unit_operations:
             self.unit_solutions[unit]: dict[str, np.ndarray] = {}
-            for state, size in unit.state_structure.items():
-                self.unit_solutions[unit][state] = np.empty((0, size))
-                self.unit_solutions[unit][f"{state}_dot"] = np.empty((0, size))
+            for state_name, state in unit.states_dict.items():
+                self.unit_solutions[unit][state_name] = np.empty((0, *state.shape))
+                self.unit_solutions[unit][f"{state_name}_dot"] = np.empty((0, *state.shape))
 
     def write_solution(self, y: np.ndarray, y_dot: np.ndarray) -> NoReturn:
         """
@@ -207,21 +207,21 @@ class SystemSolver(Structure):
             The current complete derivative of the system's state as a NumPy array.
         """
         for unit, unit_slice in self.unit_slices.items():
-            current_state = unit.split_state(y[unit_slice])
+            current_state = unit.y_split
 
             for state, value in current_state.items():
                 previous_states = self.unit_solutions[unit][state]
                 self.unit_solutions[unit][state] = np.vstack((
                     previous_states,
-                    value.reshape((1, previous_states.shape[-1]))
+                    value.y.reshape((1, previous_states.shape[-1]))
                 ))
 
-            current_state_dot = unit.split_state(y_dot[unit_slice])
+            current_state_dot = unit.y_dot_split
             for state, value in current_state_dot.items():
                 previous_states_dot = self.unit_solutions[unit][f"{state}_dot"]
                 self.unit_solutions[unit][f"{state}_dot"] = np.vstack((
                     previous_states_dot,
-                    value.reshape((1, previous_states_dot.shape[-1]))
+                    value.y.reshape((1, previous_states_dot.shape[-1]))
                 ))
 
     def solve(self) -> NoReturn:

@@ -146,7 +146,7 @@ class TestSystemSolverStateStructure():
         assert system_solver.n_dof == expected['n_dof']
         # Transform keys to unit objects
         expected_slices = {
-            system_solver.units_dict[unit]: value
+            system_solver.unit_operations_dict[unit]: value
             for unit, value in expected['unit_slices'].items()
         }
         np.testing.assert_equal(system_solver.unit_slices, expected_slices)
