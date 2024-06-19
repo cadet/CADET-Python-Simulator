@@ -94,7 +94,7 @@ class SystemSolver(Structure):
 
     @property
     def residual_split(self) -> dict[str, np.ndarray]:
-        """dict: Unit operations residual arrays mapped to unit operation names."""
+        """dict: Residual arrays mapped to unit operation names."""
         return {
             name: unit_operation.residual
             for name, unit_operation in self.unit_operations_dict.items()
@@ -122,7 +122,7 @@ class SystemSolver(Structure):
 
     @property
     def y_split(self) -> dict[str, np.ndarray]:
-        """dict: Unit operations state arrays mapped to unit operation names."""
+        """dict: State arrays mapped to unit operation names."""
         return {
             name: unit_operation.y
             for name, unit_operation in self.unit_operations_dict.items()
@@ -150,7 +150,7 @@ class SystemSolver(Structure):
 
     @property
     def y_dot_split(self) -> dict[str, np.ndarray]:
-        """dict: Unit operations state derivative arrays mapped to unit operation names."""
+        """dict: State derivative arrays mapped to unit operation names."""
         return {
             name: unit_operation.y_dot
             for name, unit_operation in self.unit_operations_dict.items()

@@ -14,7 +14,7 @@ from CADETPythonSimulator.unit_operation import (
 )
 
 
-# %% Unit Operation Fixtures (pytest)
+# %% Unit Operation Fixtures
 class TwoComponentFixture(ComponentSystem):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
