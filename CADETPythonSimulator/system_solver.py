@@ -228,7 +228,8 @@ class SystemSolver(Structure):
         """Simulate the system."""
         self.initialize_solution_recorder()
 
-        y_initial, y_initial_dot = self.get_initial_conditions()
+        y_initial = self.y
+        y_initial_dot = self.y_dot
         self.write_solution(y_initial, y_initial_dot)
 
         previous_end = self.sections[0].start
@@ -258,24 +259,6 @@ class SystemSolver(Structure):
 
             y_initial = y
             y_initial_dot = y_dot
-
-    def get_initial_conditions(self) -> tuple[np.ndarray, np.ndarray]:
-        """
-        Gather initial conditions for all unit operations.
-
-        Iterates over the unit_operations in the system, collecting their initial states
-        and initial derivatives of states, and returns them as NumPy arrays.
-
-        Returns
-        -------
-        tuple[np.ndarray, np.ndarray]
-            A tuple containing two NumPy arrays: the first for initial states (y0)
-            and the second for the derivatives of these states (y0dot).
-        """
-        y0 = [unit.initial_state for unit in self.unit_operations]
-        y0dot = [unit.initial_state_dot for unit in self.unit_operations]
-
-        return np.array(y0), np.array(y0dot)
 
     def solve_section(
             self,
