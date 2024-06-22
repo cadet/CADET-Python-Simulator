@@ -47,7 +47,7 @@ class UnitOperationBase(Structure):
 
         self._states = None
         self._state_derivatives = None
-        self._residual = None
+        self._residuals = None
 
         self._Q_in = None
         self._Q_out = None
@@ -61,6 +61,7 @@ class UnitOperationBase(Structure):
         """Initialize the unit operation state and residual."""
         self._states = []
         self._state_derivatives = []
+        self._residuals = []
         for state_block in self._state_structures:
             state_structure = getattr(self, state_block)
 
@@ -70,22 +71,20 @@ class UnitOperationBase(Structure):
             state_derivative = state_factory(self, state_block, **state_structure)
             self._state_derivatives.append(state_derivative)
 
-        self._residual = np.zeros(self.n_dof)
+            residual = state_factory(self, state_block, **state_structure)
+            self._residuals.append(residual)
 
         self._Q_in = np.zeros(self.n_inlet_ports)
         self._Q_out = np.zeros(self.n_outlet_ports)
 
     @property
-    def residual(self):
-        """np.ndarray: State derivative array blocks of the unit operation."""
-        if self._residual is None:
-            raise NotInitializedError("Unit operation state is not yet initialized.")
-
-        return self._residual
+    def n_dof(self) -> int:
+        """int: Total number of degrees of freedom."""
+        return sum([state.n_dof for state in self.states])
 
     @property
     def states(self) -> list[State]:
-        """list: State derivative array blocks of the unit operation."""
+        """list: State array blocks of the unit operation."""
         if self._states is None:
             raise NotInitializedError("Unit operation state is not yet initialized.")
 
@@ -95,11 +94,6 @@ class UnitOperationBase(Structure):
     def states_dict(self) -> dict[str, State]:
         """dict: State array blocks of the unit operation, indexed by name."""
         return {state.name: state for state in self.states}
-
-    @property
-    def n_dof(self) -> int:
-        """int: Total number of degrees of freedom."""
-        return sum([state.n_dof for state in self.states])
 
     @property
     def y(self) -> np.ndarray:
@@ -167,6 +161,42 @@ class UnitOperationBase(Structure):
     def y_dot_split(self, y_dot_split: dict[str, np.ndarray]):
         for name, state_derivative in self.states_dict.items():
             state_derivative.s = y_dot_split[name]
+
+    @property
+    def residuals(self) -> list[State]:
+        """list: Residual array blocks of the unit operation."""
+        if self._residuals is None:
+            raise NotInitializedError("Unit operation residual is not yet initialized.")
+
+        return self._residuals
+
+    @property
+    def residuals_dict(self) -> dict[str, State]:
+        """dict: Residual array blocks of the unit operation, indexed by name."""
+        return {residual.name: residual for residual in self.residuals}
+
+    @property
+    def residual(self) -> np.ndarray:
+        """np.ndarray: Residual array flattened into one dimension."""
+        return np.concatenate([residual.s_flat for residual in self.residuals])
+
+    @residual.setter
+    def residual(self, residual: np.ndarray) -> NoReturn:
+        start_index = 0
+        for residual in self.residuals:
+            end_index = start_index + residual.n_dof
+            residual.s_flat = residual[start_index:end_index]
+            start_index = end_index
+
+    @property
+    def residual_split(self) -> dict[str, np.ndarray]:
+        """dict: Residual arrays mapped to their state's names."""
+        return {name: residual for name, residual in self.residuals_dict.items()}
+
+    @residual_split.setter
+    def residual_split(self, residual_split: dict[str, np.ndarray]):
+        for name, residual in self.residuals_dict.items():
+            residual.s = residual_split[name]
 
     @property
     def Q_in(self) -> np.ndarray:
