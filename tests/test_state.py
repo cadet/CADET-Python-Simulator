@@ -352,7 +352,7 @@ class TestState():
         new_state = np.arange(state.n_dof, dtype=float).reshape(state.shape)
         state.s = new_state
 
-        np.testing.assert_array_equal(state.s_flat, new_state.flatten())
+        np.testing.assert_array_equal(state.s_flat, new_state.reshape(-1))
 
         s_split = state.s_split
         for entry, slice_information in expected['s_split'].items():

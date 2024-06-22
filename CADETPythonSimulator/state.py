@@ -98,7 +98,7 @@ class State(Structure):
     @property
     def s_flat(self) -> np.ndarray:
         """np.ndarray: Return the state array flattened into one dimension."""
-        return self.s.flatten()
+        return self.s.reshape(-1)
 
     @s_flat.setter
     def s_flat(self, s_flat: np.ndarray) -> NoReturn:
