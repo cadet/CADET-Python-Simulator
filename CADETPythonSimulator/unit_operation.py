@@ -544,28 +544,32 @@ class Cstr(UnitOperationBase):
         t : float
             Time at which to evaluate the residual.
         """
-        c_in = inlet_state.c
+        c_in = self.states['inlet']['c']
+        c_in_dot = self.state_derivatives['inlet']['c']
 
-        viscosity_in = inlet_state.viscosity
+        viscosity_in = self.states['inlet']['viscosity']
 
+        c = self.states['bulk']['c']
+        c_dot = self.state_derivatives['bulk']['c']
 
-        c_in = self.y[0:self.n_comp]
-        c_in_dot = self.y_dot[0:self.n_comp]
-
-        c = self.y[self.n_comp, 2*self.n_comp]
-        c_dot = self.y_dot[self.n_comp, 2*self.n_comp]
-
-        V = self.y[-1]
-        V_dot = self.y_dot[-1]
+        V = self.states['bulk']['Volume']
+        V_dot = self.state_derivatives['bulk']['Volume']
 
         # Handle inlet DOFs, which are simply copied to the residual
-        self.residual[0: self.n_comp] = c_in
+        self.residuals['inlet']['c'] = c_in
 
-        # TODO: What about Q_in / Q_out? How are they passed to the unit operation?
-        for i in self.range(self.n_comp):
-            self.residual[self.n_comp + i] = c_dot[i] * V + V_dot * c[i] - Q_in * c_in[i] + Q_out * c[i]
+        # Handle bulk/outlet DOFs
+        Q_in = self.Q_in[0]
+        Q_out = self.Q_out[0]
 
-        self.residual[-1] = V_dot - Q_in + Q_out
+        # for i in range(self.n_comp):
+        #     self.residuals['bulk']['c'][i] = c_dot[i] * V + V_dot * c[i] - Q_in * c_in[i] + Q_out * c[i]
+        # Alternative: Can we vectorize this?
+        self.residuals['bulk']['c'] = c_dot * V + V_dot * c - Q_in * c_in + Q_out * c
+
+        self.residuals['bulk']['Volume'] = V_dot - self.Q_in + Q_out
+
+        # TODO: What about viscosities?
 
 
 class DeadEndFiltration(UnitOperationBase):
