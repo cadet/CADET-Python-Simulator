@@ -61,13 +61,13 @@ class UnitOperationBase(Structure):
         """Initialize the unit operation state and residual."""
         self._states = []
         self._state_derivatives = []
-        for state in self._state_structures:
-            state_structure = getattr(self, state)
+        for state_block in self._state_structures:
+            state_structure = getattr(self, state_block)
 
-            state = state_factory(self, state, **state_structure)
+            state = state_factory(self, state_block, **state_structure)
             self._states.append(state)
 
-            state_derivative = state_factory(self, state, **state_structure)
+            state_derivative = state_factory(self, state_block, **state_structure)
             self._state_derivatives.append(state_derivative)
 
         self._residual = np.zeros(self.n_dof)

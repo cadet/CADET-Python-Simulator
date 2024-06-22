@@ -29,7 +29,7 @@ class State(Structure):
         The state array, initialized as zeros based on the computed shape.
     """
 
-    name = String
+    name = String()
     s = SizedNdArray(size='shape')
 
     def __init__(
