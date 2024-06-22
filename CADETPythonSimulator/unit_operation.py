@@ -53,114 +53,79 @@ class UnitOperationBase(Structure):
         self._Q_out = None
 
     @property
+    def n_dof(self) -> int:
+        """int: Total number of degrees of freedom."""
+        return sum([state.n_dof for state in self.states.values()])
+
+    @property
     def n_comp(self) -> int:
         """int: Number of components."""
         return self.component_system.n_comp
 
     def initialize(self) -> NoReturn:
         """Initialize the unit operation state and residual."""
-        self._states = []
-        self._state_derivatives = []
-        self._residuals = []
+        self._states = {}
+        self._state_derivatives = {}
+        self._residuals = {}
         for state_block in self._state_structures:
             state_structure = getattr(self, state_block)
 
             state = state_factory(self, state_block, **state_structure)
-            self._states.append(state)
+            self._states[state.name] = state
 
             state_derivative = state_factory(self, state_block, **state_structure)
-            self._state_derivatives.append(state_derivative)
+            self._state_derivatives[state_derivative.name] = state_derivative
 
             residual = state_factory(self, state_block, **state_structure)
-            self._residuals.append(residual)
+            self._residuals[residual.name] = residual
 
         self._Q_in = np.zeros(self.n_inlet_ports)
         self._Q_out = np.zeros(self.n_outlet_ports)
 
     @property
-    def n_dof(self) -> int:
-        """int: Total number of degrees of freedom."""
-        return sum([state.n_dof for state in self.states])
-
-    @property
-    def states(self) -> list[State]:
-        """list: State array blocks of the unit operation."""
+    def states(self) -> dict[str, State]:
+        """dict: State array blocks of the unit operation, indexed by name."""
         if self._states is None:
             raise NotInitializedError("Unit operation state is not yet initialized.")
 
         return self._states
 
     @property
-    def states_dict(self) -> dict[str, State]:
-        """dict: State array blocks of the unit operation, indexed by name."""
-        return {state.name: state for state in self.states}
-
-    @property
     def y(self) -> np.ndarray:
         """np.ndarray: State array flattened into one dimension."""
-        return np.concatenate([state.s_flat for state in self.states])
+        return np.concatenate([state.s_flat for state in self.states.values()])
 
     @y.setter
     def y(self, y: np.ndarray) -> NoReturn:
         start_index = 0
-        for state in self.states:
+        for state in self.states.values():
             end_index = start_index + state.n_dof
             state.s_flat = y[start_index:end_index]
             start_index = end_index
 
     @property
-    def y_split(self) -> dict[str, np.ndarray]:
-        """dict: State arrays mapped to their state's names."""
-        return {name: state for name, state in self.states_dict.items()}
-
-    @y_split.setter
-    def y_split(self, y_split: dict[str, np.ndarray]):
-        for name, state in self.states_dict.items():
-            state.s = y_split[name]
-
-    @property
-    def state_derivatives(self) -> list[State]:
-        """list: State derivative blocks of the unit operation."""
+    def state_derivatives(self) -> dict[str, State]:
+        """dict: State derivative array blocks of the unit operation, indexed by name."""
         if self._state_derivatives is None:
             raise NotInitializedError("Unit operation state is not yet initialized.")
 
         return self._state_derivatives
 
     @property
-    def state_derivatives_dict(self) -> dict[str, State]:
-        """dict: State derivative array blocks of the unit operation, indexed by name."""
-        return {
-            state_derivative.name: state_derivative
-            for state_derivative in self.state_derivatives
-        }
-
-    @property
     def y_dot(self) -> np.ndarray:
         """np.ndarray: State derivative array flattened into one dimension."""
-        return np.concatenate(
-            [state_derivative.s for state_derivative in self.state_derivatives]
-        )
+        return np.concatenate([
+                state_derivative.s_flat
+                for state_derivative in self.state_derivatives.values()
+        ])
 
     @y_dot.setter
     def y_dot(self, y_dot: np.ndarray) -> NoReturn:
         start_index = 0
-        for state_derivative in self.state_derivatives:
+        for state_derivative in self.state_derivatives.values():
             end_index = start_index + state_derivative.n_dof
-            state_derivative.s = y_dot[start_index:end_index]
+            state_derivative.s_flat = y_dot[start_index:end_index]
             start_index = end_index
-
-    @property
-    def y_dot_split(self) -> dict[str, np.ndarray]:
-        """dict: State derivative arrays mapped to their state's names."""
-        return {
-            name: state_derivative
-            for name, state_derivative in self.state_derivatives_dict.items()
-        }
-
-    @y_dot_split.setter
-    def y_dot_split(self, y_dot_split: dict[str, np.ndarray]):
-        for name, state_derivative in self.states_dict.items():
-            state_derivative.s = y_dot_split[name]
 
     @property
     def residuals(self) -> list[State]:
@@ -171,32 +136,19 @@ class UnitOperationBase(Structure):
         return self._residuals
 
     @property
-    def residuals_dict(self) -> dict[str, State]:
-        """dict: Residual array blocks of the unit operation, indexed by name."""
-        return {residual.name: residual for residual in self.residuals}
-
-    @property
-    def residual(self) -> np.ndarray:
+    def r(self) -> np.ndarray:
         """np.ndarray: Residual array flattened into one dimension."""
-        return np.concatenate([residual.s_flat for residual in self.residuals])
+        return np.concatenate([
+            residual.s_flat for residual in self.residuals.values()
+        ])
 
-    @residual.setter
-    def residual(self, residual: np.ndarray) -> NoReturn:
+    @r.setter
+    def r(self, r: np.ndarray) -> NoReturn:
         start_index = 0
-        for residual in self.residuals:
+        for residual in self.residuals.values():
             end_index = start_index + residual.n_dof
-            residual.s_flat = residual[start_index:end_index]
+            residual.s_flat = r[start_index:end_index]
             start_index = end_index
-
-    @property
-    def residual_split(self) -> dict[str, np.ndarray]:
-        """dict: Residual arrays mapped to their state's names."""
-        return {name: residual for name, residual in self.residuals_dict.items()}
-
-    @residual_split.setter
-    def residual_split(self, residual_split: dict[str, np.ndarray]):
-        for name, residual in self.residuals_dict.items():
-            residual.s = residual_split[name]
 
     @property
     def Q_in(self) -> np.ndarray:
@@ -235,25 +187,25 @@ class UnitOperationBase(Structure):
     def inlet_ports(self) -> dict[str, int]:
         """dict: Number of inlet ports per state."""
         return {
-            state.name: state.n_inlet_ports for state in self.states
+            state.name: state.n_inlet_ports for state in self.states.values()
         }
 
     @property
     def n_inlet_ports(self) -> int:
         """int: Number of inlet ports."""
-        return sum(state.n_inlet_ports for state in self.states)
+        return sum(state.n_inlet_ports for state in self.states.values())
 
     @property
     def outlet_ports(self) -> dict[str, int]:
         """dict: Number of outlet ports per state."""
         return {
-            state.name: state.n_outlet_ports for state in self.states
+            state.name: state.n_outlet_ports for state in self.states.values()
         }
 
     @property
     def n_outlet_ports(self) -> int:
         """int: Number of inlet ports."""
-        return sum(state.n_outlet_ports for state in self.states)
+        return sum(state.n_outlet_ports for state in self.states.values())
 
     @property
     def port_mapping(self) -> dict[int, str]:
@@ -302,10 +254,12 @@ class UnitOperationBase(Structure):
         ValueError
             If state is not found.
         """
-        if state not in self.states_dict:
+        try:
+            state = self.states[state]
+        except KeyError:
             raise ValueError(f"Unknown state {state}.")
 
-        self.states_dict[state].set_inlet_port_state(inlet_state, state_port_index)
+        state.set_inlet_port_state(inlet_state, state_port_index)
 
     def set_inlet_state_flat(
             self,
@@ -353,10 +307,12 @@ class UnitOperationBase(Structure):
         ValueError
             If state is not found.
         """
-        if state not in self.states_dict:
+        try:
+            state = self.states[state]
+        except KeyError:
             raise ValueError(f"Unknown state {state}.")
 
-        return self.states_dict[state].get_outlet_port_state(state_port_index)
+        return state.get_outlet_port_state(state_port_index)
 
     def get_outlet_state_flat(
             self,
@@ -588,6 +544,11 @@ class Cstr(UnitOperationBase):
         t : float
             Time at which to evaluate the residual.
         """
+        c_in = inlet_state.c
+
+        viscosity_in = inlet_state.viscosity
+
+
         c_in = self.y[0:self.n_comp]
         c_in_dot = self.y_dot[0:self.n_comp]
 

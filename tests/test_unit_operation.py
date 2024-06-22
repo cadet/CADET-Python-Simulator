@@ -122,7 +122,7 @@ class _2DGRMFixture(UnitOperationFixture, _2DGRM):
                 'n_inlet_ports': 0,
                 'n_outlet_ports': 1,
                 'n_dof': 3,
-                'y_split': {
+                'states': {
                     'outlet': [0., 1., 2.],
                 },
                 'outlet_state': {
@@ -140,7 +140,7 @@ class _2DGRMFixture(UnitOperationFixture, _2DGRM):
                 'n_inlet_ports': 1,
                 'n_outlet_ports': 0,
                 'n_dof': 3,
-                'y_split': {
+                'states': {
                     'inlet': [0., 1., 2.],
                 },
                 'inlet_state': {
@@ -157,7 +157,7 @@ class _2DGRMFixture(UnitOperationFixture, _2DGRM):
                 'n_inlet_ports': 1,
                 'n_outlet_ports': 1,
                 'n_dof': 7,
-                'y_split': {
+                'states': {
                     'inlet': [0., 1., 2.],
                     'bulk': [3., 4., 5., 6.],
                 },
@@ -182,7 +182,7 @@ class _2DGRMFixture(UnitOperationFixture, _2DGRM):
                 'n_inlet_ports': 1,
                 'n_outlet_ports': 1,
                 'n_dof': 10,
-                'y_split': {
+                'states': {
                     'retentate': [0., 1., 2., 3., 4., 5.],
                     'permeate': [6., 7., 8., 9.],
                 },
@@ -207,7 +207,7 @@ class _2DGRMFixture(UnitOperationFixture, _2DGRM):
                 'n_inlet_ports': 1,
                 'n_outlet_ports': 2,
                 'n_dof': 80,
-                'y_split': {
+                'states': {
                     'retentate': [
                         [ 0,  1,  2,  3],
                         [ 4,  5,  6,  7],
@@ -259,7 +259,7 @@ class _2DGRMFixture(UnitOperationFixture, _2DGRM):
         #         'n_inlet_ports': 3,
         #         'n_outlet_ports': 3,
         #         'n_dof': 900,
-        #         'y_split': {
+        #         'states': {
         #             'retentate': [
         #                 [ 0,  1,  2,  3],
         #                 [ 4,  5,  6,  7],
@@ -296,12 +296,12 @@ class TestUnitStateStructure:
         assert unit_operation.n_outlet_ports == expected['n_outlet_ports']
         assert unit_operation.n_dof == expected['n_dof']
 
-    def test_y_split(self, unit_operation, expected):
+    def test_states(self, unit_operation, expected):
         y_new = np.arange(unit_operation.n_dof, dtype=float)
         unit_operation.y = y_new
 
-        for name, state in unit_operation.y_split.items():
-            np.testing.assert_equal(state.s, expected['y_split'][name])
+        for name, state in unit_operation.states.items():
+            np.testing.assert_equal(state.s, expected['states'][name])
 
     def test_set_inlet_state(self, unit_operation: UnitOperationBase, expected: dict):
         s_in = {
@@ -414,7 +414,7 @@ class TestUnitResidual():
 
         unit_operation.compute_residual(case['t'])
 
-        np.testing.assert_almost_equal(unit_operation.residual, expected['residual'])
+        np.testing.assert_almost_equal(unit_operation.r, expected['residual'])
 
 
 # %% Run tests
