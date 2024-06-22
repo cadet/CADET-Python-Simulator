@@ -151,7 +151,7 @@ class TestSystemSolverStateStructure():
         }
         np.testing.assert_equal(system_solver.unit_slices, expected_slices)
 
-    def test_solution_recorder(self, system_solver, expected):
+    def test_solution_recorder(self, system_solver: SystemSolver, expected):
         """Test the solution recorder."""
         system_solver.initialize_solution_recorder()
 
