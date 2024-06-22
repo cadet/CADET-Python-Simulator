@@ -49,6 +49,9 @@ class UnitOperationBase(Structure):
         self._state_derivatives = None
         self._residual = None
 
+        self._Q_in = None
+        self._Q_out = None
+
     @property
     def n_comp(self) -> int:
         """int: Number of components."""
@@ -68,6 +71,9 @@ class UnitOperationBase(Structure):
             self._state_derivatives.append(state_derivative)
 
         self._residual = np.zeros(self.n_dof)
+
+        self._Q_in = np.zeros(self.n_inlet_ports)
+        self._Q_out = np.zeros(self.n_outlet_ports)
 
     @property
     def residual(self):
@@ -161,6 +167,26 @@ class UnitOperationBase(Structure):
     def y_dot_split(self, y_dot_split: dict[str, np.ndarray]):
         for name, state_derivative in self.states_dict.items():
             state_derivative.s = y_dot_split[name]
+
+    @property
+    def Q_in(self) -> np.ndarray:
+        """np.ndarray: Ingoing flow rates."""
+        if self._Q_in is None:
+            raise NotInitializedError(
+                "Unit operation flow rates are not yet initialized."
+            )
+
+        return self._Q_in
+
+    @property
+    def Q_out(self) -> np.ndarray:
+        """np.ndarray: Ingoing flow rates."""
+        if self._Q_out is None:
+            raise NotInitializedError(
+                "Unit operation flow rates are not yet initialized."
+            )
+
+        return self._Q_out
 
     @property
     def coupling_state_structure(self):
