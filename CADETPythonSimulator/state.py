@@ -259,11 +259,59 @@ class State(Structure):
 
         return outlet_port_state
 
+    def __getitem__(self, entry) -> np.ndarray:
+        """
+        Get state entry array indexed by entry name.
+
+        Parameters
+        ----------
+        state_name : str
+            Name of the state entry.
+
+        Returns
+        -------
+        np.ndarray
+            State of the corresponding entry.
+
+        Raises
+        ------
+        KeyError
+            If entry not in State
+        """
+        try:
+            return self.s_split[entry]
+        except KeyError:
+            raise KeyError('Not a valid state.')
+
+    def __setitem__(self, entry, value: np.ndarray) -> None:
+        """
+        Set state entry array indexed by entry name.
+
+        Parameters
+        ----------
+        entry : str
+            Name of the state entry.
+        value : np.ndarray
+            New value to set for the corresponding entry.
+
+        Raises
+        ------
+        KeyError
+            If entry is not in State.
+        ValueError
+            If the shape of the value does not match the expected shape for the entry.
+        """
+        if entry not in self.entries:
+            raise KeyError('Not a valid state.')
+
+        self.s_split[entry][:] = value
+
     def __str__(self) -> str:
         """str: String representation of the State instance."""
         return self.name
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """str: String representation of the State instance."""
         n_inlet_ports = self.n_inlet_ports
         port_mapping = self.inlet_port_mapping
         if n_inlet_ports > 0 and port_mapping is not None:
