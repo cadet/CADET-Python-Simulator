@@ -98,14 +98,14 @@ class UnitOperationBase(Structure):
     @property
     def y(self) -> np.ndarray:
         """np.ndarray: State array flattened into one dimension."""
-        return np.concatenate([state.y_flat for state in self.states])
+        return np.concatenate([state.s_flat for state in self.states])
 
     @y.setter
     def y(self, y: np.ndarray) -> NoReturn:
         start_index = 0
         for state in self.states:
             end_index = start_index + state.n_dof
-            state.y_flat = y[start_index:end_index]
+            state.s_flat = y[start_index:end_index]
             start_index = end_index
 
     @property
@@ -116,7 +116,7 @@ class UnitOperationBase(Structure):
     @y_split.setter
     def y_split(self, y_split: dict[str, np.ndarray]):
         for name, state in self.states_dict.items():
-            state.y = y_split[name]
+            state.s = y_split[name]
 
     @property
     def state_derivatives(self) -> list[State]:
@@ -138,7 +138,7 @@ class UnitOperationBase(Structure):
     def y_dot(self) -> np.ndarray:
         """np.ndarray: State derivative array flattened into one dimension."""
         return np.concatenate(
-            [state_derivative.y_dot_flat for state_derivative in self.state_derivatives]
+            [state_derivative.s for state_derivative in self.state_derivatives]
         )
 
     @y_dot.setter
@@ -146,7 +146,7 @@ class UnitOperationBase(Structure):
         start_index = 0
         for state_derivative in self.state_derivatives:
             end_index = start_index + state_derivative.n_dof
-            state_derivative.y_dot = y_dot[start_index:end_index]
+            state_derivative.s = y_dot[start_index:end_index]
             start_index = end_index
 
     @property
@@ -160,7 +160,7 @@ class UnitOperationBase(Structure):
     @y_dot_split.setter
     def y_dot_split(self, y_dot_split: dict[str, np.ndarray]):
         for name, state_derivative in self.states_dict.items():
-            state_derivative.y = y_dot_split[name]
+            state_derivative.s = y_dot_split[name]
 
     @property
     def coupling_state_structure(self):

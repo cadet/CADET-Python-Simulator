@@ -25,12 +25,12 @@ class State(Structure):
     ----------
     name: str
         The name of the state
-    y : np.ndarray
+    s : np.ndarray
         The state array, initialized as zeros based on the computed shape.
     """
 
     name = String
-    y = SizedNdArray(size='shape')
+    s = SizedNdArray(size='shape')
 
     def __init__(
             self,
@@ -60,7 +60,7 @@ class State(Structure):
         self.n_outlet_ports = n_outlet_ports
         self.outlet_port_mapping = outlet_port_mapping
 
-        self.y = np.zeros(self.shape)
+        self.s = np.zeros(self.shape)
 
     @property
     def n_dimensions(self) -> int:
@@ -96,17 +96,17 @@ class State(Structure):
         return np.prod(self.shape)
 
     @property
-    def y_flat(self) -> np.ndarray:
+    def s_flat(self) -> np.ndarray:
         """np.ndarray: Return the state array flattened into one dimension."""
-        return self.y.flatten()
+        return self.s.flatten()
 
-    @y_flat.setter
-    def y_flat(self, y_flat: np.ndarray) -> NoReturn:
-        y = y_flat.reshape(self.shape)
-        self.y = y
+    @s_flat.setter
+    def s_flat(self, s_flat: np.ndarray) -> NoReturn:
+        s = np.array(s_flat).reshape(self.shape)
+        self.s = s
 
     @property
-    def y_split(self) -> dict[str, np.ndarray]:
+    def s_split(self) -> dict[str, np.ndarray]:
         """
         Dict where each key is an entry name and the value is the corresponding value.
 
@@ -116,21 +116,21 @@ class State(Structure):
             A dictionary where each key is an entry name and the value is the
             corresponding segment of the state array.
         """
-        y_split = {}
+        s_split = {}
         start_index = 0
         for entry, n_entries in self.entries.items():
             end_index = start_index + n_entries
-            y_split[entry] = self.y[..., start_index:end_index]
+            s_split[entry] = self.s[..., start_index:end_index]
             start_index = end_index
 
-        return y_split
+        return s_split
 
-    @y_split.setter
-    def y_split(self, y_split: dict[str, np.ndarray]):
-        _y_split = self.y_split
+    @s_split.setter
+    def s_split(self, s_split: dict[str, np.ndarray]):
+        _s_split = self.s_split
 
-        for key, value in y_split.items():
-            _y_split[key][:] = value[:]
+        for key, value in s_split.items():
+            _s_split[key][:] = value[:]
 
     def validate_coupling_structure(self, coupling_structure: dict[str, int]) -> bool:
         """
@@ -203,9 +203,9 @@ class State(Structure):
         slice_tuple = tuple(slice_indices)
 
         # Assemble
-        y_split = self.y_split
+        s_split = self.s_split
         for component, entry in inlet_port_state.items():
-            y_split[component][slice_tuple] = entry
+            s_split[component][slice_tuple] = entry
 
     def get_outlet_port_state(
             self,
@@ -251,11 +251,11 @@ class State(Structure):
         slice_tuple = tuple(slice_indices)
 
         # Assemble
-        y_split = self.y_split
+        s_split = self.s_split
         outlet_port_state = {}
 
         for component, n_entries in self.entries.items():
-            outlet_port_state[component] = y_split[component][slice_tuple]
+            outlet_port_state[component] = s_split[component][slice_tuple]
 
         return outlet_port_state
 

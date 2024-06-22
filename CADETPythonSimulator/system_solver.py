@@ -213,7 +213,7 @@ class SystemSolver(Structure):
                 previous_states = self.unit_solutions[unit][state]
                 self.unit_solutions[unit][state] = np.vstack((
                     previous_states,
-                    value.y.reshape((1, previous_states.shape[-1]))
+                    value.s.reshape((1, previous_states.shape[-1]))
                 ))
 
             current_state_dot = unit.y_dot_split
@@ -221,7 +221,7 @@ class SystemSolver(Structure):
                 previous_states_dot = self.unit_solutions[unit][f"{state}_dot"]
                 self.unit_solutions[unit][f"{state}_dot"] = np.vstack((
                     previous_states_dot,
-                    value.y.reshape((1, previous_states_dot.shape[-1]))
+                    value.s.reshape((1, previous_states_dot.shape[-1]))
                 ))
 
     def solve(self) -> NoReturn:

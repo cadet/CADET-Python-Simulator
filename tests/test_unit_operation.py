@@ -301,7 +301,7 @@ class TestUnitStateStructure:
         unit_operation.y = y_new
 
         for name, state in unit_operation.y_split.items():
-            np.testing.assert_equal(state.y, expected['y_split'][name])
+            np.testing.assert_equal(state.s, expected['y_split'][name])
 
     def test_set_inlet_state(self, unit_operation: UnitOperationBase, expected: dict):
         s_in = {

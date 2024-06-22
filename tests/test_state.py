@@ -24,7 +24,7 @@ from CADETPythonSimulator.state import State
                 'inlet_port_mapping': None,
                 'n_outlet_ports': 1,
                 'outlet_port_mapping': None,
-                'y_split': {
+                's_split': {
                     'c': {
                         'slice': np.s_[:],
                         'value': [0, 1]
@@ -60,7 +60,7 @@ from CADETPythonSimulator.state import State
                 'inlet_port_mapping': None,
                 'n_outlet_ports': 0,
                 'outlet_port_mapping': None,
-                'y_split': {
+                's_split': {
                     'c': {
                         'slice': np.s_[:],
                         'value': [0, 1]
@@ -96,7 +96,7 @@ from CADETPythonSimulator.state import State
                 'inlet_port_mapping': None,
                 'n_outlet_ports': 1,
                 'outlet_port_mapping': None,
-                'y_split': {
+                's_split': {
                     'c': {
                         'slice': np.s_[:],
                         'value': [
@@ -155,7 +155,7 @@ from CADETPythonSimulator.state import State
                 'inlet_port_mapping': None,
                 'n_outlet_ports': 1,
                 'outlet_port_mapping': None,
-                'y_split': {
+                's_split': {
                     'c': {
                         'slice': np.s_[:],
                         'value': [
@@ -230,7 +230,7 @@ from CADETPythonSimulator.state import State
                 'inlet_port_mapping': 'radial',
                 'n_outlet_ports': 3,
                 'outlet_port_mapping': 'radial',
-                'y_split': {
+                's_split': {
                     'c': {
                         'slice': np.s_[0:3, 0:3, :],
                         'value': [
@@ -346,17 +346,17 @@ class TestState():
         assert state.n_outlet_ports == expected['n_outlet_ports']
         assert state.outlet_port_mapping == expected['outlet_port_mapping']
 
-    def test_y_split(self, state_config, expected):
+    def test_s_split(self, state_config, expected):
         state = State(**state_config)
 
         new_state = np.arange(state.n_dof, dtype=float).reshape(state.shape)
-        state.y = new_state
+        state.s = new_state
 
-        np.testing.assert_array_equal(state.y_flat, new_state.flatten())
+        np.testing.assert_array_equal(state.s_flat, new_state.flatten())
 
-        y_split = state.y_split
-        for entry, slice_information in expected['y_split'].items():
-            split_slice = y_split[entry][slice_information['slice']]
+        s_split = state.s_split
+        for entry, slice_information in expected['s_split'].items():
+            split_slice = s_split[entry][slice_information['slice']]
             np.testing.assert_array_equal(split_slice, slice_information['value'])
 
         s_in = {
@@ -371,7 +371,7 @@ class TestState():
                 state.set_inlet_port_state(s_in, port)
 
                 slice_information = expected['inlet_state'][port]
-                state_slice = state.y[slice_information['slice']]
+                state_slice = state.s[slice_information['slice']]
                 np.testing.assert_array_equal(state_slice, slice_information['value'])
 
         if state.n_outlet_ports == 0:
