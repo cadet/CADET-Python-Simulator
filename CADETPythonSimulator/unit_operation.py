@@ -11,10 +11,14 @@ from CADETProcess.dataStructure import (
 )
 from CADETProcess.dynamicEvents import Section
 
-from CADETPythonSimulator.exception import NotInitializedError
+from CADETPythonSimulator.exception import NotInitializedError, CADETPythonSimError
 from CADETPythonSimulator.state import State, state_factory
+from CADETPythonSimulator.residual import (
+    calculate_residual_volume_cstr, calculate_residual_concentration_cstr, calculate_residuals_visc_cstr
+    )
 from CADETPythonSimulator.rejection import RejectionBase
 from CADETPythonSimulator.cake_compressibility import CakeCompressibilityBase
+from CADETPythonSimulator.viscosity import LogarithmicMixingViscosity, ViscosityBase
 
 
 class UnitOperationBase(Structure):
@@ -475,9 +479,9 @@ class Inlet(UnitOperationBase):
 
         """
         # Inlet DOFs are simply copied to the residual.
-        for i in range(self.n_dof_coupling):
-            residual[i] = self.y[i]
 
+        self.residuals['outlet']['c_poly'] = self.states['outlet']['c_poly']
+        self.residuals['outlet']['viscosity'] = self.states['outlet']['viscosity']
 
 class Outlet(UnitOperationBase):
     """System outlet."""
@@ -532,6 +536,7 @@ class Cstr(UnitOperationBase):
     }
     _state_structures = ['inlet', 'bulk']
 
+
     def compute_residual(
             self,
             t: float,
@@ -565,12 +570,11 @@ class Cstr(UnitOperationBase):
         # for i in range(self.n_comp):
         #     self.residuals['bulk']['c'][i] = c_dot[i] * V + V_dot * c[i] - Q_in * c_in[i] + Q_out * c[i]
         # Alternative: Can we vectorize this?
-        self.residuals['bulk']['c'] = c_dot * V + V_dot * c - Q_in * c_in + Q_out * c
+        self.residuals['bulk']['c'] = calculate_residual_concentration_cstr(c, c_dot, V, V_dot,  Q_in, Q_out, c_in)
 
-        self.residuals['bulk']['Volume'] = V_dot - self.Q_in + Q_out
+        self.residuals['bulk']['Volume'] = calculate_residual_volume_cstr(V, V_dot, Q_in, Q_out)
 
-        # TODO: What about viscosities?
-
+        self.residuals['inlet']['viscosity'] = calculate_residuals_visc_cstr()
 
 class DeadEndFiltration(UnitOperationBase):
     """
@@ -652,6 +656,10 @@ class DeadEndFiltration(UnitOperationBase):
         residual[self.n_dof_coupling + 1] = (1/self.membrane_area) * (y_dot[2] * self.specific_cake_resistance(self.p(t))) - y_dot[1]
 
         residual[self.n_dof_coupling + 2] = ((self.c(t) * y_dot[0]) / (1-self.c(t)/self.density)) - y_dot[2]
+
+        self.residuals['retentate']
+        self.residuals['permeate']
+
 
 
 class CrossFlowFiltration(UnitOperationBase):
