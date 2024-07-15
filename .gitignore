@@ -5,3 +5,4 @@ __pycache__/
 debug*
 *.h5
 *.egg-info
+.vscode
