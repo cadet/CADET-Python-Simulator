@@ -70,6 +70,7 @@ class CstrFixture(UnitOperationFixture, Cstr):
         super().__init__(component_system, name, *args, **kwargs)
 
 
+
 class DeadEndFiltrationFixture(UnitOperationFixture, DeadEndFiltration):
     def __init__(self,
                  component_system=None,
@@ -335,7 +336,7 @@ class TestUnitStateStructure:
 
 
 @pytest.mark.parametrize(
-    "unit_operation, case, expected",
+    "unit_operation, case, residualfunc, expected",
     [
         # (
         #     InletFixture(),
@@ -354,15 +355,43 @@ class TestUnitStateStructure:
         (
             CstrFixture(),
             {
-                'y': [0., 0., 0., 0., 0., 0., 0.],
-                'y_dot': [0., 0., 0., 0., 0., 0., 0.],
-                'Q_in': 0,
-                'Q_out': 0,
-                't': 0,
+                'states' : {
+                    'inlet' : {
+                        'c' : np.array([7, 8]),
+                        'viscosity' : [3]
+                    },
+                    'bulk' : {
+                        'c' : np.array([1, 2]),
+                        'Volume' : 1
+                    }
+                },
+                'state_derivatives' : {
+                    'inlet' : {
+                        'c' : [6, 7]
+                    },
+                    'bulk' : {
+                        'c' : np.array([4, 5]),
+                        'Volume' : 2
+                    }
+                },
+                'Q_in' : [3],
+                'Q_out' : [4]
             },
+            [
+                ("calculate_residual_concentration_cstr", lambda c, c_dot, V, V_dot,  Q_in, Q_out, c_in: c_dot * V + V_dot * c - Q_in * c_in + Q_out * c),
+                ("calculate_residuals_visc_cstr", lambda *args : 0),
+                ("calculate_residual_volume_cstr", lambda V, V_dot, Q_in, Q_out: V_dot - Q_in + Q_out)
+            ],
             {
-                'residual': [0., 0., 0., 0., 0., 0., 0.]
-            },
+                'inlet' : {
+                    'c' : np.array([7, 8]),
+                    'viscosity' : 0
+                },
+                'bulk' : {
+                    'c' :  np.array([-11,-7]),
+                    'Volume' : 3
+                }
+            }
         ),
         # (
         #     DeadEndFiltrationFixture(),
@@ -391,18 +420,31 @@ class TestUnitResidual():
 
     def test_unit_residual(
             self,
+            monkeypatch,
             unit_operation: UnitOperationBase,
             case: dict,
-            expected: dict,
+            residualfunc: dict,
+            expected: dict
             ) -> NoReturn:
         """Test the residual of unit operations."""
-        unit_operation.y = case['y']
-        unit_operation.y_dot = case['y_dot']
 
-        unit_operation.compute_residual(case['t'])
+        for funcname, func in residualfunc:
+            monkeypatch.setattr('CADETPythonSimulator.unit_operation.'+funcname, func )
 
-        np.testing.assert_almost_equal(unit_operation.r, expected['residual'])
+        for key, value in case['states'].items():
+            unit_operation.states[key] = value
 
+        for key, value in case['state_derivatives'].items():
+            unit_operation.state_derivatives[key] = value
+
+        unit_operation._Q_in = case['Q_in']
+        unit_operation._Q_out = case['Q_out']
+
+        unit_operation.compute_residual(3)
+
+        for unit_module, module_dict in expected.items():
+            for property, value in module_dict.items():
+                np.testing.assert_equal(value, unit_operation.residuals[unit_module][property])
 
 # %% Run tests
 

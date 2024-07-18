@@ -64,3 +64,8 @@ markers = [
 
 [tool.setuptools.dynamic]
 version = { attr = "CADETPythonSimulator.__version__" }
+
+[tool.ruff]
+# Same as Black.
+line-length = 88
+indent-width = 4
