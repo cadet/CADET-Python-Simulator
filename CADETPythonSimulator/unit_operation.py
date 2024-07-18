@@ -482,6 +482,8 @@ class Inlet(UnitOperationBase):
 
         self.residuals['outlet']['c_poly'] = self.states['outlet']['c_poly']
         self.residuals['outlet']['viscosity'] = self.states['outlet']['viscosity']
+        self.residuals['outlet']['c_poly'] = self.states['outlet']['c_poly']
+        self.residuals['outlet']['viscosity'] = self.states['outlet']['viscosity']
 
 class Outlet(UnitOperationBase):
     """System outlet."""
@@ -535,7 +537,6 @@ class Cstr(UnitOperationBase):
         'n_outlet_ports': 1,
     }
     _state_structures = ['inlet', 'bulk']
-
 
     def compute_residual(
             self,
