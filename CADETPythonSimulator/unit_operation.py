@@ -570,8 +570,8 @@ class Cstr(UnitOperationBase):
         self.residuals['inlet']['c'] = c_in
 
         # Handle bulk/outlet DOFs
-        Q_in = self.Q_in
-        Q_out = self.Q_out
+        Q_in = self.Q_in[0]
+        Q_out = self.Q_out[0]
 
         # for i in range(self.n_comp):
         #     self.residuals['bulk']['c'][i] = c_dot[i] * V + V_dot * c[i] - Q_in * c_in[i] + Q_out * c[i]
@@ -613,8 +613,8 @@ class DeadEndFiltration(UnitOperationBase):
     membrane_area = UnsignedFloat()
     membrane_resistance = UnsignedFloat()
     specific_cake_resistance = UnsignedFloat()
-    molar_density = np.ndarray()
-    efficency = np.ndarray()
+    molar_volume = SizedUnsignedNdArray(size = 'n_comp')
+    efficency = SizedUnsignedNdArray(size = 'n_comp')
 
     _parameters = [
         'membrane_area',
@@ -667,7 +667,7 @@ class DeadEndFiltration(UnitOperationBase):
 
         self.residuals['bulk']['c'] = calculate_residual_concentration_cstr(c, c_dot, V, V_dot, Q_p, Q_out, c_in) 
         self.residuals['bulk']['Volume'] = calculate_residual_volume_cstr(V, V_dot, Q_p, Q_out)
-        self.residuals['inlet']['viscosity'] = calculate_residual_visc_cstr()
+        self.residuals['bulk']['viscosity'] = calculate_residual_visc_cstr()
 
 
 
