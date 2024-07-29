@@ -14,7 +14,13 @@ from CADETProcess.dynamicEvents import Section
 from CADETPythonSimulator.exception import NotInitializedError, CADETPythonSimError
 from CADETPythonSimulator.state import State, state_factory
 from CADETPythonSimulator.residual import (
-    calculate_residual_volume_cstr, calculate_residual_concentration_cstr, calculate_residuals_visc_cstr
+    calculate_residual_volume_cstr, 
+    calculate_residual_concentration_cstr, 
+    calculate_residual_visc_cstr,
+    calculate_residual_press_easy_def,
+    calculate_residual_cake_vol_def,
+    calculate_residual_perm_easy_def,
+    calculate_residual_visc_def
     )
 from CADETPythonSimulator.rejection import RejectionBase
 from CADETPythonSimulator.cake_compressibility import CakeCompressibilityBase
@@ -565,8 +571,8 @@ class Cstr(UnitOperationBase):
         self.residuals['inlet']['c'] = c_in
 
         # Handle bulk/outlet DOFs
-        Q_in = self.Q_in[0]
-        Q_out = self.Q_out[0]
+        Q_in = self.Q_in
+        Q_out = self.Q_out
 
         # for i in range(self.n_comp):
         #     self.residuals['bulk']['c'][i] = c_dot[i] * V + V_dot * c[i] - Q_in * c_in[i] + Q_out * c[i]
@@ -575,7 +581,7 @@ class Cstr(UnitOperationBase):
 
         self.residuals['bulk']['Volume'] = calculate_residual_volume_cstr(V, V_dot, Q_in, Q_out)
 
-        self.residuals['inlet']['viscosity'] = calculate_residuals_visc_cstr()
+        self.residuals['inlet']['viscosity'] = calculate_residual_visc_cstr()
 
 class DeadEndFiltration(UnitOperationBase):
     """
@@ -593,73 +599,76 @@ class DeadEndFiltration(UnitOperationBase):
         Model for cake compressibility.
 
     """
-    retentate = {
+    cake = {
         'dimensions': (),
-        'entries': {'c': 'n_comp', 'viscosity': 1, 'Rc': 1, 'mc': 'n_comp'},
+        'entries': {'c': 'n_comp', 'viscosity': 1, 'pressure': 1, 'cakevolume': 1, 'permeate': 1},
         'n_inlet_ports': 1,
     }
-    permeate = {
+    bulk = {
         'dimensions': (),
         'entries': {'c': 'n_comp', 'viscosity': 1, 'Volume': 1},
         'n_outlet_ports': 1,
     }
-    _state_structures = ['retentate', 'permeate']
-
-    rejection_model = Typed(ty=RejectionBase)
-    cake_compressibility_model = Typed(ty=CakeCompressibilityBase)
+    _state_structures = ['cake', 'bulk']
 
     membrane_area = UnsignedFloat()
     membrane_resistance = UnsignedFloat()
+    specific_cake_resistance = UnsignedFloat()
+    molar_density = np.ndarray()
+    efficency = np.ndarray()
 
     _parameters = [
         'membrane_area',
         'membrane_resistance',
+        'specific_cake_resistance',
+        'molar_volume',
+        'efficency'
     ]
-
-    def delta_p(self):
-        raise NotImplementedError()
-
-    def specific_cake_resistance(self, delta_p: float) -> float:
-        """
-        Compute specific resistance as a function of delta_p.
-
-        Parameters
-        ----------
-        delta_p : float
-            Pressure difference.
-
-        Returns
-        -------
-        float
-            Specific cake resistance.
-
-        """
-        raise self.cake_compressibility_model.specific_cake_resistance(delta_p)
 
     def compute_residual(
             self,
             t: float,
-            y: np.ndarray,
-            y_dot: np.ndarray,
-            residual: np.ndarray
-            ) -> NoReturn:
-        #     0,  1,  2
-        # y = Vp, Rc, mc
-        # TODO: Needs to be extended to include c_in / c_out
-        # y = [*c_i_in], viscosity_in, Vp, Rc, mc, [*c_i_out], viscosity_out
+            ) -> NoReturn:        
 
-        c_in = y[0: self.n_comp]
-        viscosity_in = y[self.n_comp]
+        Q_in = self.Q_in[0]
+        Q_out = self.Q_out[0]
 
-        densities = self.component_system.densities
+        c_in = self.states['cake']['c']
+        c_in_dot = self.state_derivatives['cake']['c']
 
-        residual[self.n_dof_coupling + 0] = ((self.membrane_area*self.delta_p(t)/viscosity_in)/(self.membrane_resistance+y[1])) - y_dot[0]
-        residual[self.n_dof_coupling + 1] = (1/self.membrane_area) * (y_dot[2] * self.specific_cake_resistance(self.p(t))) - y_dot[1]
+        V_C = self.states['cake']['cakevolume']
+        V_dot_C = self.state_derivatives['cake']['cakevolume']
 
-        residual[self.n_dof_coupling + 2] = ((self.c(t) * y_dot[0]) / (1-self.c(t)/self.density)) - y_dot[2]
+        V_p = self.states['cake']['permeate']
+        Q_p = self.state_derivatives['cake']['cakevolume']
 
-        self.residuals['retentate']
-        self.residuals['permeate']
+        viscosity_in = self.states['cake']['viscosity']
+
+        c = self.states['bulk']['c']
+        c_dot = self.state_derivatives['bulk']['c']
+
+        V = self.states['bulk']['Volume']
+        V_dot = self.state_derivatives['bulk']['Volume']
+
+        deltap = self.states['cake']['pressure']
+
+        #parameters
+        efficency = self.parameters['efficency']
+        molar_volume = self.parameters['molar_volume']
+        membrane_area = self.parameters['membrane_area']
+        membrane_resistance = self.parameters['membrane_resistance']
+        specific_cake_resistance = self.parameters['specific_cake_resistance']
+
+        # Handle inlet DOFs, which are simply copied to the residual
+        self.residuals['cake']['c'] = c_in
+        self.residuals['cake']['cakevolume'] = calculate_residual_cake_vol_def(Q_in, efficency, molar_volume, c_in, V_dot_C)
+        self.residuals['cake']['pressure'] = calculate_residual_press_easy_def(Q_p, V_C, deltap, membrane_area, viscosity_in, membrane_resistance, specific_cake_resistance)
+        self.residuals['cake']['permeate'] = calculate_residual_perm_easy_def(Q_in, V_dot_C, Q_p)
+        self.residuals['cake']['viscosity'] = calculate_residual_visc_def()
+
+        self.residuals['bulk']['c'] = calculate_residual_concentration_cstr(c, c_dot, V, V_dot, Q_p, Q_out, c_in) 
+        self.residuals['bulk']['Volume'] = calculate_residual_volume_cstr(V, V_dot, Q_p, Q_out)
+        self.residuals['inlet']['viscosity'] = calculate_residual_visc_cstr()
 
 
 
