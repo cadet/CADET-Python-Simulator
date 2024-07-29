@@ -379,7 +379,7 @@ class TestUnitStateStructure:
             },
             [
                 ("calculate_residual_concentration_cstr", lambda c, c_dot, V, V_dot,  Q_in, Q_out, c_in: c_dot * V + V_dot * c - Q_in * c_in + Q_out * c),
-                ("calculate_residuals_visc_cstr", lambda *args : 0),
+                ("calculate_residual_visc_cstr", lambda *args : 0),
                 ("calculate_residual_volume_cstr", lambda V, V_dot, Q_in, Q_out: V_dot - Q_in + Q_out)
             ],
             {
