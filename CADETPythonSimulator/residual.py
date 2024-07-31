@@ -79,7 +79,7 @@ def calculate_residual_visc_cstr():
 
 def calculate_residual_cake_vol_def(
         V_dot_f : float,
-        eff : np.ndarray,
+        rejection : np.ndarray,
         molar_volume : np.ndarray,
         c_in : np.ndarray,
         V_dot_C : float
@@ -90,16 +90,16 @@ def calculate_residual_cake_vol_def(
     Parameters
     ----------
     V_dot_f : float
-        flowrate of incoming feed
-    eff : float
-        efficency of the filter
+        Flowrate of incoming feed
+    rejection : float
+        Rejection of the filter
     gamma : float
-        portion of suspended material
+        Portion of suspended material
     V_dot_C : float
-        change of Cake Volume
+        Change of Cake Volume
     """
 
-    return -V_dot_C + np.sum(eff * molar_volume * c_in * V_dot_f)
+    return -V_dot_C + np.sum(rejection * molar_volume * c_in * V_dot_f)
 
 
 def calculate_residual_press_easy_def(
