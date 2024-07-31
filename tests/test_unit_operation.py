@@ -378,9 +378,18 @@ class TestUnitStateStructure:
                 'Q_out' : [4]
             },
             [
-                ("calculate_residual_concentration_cstr", lambda c, c_dot, V, V_dot,  Q_in, Q_out, c_in: c_dot * V + V_dot * c - Q_in * c_in + Q_out * c),
-                ("calculate_residual_visc_cstr", lambda *args : 0),
-                ("calculate_residual_volume_cstr", lambda V, V_dot, Q_in, Q_out: V_dot - Q_in + Q_out)
+                ("calculate_residual_concentration_cstr",
+                    lambda c, c_dot, V, V_dot,  Q_in, Q_out, c_in:
+                        c_dot * V + V_dot * c - Q_in * c_in + Q_out * c
+                ),
+                ("calculate_residual_visc_cstr",
+                    lambda *args :
+                        0
+                ),
+                ("calculate_residual_volume_cstr",
+                    lambda V, V_dot, Q_in, Q_out:
+                        V_dot - Q_in + Q_out
+                )
             ],
             {
                 'inlet' : {
@@ -444,7 +453,10 @@ class TestUnitResidual():
 
         for unit_module, module_dict in expected.items():
             for property, value in module_dict.items():
-                np.testing.assert_equal(value, unit_operation.residuals[unit_module][property])
+                np.testing.assert_equal(
+                    value,
+                    unit_operation.residuals[unit_module][property]
+                )
 
 # %% Run tests
 

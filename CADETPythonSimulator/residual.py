@@ -23,10 +23,10 @@ def calculate_residual_volume_cstr(
         Volume leaving the Unit
     Returns
     -------
-    float 
+    float
         Residual of the Flow equation of the CSTR with dimensions like the inpu
     """
-    
+
     if V < 0:
         raise CADETPythonSimError("V can't be less then zero")
 
@@ -43,7 +43,7 @@ def calculate_residual_concentration_cstr(
         ) -> np.ndarray :
     """
     Calculates the residual equations of the concentration of a cstr
-    
+
     Parameters
     ----------
     c : np.ndarray
@@ -114,7 +114,7 @@ def calculate_residual_press_easy_def(
     """
     Calculates the residual equations fo a dead end filtration equation for the pressure
     in the easy model.
-    
+
     Parameters
     ----------
     V_dot_P : np.ndarray
@@ -138,31 +138,8 @@ def calculate_residual_press_easy_def(
     return -V_dot_P + deltap * A *hyd_resistance
 
 
-def calculate_residual_perm_easy_def(
-        Q_in : float,
-        V_dot_C : float,
-        V_dot_P : float
-    ) -> float:
-    """
-    Calculates the residual equations fo a dead end filtration equation for the permeate Volume
-    in the easy model.
-    
-    Parameters
-    ----------
-    Q_in : float
-        Flow entering the unit operation
-    V_dot_P : float
-        FLow of the Permeate through the membrane and Cake
-    V_dot_C : float
-        Volume of the Retentate becoming the Cake
-    """
-
-
-    return -Q_in + V_dot_C + V_dot_P
-
 
 def calculate_residual_visc_def():
-        
     """
     Calculates the residual of the Viscosity equation of the CSTR
     """

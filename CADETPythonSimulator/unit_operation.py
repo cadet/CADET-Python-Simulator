@@ -14,12 +14,11 @@ from CADETProcess.dynamicEvents import Section
 from CADETPythonSimulator.exception import NotInitializedError, CADETPythonSimError
 from CADETPythonSimulator.state import State, state_factory
 from CADETPythonSimulator.residual import (
-    calculate_residual_volume_cstr, 
-    calculate_residual_concentration_cstr, 
+    calculate_residual_volume_cstr,
+    calculate_residual_concentration_cstr,
     calculate_residual_visc_cstr,
     calculate_residual_press_easy_def,
     calculate_residual_cake_vol_def,
-    calculate_residual_perm_easy_def,
     calculate_residual_visc_def
     )
 from CADETPythonSimulator.rejection import RejectionBase
@@ -115,7 +114,7 @@ class UnitOperationBase(Structure):
 
     @property
     def state_derivatives(self) -> dict[str, State]:
-        """dict: State derivative array blocks of the unit operation, indexed by name."""
+        """dict: State derivative array block of the unit operation, indexed by name."""
         if self._state_derivatives is None:
             raise NotInitializedError("Unit operation state is not yet initialized.")
 
@@ -573,12 +572,14 @@ class Cstr(UnitOperationBase):
         Q_in = self.Q_in[0]
         Q_out = self.Q_out[0]
 
-        # for i in range(self.n_comp):
-        #     self.residuals['bulk']['c'][i] = c_dot[i] * V + V_dot * c[i] - Q_in * c_in[i] + Q_out * c[i]
-        # Alternative: Can we vectorize this?
-        self.residuals['bulk']['c'] = calculate_residual_concentration_cstr(c, c_dot, V, V_dot,  Q_in, Q_out, c_in) 
 
-        self.residuals['bulk']['Volume'] = calculate_residual_volume_cstr(V, V_dot, Q_in, Q_out)
+        self.residuals['bulk']['c'] = calculate_residual_concentration_cstr(
+            c, c_dot, V, V_dot,  Q_in, Q_out, c_in
+            )
+
+        self.residuals['bulk']['Volume'] = calculate_residual_volume_cstr(
+            V, V_dot, Q_in, Q_out
+            )
 
         self.residuals['inlet']['viscosity'] = calculate_residual_visc_cstr()
 
@@ -600,34 +601,38 @@ class DeadEndFiltration(UnitOperationBase):
     """
     cake = {
         'dimensions': (),
-        'entries': {'c': 'n_comp', 'viscosity': 1, 'pressure': 1, 'cakevolume': 1, 'permeate': 1},
+        'entries': {'c': 'n_comp',
+                    'viscosity': 1,
+                    'pressure': 1,
+                    'cakevolume': 1,
+                    'permeate': 1
+                    },
         'n_inlet_ports': 1,
     }
-    bulk = {
+    permeate = {
         'dimensions': (),
         'entries': {'c': 'n_comp', 'viscosity': 1, 'Volume': 1},
         'n_outlet_ports': 1,
     }
-    _state_structures = ['cake', 'bulk']
+    _state_structures = ['cake', 'permeate']
 
     membrane_area = UnsignedFloat()
     membrane_resistance = UnsignedFloat()
     specific_cake_resistance = UnsignedFloat()
-    molar_volume = SizedUnsignedNdArray(size = 'n_comp')
-    efficency = SizedUnsignedNdArray(size = 'n_comp')
+#    molar_volume = SizedUnsignedNdArray(size = 'n_comp')  => component system erben von cadet process
+    rejection = Typed(ty=RejectionBase)
 
     _parameters = [
         'membrane_area',
         'membrane_resistance',
         'specific_cake_resistance',
-        'molar_volume',
-        'efficency'
+        'rejection'
     ]
 
     def compute_residual(
             self,
             t: float,
-            ) -> NoReturn:        
+            ) -> NoReturn:
 
         Q_in = self.Q_in[0]
         Q_out = self.Q_out[0]
@@ -643,11 +648,11 @@ class DeadEndFiltration(UnitOperationBase):
 
         viscosity_in = self.states['cake']['viscosity']
 
-        c = self.states['bulk']['c']
-        c_dot = self.state_derivatives['bulk']['c']
+        c = self.states['permeate']['c']
+        c_dot = self.state_derivatives['permeate']['c']
 
-        V = self.states['bulk']['Volume']
-        V_dot = self.state_derivatives['bulk']['Volume']
+        V = self.states['permeate']['Volume']
+        V_dot = self.state_derivatives['permeate']['Volume']
 
         deltap = self.states['cake']['pressure']
 
@@ -660,14 +665,53 @@ class DeadEndFiltration(UnitOperationBase):
 
         # Handle inlet DOFs, which are simply copied to the residual
         self.residuals['cake']['c'] = c_in
-        self.residuals['cake']['cakevolume'] = calculate_residual_cake_vol_def(Q_in, efficency, molar_volume, c_in, V_dot_C)
-        self.residuals['cake']['pressure'] = calculate_residual_press_easy_def(Q_p, V_C, deltap, membrane_area, viscosity_in, membrane_resistance, specific_cake_resistance)
-        self.residuals['cake']['permeate'] = calculate_residual_perm_easy_def(Q_in, V_dot_C, Q_p)
+        self.residuals['cake']['cakevolume'] = calculate_residual_cake_vol_def(
+                                                Q_in,
+                                                efficency,
+                                                molar_volume,
+                                                c_in,
+                                                V_dot_C
+                                                )
+
+        self.residuals['cake']['pressure'] = calculate_residual_press_easy_def(
+                                                Q_p,
+                                                V_C,
+                                                deltap,
+                                                membrane_area,
+                                                viscosity_in,
+                                                membrane_resistance,
+                                                specific_cake_resistance
+                                                )
+
+        self.residuals['cake']['permeate'] = calculate_residual_volume_cstr(
+                                                V_C,
+                                                V_dot_C,
+                                                Q_in,
+                                                Q_p
+                                                )
+
         self.residuals['cake']['viscosity'] = calculate_residual_visc_def()
 
-        self.residuals['bulk']['c'] = calculate_residual_concentration_cstr(c, c_dot, V, V_dot, Q_p, Q_out, c_in) 
-        self.residuals['bulk']['Volume'] = calculate_residual_volume_cstr(V, V_dot, Q_p, Q_out)
-        self.residuals['bulk']['viscosity'] = calculate_residual_visc_cstr()
+        new_c_in = (1-efficency)*c_in
+
+        self.residuals['permeate']['c'] = calculate_residual_concentration_cstr(
+                                                c,
+                                                c_dot,
+                                                V,
+                                                V_dot,
+                                                Q_p,
+                                                Q_out,
+                                                new_c_in
+                                                )
+
+        self.residuals['permeate']['Volume'] = calculate_residual_volume_cstr(
+                                                V,
+                                                V_dot,
+                                                Q_p,
+                                                Q_out
+                                                )
+
+        self.residuals['permeate']['viscosity'] = calculate_residual_visc_cstr()
 
 
 
