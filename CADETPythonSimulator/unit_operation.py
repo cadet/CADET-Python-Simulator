@@ -11,6 +11,7 @@ from CADETProcess.dataStructure import (
 )
 from CADETProcess.dynamicEvents import Section
 
+from CADETPythonSimulator.componentsystem import CPSComponentSystem
 from CADETPythonSimulator.exception import NotInitializedError, CADETPythonSimError
 from CADETPythonSimulator.state import State, state_factory
 from CADETPythonSimulator.residual import (
@@ -40,7 +41,7 @@ class UnitOperationBase(Structure):
     """
 
     name = String()
-    component_system = Typed(ty=ComponentSystem)
+    component_system = Typed(ty=CPSComponentSystem)
 
     _state_structures = []
     _parameters = []
@@ -657,17 +658,20 @@ class DeadEndFiltration(UnitOperationBase):
         deltap = self.states['cake']['pressure']
 
         #parameters
-        efficency = self.parameters['efficency']
-        molar_volume = self.parameters['molar_volume']
+        molecular_weights = self.component_system.molecular_weights
+        molar_volume = self.component_system.molecular_volumes
         membrane_area = self.parameters['membrane_area']
         membrane_resistance = self.parameters['membrane_resistance']
         specific_cake_resistance = self.parameters['specific_cake_resistance']
+
+        rejection = np.array(
+                        [self.rejection.get_rejection(mw) for mw in molecular_weights])
 
         # Handle inlet DOFs, which are simply copied to the residual
         self.residuals['cake']['c'] = c_in
         self.residuals['cake']['cakevolume'] = calculate_residual_cake_vol_def(
                                                 Q_in,
-                                                efficency,
+                                                rejection,
                                                 molar_volume,
                                                 c_in,
                                                 V_dot_C
@@ -692,7 +696,7 @@ class DeadEndFiltration(UnitOperationBase):
 
         self.residuals['cake']['viscosity'] = calculate_residual_visc_def()
 
-        new_c_in = (1-efficency)*c_in
+        new_c_in = (1-rejection)*c_in
 
         self.residuals['permeate']['c'] = calculate_residual_concentration_cstr(
                                                 c,
