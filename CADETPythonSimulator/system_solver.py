@@ -423,6 +423,7 @@ class SystemSolver(Structure):
                 origin_port = origin_info['port']
 
                 y_origin_unit = y_initial[self.unit_slices[origin_unit]]
+
                 s_unit = origin_unit.get_outlet_state(y_origin_unit, origin_port)
 
                 s_new += s_unit * Q_destination  # Accumulate weighted states

@@ -2,10 +2,16 @@ import numpy as np
 import pytest
 
 from CADETPythonSimulator.residual import (
-    calculate_residual_volume_cstr, calculate_residual_concentration_cstr
+    calculate_residual_volume_cstr,
+    calculate_residual_concentration_cstr,
+    calculate_residual_cake_vol_def,
+    calculate_residual_press_easy_def
 )
 from CADETPythonSimulator.exception import CADETPythonSimError
 
+"""
+q_in q_out, was sind physikalisch sinnvolle szenarien
+"""
 
 # random number test
 TestCaseConc_level1 = {
@@ -35,7 +41,7 @@ TestCaseConc_equal = {
     "expected": np.array([0,])
 }
 
-# flow in and out are equal, but concentrations going into the unit are not
+# flow in and out are equal, but concentrations going into the unit is not 
 TestCaseConc_diffcin = {
     "values": {
         "c": np.array([0.1,]),
@@ -49,7 +55,7 @@ TestCaseConc_diffcin = {
     "expected": np.array([-0.1,])
 }
 
-# flow in and out are not equal, concentrantions going in are
+#flow in and out are not equal, concentrantions going in are 
 TestCaseConc_diffvol = {
     "values": {
         "c": np.array([0.1,]),
@@ -93,7 +99,7 @@ class TestResidualConcCSTR():
 
         param_vec_conc = parameters["values"].values()
 
-        residual = calculate_residual_concentration_cstr(*param_vec_conc)
+        np.testing.assert_array_almost_equal(calculate_residual_concentration_cstr(*param_vec_conc), parameters["expected"])
 
         np.testing.assert_array_almost_equal(residual, parameters["expected"])
 
@@ -175,6 +181,13 @@ class TestResidualVolCSTR():
         np.testing.assert_equal(residual, parameters["expected"])
 
 
+class TestResidualCakeDEF():
+    def test_calculation_def(self, parameters):
+
+        param_vec_volume = parameters["values"].values()
+
+        np.testing.assert_equal(1,1)
+
 TestCaseConcError = {
     "values": {
         "c": np.array([1, 2, 3]),
@@ -210,3 +223,4 @@ class TestResidualError():
 
         with pytest.raises(CADETPythonSimError):
             calculate_residual_concentration_cstr(*param_vec_volume)
+
