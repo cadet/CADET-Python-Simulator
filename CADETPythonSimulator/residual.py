@@ -116,7 +116,7 @@ def calculate_residual_press_easy_def(
     """
     Calculates the residual equations fo a dead end filtration equation for the pressure
     in the easy model.
-    
+
     Parameters
     ----------
     V_dot_P : np.ndarray
@@ -140,31 +140,8 @@ def calculate_residual_press_easy_def(
     return -V_dot_P + deltap * A *hyd_resistance
 
 
-def calculate_residual_perm_easy_def(
-        Q_in : float,
-        V_dot_C : float,
-        V_dot_P : float
-    ) -> float:
-    """
-    Calculates the residual equations fo a dead end filtration equation for the permeate Volume
-    in the easy model.
-    
-    Parameters
-    ----------
-    Q_in : float
-        Flow entering the unit operation
-    V_dot_P : float
-        FLow of the Permeate through the membrane and Cake
-    V_dot_C : float
-        Volume of the Retentate becoming the Cake
-    """
-
-
-    return -Q_in + V_dot_C + V_dot_P
-
 
 def calculate_residual_visc_def():
-        
     """
     Calculates the residual of the Viscosity equation of the CSTR
     """
