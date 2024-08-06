@@ -69,3 +69,7 @@ version = { attr = "CADETPythonSimulator.__version__" }
 # Same as Black.
 line-length = 88
 indent-width = 4
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["F401"]
