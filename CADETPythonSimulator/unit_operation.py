@@ -620,7 +620,6 @@ class DeadEndFiltration(UnitOperationBase):
     membrane_area = UnsignedFloat()
     membrane_resistance = UnsignedFloat()
     specific_cake_resistance = UnsignedFloat()
-#    molar_volume = SizedUnsignedNdArray(size = 'n_comp')  => component system erben von cadet process
     rejection = Typed(ty=RejectionBase)
 
     _parameters = [

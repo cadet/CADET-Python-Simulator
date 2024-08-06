@@ -13,14 +13,15 @@ from CADETPythonSimulator.unit_operation import (
     _2DGRM
 )
 
+from CADETPythonSimulator.rejection import StepCutOff
 
 # %% Unit Operation Fixtures
 class TwoComponentFixture(CPSComponentSystem):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.add_component('A', molecular_weight=1e3, density=1e3)
-        self.add_component('B', molecular_weight=10e3, density=1e3)
+        self.add_component('A', molecular_weight=1e3, density=1e3, molecular_volume=1)
+        self.add_component('B', molecular_weight=10e3, density=1e3, molecular_volume=1)
 
 
 class UnitOperationFixture(UnitOperationBase):
@@ -76,7 +77,9 @@ class DeadEndFiltrationFixture(UnitOperationFixture, DeadEndFiltration):
                  component_system=None,
                  name='dead_end_filtration',
                  membrane_area=1,
-                 membrane_resistance=1e-9,
+                 membrane_resistance=1,
+                 specific_cake_resistance=1,
+                 rejection=StepCutOff(cutoff_weight=0),
                  *args,
                  **kwargs
                  ):
@@ -84,6 +87,8 @@ class DeadEndFiltrationFixture(UnitOperationFixture, DeadEndFiltration):
 
         self.membrane_area = membrane_area
         self.membrane_resistance = membrane_resistance
+        self.specific_cake_resistance = specific_cake_resistance
+        self.rejection=rejection
 
 
 class CrossFlowFiltrationFixture(UnitOperationFixture, CrossFlowFiltration):
@@ -355,27 +360,27 @@ class TestUnitStateStructure:
         (
             CstrFixture(),
             {
-                'states' : {
-                    'inlet' : {
-                        'c' : np.array([7, 8]),
-                        'viscosity' : [3]
+                'states': {
+                    'inlet': {
+                        'c': np.array([7, 8]),
+                        'viscosity': [3]
                     },
-                    'bulk' : {
-                        'c' : np.array([1, 2]),
-                        'Volume' : 1
+                    'bulk': {
+                        'c': np.array([1, 2]),
+                        'Volume': 1
                     }
                 },
-                'state_derivatives' : {
-                    'inlet' : {
-                        'c' : [6, 7]
+                'state_derivatives': {
+                    'inlet': {
+                        'c': [6, 7]
                     },
-                    'bulk' : {
-                        'c' : np.array([4, 5]),
-                        'Volume' : 2
+                    'bulk': {
+                        'c': np.array([4, 5]),
+                        'Volume': 2
                     }
                 },
-                'Q_in' : [3],
-                'Q_out' : [4]
+                'Q_in': [3],
+                'Q_out': [4]
             },
             [
                 ("calculate_residual_concentration_cstr",
@@ -383,7 +388,7 @@ class TestUnitStateStructure:
                         c_dot * V + V_dot * c - Q_in * c_in + Q_out * c
                 ),
                 ("calculate_residual_visc_cstr",
-                    lambda *args :
+                    lambda *args:
                         0
                 ),
                 ("calculate_residual_volume_cstr",
@@ -392,23 +397,69 @@ class TestUnitStateStructure:
                 )
             ],
             {
-                'inlet' : {
-                    'c' : np.array([7, 8]),
+                'inlet': {
+                    'c': np.array([7, 8]),
                     'viscosity' : 0
                 },
-                'bulk' : {
-                    'c' :  np.array([-11,-7]),
-                    'Volume' : 3
+                'bulk': {
+                    'c':  np.array([-11,-7]),
+                    'Volume': 3
                 }
             }
         ),
-        # (
-        #     DeadEndFiltrationFixture(),
-        #     {
-        #         'expected_residual': {
-        #             },
-        #     },
-        # ),
+        (
+             DeadEndFiltrationFixture(),
+             {
+                'states': {
+                    'cake': {
+                        'c': np.array([0.5, 0.5]),
+                        'viscosity': 1,
+                        'pressure': 1,
+                        'cakevolume': 1,
+                        'permeate': 1,
+                    },
+                    'permeate': {
+                        'c': np.array([0.5, 0.5]),
+                        'viscosity': 1,
+                        'Volume': 1,
+                    }
+                },
+                'state_derivatives': {
+                    'cake': {
+                        'c': np.array([0.5, 0.5]),
+                        'viscosity': 1,
+                        'pressure': 1,
+                        'cakevolume': 1,
+                        'permeate': 1,
+                    },
+                    'permeate': {
+                        'c': np.array([0.5, 0.5]),
+                        'viscosity': 1,
+                        'Volume': 1,
+                    }
+                },
+                'Q_in': [1],
+                'Q_out': [1]
+             },
+             [
+                ('CPSComponentSystem.molecular_weights', [1, 1]),
+                ('CPSComponentSystem.molecular_volumes', [1, 1])
+            ],
+            {
+                'cake': {
+                    'c': np.array([0.5, 0.5]),
+                    'viscosity': 0,
+                    'pressure': 1,
+                    'cakevolume': 0,
+                    'permeate': 1,
+                },
+                'permeate': {
+                    'c': np.array([1.5, 1.5]),
+                    'viscosity': 0,
+                    'Volume': 1,
+                }
+             }
+        ),
         # (
         #     CrossFlowFiltrationFixture(),
         #     {

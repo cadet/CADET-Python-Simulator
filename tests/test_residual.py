@@ -9,9 +9,6 @@ from CADETPythonSimulator.residual import (
 )
 from CADETPythonSimulator.exception import CADETPythonSimError
 
-"""
-q_in q_out, was sind physikalisch sinnvolle szenarien
-"""
 
 # random number test
 TestCaseCSTRConc_level1 = {
@@ -101,7 +98,6 @@ class TestResidualConcCSTR():
 
         np.testing.assert_array_almost_equal(calculate_residual_concentration_cstr(*param_vec_conc), parameters["expected"])
 
-        np.testing.assert_array_almost_equal(residual, parameters["expected"])
 
 
 # random number test
