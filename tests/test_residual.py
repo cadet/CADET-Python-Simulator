@@ -96,7 +96,10 @@ class TestResidualConcCSTR():
 
         param_vec_conc = parameters["values"].values()
 
-        np.testing.assert_array_almost_equal(calculate_residual_concentration_cstr(*param_vec_conc), parameters["expected"])
+        np.testing.assert_array_almost_equal(
+            calculate_residual_concentration_cstr(*param_vec_conc),
+            parameters["expected"]
+        )
 
 
 
