@@ -327,7 +327,7 @@ class UnitOperationBase(Structure):
     def get_outlet_state_flat(
             self,
             unit_port_index: int
-            ) -> NoReturn:
+            ) -> dict[str, np.ndarray]:
         """
         Get the state of the unit operation outlet for a given port.
 

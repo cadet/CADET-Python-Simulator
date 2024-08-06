@@ -6,12 +6,6 @@ from CADETPythonSimulator.rejection import (
 )
 
 
-
-
-
-
-
-
 TestCaseCutof = {
             "model": StepCutOff,
             "model_param": {
@@ -30,7 +24,9 @@ TestCaseCutof = {
 
 class TestRejection():
     def test_get_rejection(self, parameters):
-
+        """
+        Test to check wheter the get_rejection function works as intended
+        """
         model = parameters["model"](**parameters["model_param"])
 
         solution = [model.get_rejection(weight) for weight in parameters["weights"]]

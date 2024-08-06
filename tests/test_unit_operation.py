@@ -189,7 +189,7 @@ class _2DGRMFixture(UnitOperationFixture, _2DGRM):
                 'n_outlet_ports': 1,
                 'n_dof': 10,
                 'states': {
-                    'retentate': [0., 1., 2., 3., 4., 5.],
+                    'cake': [0., 1., 2., 3., 4., 5.],
                     'permeate': [6., 7., 8., 9.],
                 },
                 'inlet_state': {
