@@ -3,7 +3,7 @@ from typing import NoReturn
 import numpy as np
 import pytest
 
-from CADETProcess.processModel import ComponentSystem
+from CADETPythonSimulator.componentsystem import CPSComponentSystem
 
 from CADETPythonSimulator.unit_operation import (
     UnitOperationBase,
@@ -16,7 +16,7 @@ from CADETPythonSimulator.unit_operation import (
 
 
 # %% Unit Operation Fixtures
-class TwoComponentFixture(ComponentSystem):
+class TwoComponentFixture(CPSComponentSystem):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

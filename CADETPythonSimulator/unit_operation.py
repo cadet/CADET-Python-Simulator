@@ -11,6 +11,7 @@ from CADETProcess.dataStructure import (
 )
 from CADETProcess.dynamicEvents import Section
 
+from CADETPythonSimulator.componentsystem import CPSComponentSystem
 from CADETPythonSimulator.exception import NotInitializedError, CADETPythonSimError
 from CADETPythonSimulator.state import State, state_factory
 from CADETPythonSimulator.residual import (
@@ -35,7 +36,7 @@ class UnitOperationBase(Structure):
     """
 
     name = String()
-    component_system = Typed(ty=ComponentSystem)
+    component_system = Typed(ty=CPSComponentSystem)
 
     _state_structures = []
     _parameters = []
