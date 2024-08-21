@@ -50,5 +50,11 @@ jobs:
           pip install -e ./[testing]
 
       - name: Test
+        if: always()
         run: |
-           pytest
+          coverage run -m pytest
+
+      - name: Coverage report
+        if: always()
+        run: |
+          coverage report -m

@@ -6,3 +6,5 @@ debug*
 *.h5
 *.egg-info
 .vscode
+.coverage
+
