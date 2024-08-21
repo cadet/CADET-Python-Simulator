@@ -77,6 +77,70 @@ def calculate_residual_visc_cstr():
     return 0
 
 
-def calculate_residual_def():
-    """Calculate the residual equations fo a dead end filtration equation."""
-    raise NotImplementedError
+def calculate_residual_cake_vol_def(
+        V_dot_f: float,
+        rejection: np.ndarray,
+        molar_volume: np.ndarray,
+        c_in: np.ndarray,
+        V_dot_C: float
+        ) -> float:
+    """
+    Residual equation for the Cake Volume.
+
+    Parameters
+    ----------
+    V_dot_f : float
+        Flowrate of incoming feed
+    rejection : float
+        Rejection of the filter
+    gamma : float
+        Portion of suspended material
+    V_dot_C : float
+        Change of Cake Volume
+    """
+    return -V_dot_C + np.sum(rejection * molar_volume * c_in * V_dot_f)
+
+
+def calculate_residual_press_easy_def(
+        V_dot_Perm: float,
+        V_C: float,
+        deltap: float,
+        A: float,
+        mu: float,
+        Rm: float,
+        alpha: float
+        ) -> float:
+    """
+    Calculate the residual equations fo a dead end filtration equation for the pressure
+    in the easy model.
+
+    Parameters
+    ----------
+    V_dot_Perm : np.ndarray
+        FLow of the Permeate through the membrane and Cake
+    V_C : float
+        Volume of the Cake
+    deltap : float
+        Pressure drop in this unit
+    A : float
+        Filtration area
+    mu : float
+        dynamic Viscosity
+    Rm : float
+        resistance of the medium
+    alpha : float
+        Specific cake resistance
+    """
+    hyd_resistance = (Rm + alpha*V_C/A) * mu
+
+    return -V_dot_Perm + deltap * A *hyd_resistance
+
+
+
+def calculate_residual_visc_def():
+    """
+    Calculate the residual of the Viscosity equation of the CSTR.
+    """
+    warnings.warn("Viscosity of def not yet implemented")
+
+    return 0

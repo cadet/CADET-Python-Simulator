@@ -2,7 +2,10 @@ import numpy as np
 import pytest
 
 from CADETPythonSimulator.residual import (
-    calculate_residual_volume_cstr, calculate_residual_concentration_cstr
+    calculate_residual_volume_cstr,
+    calculate_residual_concentration_cstr,
+    calculate_residual_cake_vol_def,
+    calculate_residual_press_easy_def
 )
 from CADETPythonSimulator.exception import CADETPythonSimError
 
@@ -172,6 +175,114 @@ class TestResidualVolCSTR():
         np.testing.assert_equal(residual, parameters["expected"])
 
 
+# Testcase 1: Membrane rejects all
+TestCaseDEFCake_rejects_all = {
+    "values": {
+        "V_dot_f": 1.0,
+        "rejection": np.array([1, 1]),
+        "molar_volume": np.array([1, 1]),
+        "c_in": np.array([0.5, 0.5]),
+        "V_dot_C": 1.0
+    },
+    "expected": 0
+}
+
+
+# Testcase 2: Membrane rejects nothing
+TestCaseDEFCake_rejects_not = {
+    "values": {
+        "V_dot_f": 1.0,
+        "rejection": np.array([0, 0]),
+        "molar_volume": np.array([1, 1]),
+        "c_in": np.array([0.5, 0.5]),
+        "V_dot_C": 0.0
+    },
+    "expected": 0
+}
+
+# Testcase 3: Membrane rejects only Component 2
+TestCaseDEFCake_rejects_2 = {
+    "values": {
+        "V_dot_f": 1.0,
+        "rejection": np.array([0, 1]),
+        "molar_volume": np.array([1, 1]),
+        "c_in": np.array([0.5, 0.5]),
+        "V_dot_C": 0.5
+    },
+    "expected": 0
+}
+
+# Testcase 4: Component 2 is larger then 1
+TestCaseDEFCake_C2_le_C1 = {
+    "values": {
+        "V_dot_f": 1.0,
+        "rejection": np.array([1, 1]),
+        "molar_volume": np.array([0.5, 1]),
+        "c_in": np.array([0.5, 0.5]),
+        "V_dot_C": 0.75
+    },
+    "expected": 0
+}
+
+
+@pytest.mark.parametrize(
+    "parameters",
+    [
+        TestCaseDEFCake_rejects_all,
+        TestCaseDEFCake_rejects_not,
+        TestCaseDEFCake_rejects_2,
+        TestCaseDEFCake_C2_le_C1
+    ]
+)
+class TestResidualCakeVolDEF():
+    def test_calculation_def(self, parameters):
+        param_vec_cake_vol = parameters["values"].values()
+        np.testing.assert_equal(
+            calculate_residual_cake_vol_def(*param_vec_cake_vol),
+            parameters["expected"]
+        )
+
+
+# Case 1 : Equally large hyraulic resistance
+TestCaseDEFPressureDrop = {
+    "values": {
+        "V_dot_P": 1,
+        "V_C": 1,
+        "deltap": 0.5,
+        "A": 1,
+        "mu": 1,
+        "Rm": 1,
+        "alpha": 1,
+    },
+    "expected": 0
+}
+
+# Case 2 : No cake yet
+TestCaseDEFPressureDrop_no_cake = {
+    "values": {
+        "V_dot_P": 0.5,
+        "V_C": 0,
+        "deltap": 0.5,
+        "A": 1,
+        "mu": 1,
+        "Rm": 1,
+        "alpha": 1,
+    },
+    "expected": 0
+}
+
+
+@pytest.mark.parametrize(
+    "parameters",
+    [
+        TestCaseDEFPressureDrop,
+        TestCaseDEFPressureDrop_no_cake
+    ]
+)
+class TestResidualPressureDropDEF():
+    def test_calculation_def(self, parameters):
+        param_vec_pressure = parameters["values"].values()
+        residual = calculate_residual_press_easy_def(*param_vec_pressure)
         np.testing.assert_equal(residual, parameters["expected"])
 
 
@@ -198,14 +309,12 @@ TestCaseConcError = {
 class TestResidualError():
 
     def test_calculation_vol_cstr_error(self, parameters):
-
         param_vec_volume = parameters["values"].values()
 
         with pytest.raises(CADETPythonSimError):
             calculate_residual_volume_cstr(*list(param_vec_volume)[2:6])
 
     def test_calculation_concentration_cstr_error(self, parameters):
-
         param_vec_volume = parameters["values"].values()
 
         with pytest.raises(CADETPythonSimError):
