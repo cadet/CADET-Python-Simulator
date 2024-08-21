@@ -14,6 +14,7 @@ from CADETPythonSimulator.unit_operation import (
 )
 
 
+
 # %% Unit Operation Fixtures
 class TwoComponentFixture(ComponentSystem):
     def __init__(self, *args, **kwargs):
@@ -70,7 +71,6 @@ class CstrFixture(UnitOperationFixture, Cstr):
         super().__init__(component_system, name, *args, **kwargs)
 
 
-
 class DeadEndFiltrationFixture(UnitOperationFixture, DeadEndFiltration):
     def __init__(self,
                  component_system=None,
@@ -109,7 +109,6 @@ class _2DGRMFixture(UnitOperationFixture, _2DGRM):
                  **kwargs
                  ):
         super().__init__(component_system, name, *args, **kwargs)
-
 
 
 # %% Unit Operation State Structure
@@ -355,41 +354,51 @@ class TestUnitStateStructure:
         (
             CstrFixture(),
             {
-                'states' : {
-                    'inlet' : {
-                        'c' : np.array([7, 8]),
-                        'viscosity' : [3]
+                'states': {
+                    'inlet': {
+                        'c': np.array([7, 8]),
+                        'viscosity': [3]
                     },
-                    'bulk' : {
-                        'c' : np.array([1, 2]),
-                        'Volume' : 1
+                    'bulk': {
+                        'c': np.array([1, 2]),
+                        'Volume': 1
                     }
                 },
-                'state_derivatives' : {
-                    'inlet' : {
-                        'c' : [6, 7]
+                'state_derivatives': {
+                    'inlet': {
+                        'c': [6, 7]
                     },
-                    'bulk' : {
-                        'c' : np.array([4, 5]),
-                        'Volume' : 2
+                    'bulk': {
+                        'c': np.array([4, 5]),
+                        'Volume': 2
                     }
                 },
-                'Q_in' : [3],
-                'Q_out' : [4]
+                'Q_in': [3],
+                'Q_out': [4]
             },
             [
-                ("calculate_residual_concentration_cstr", lambda c, c_dot, V, V_dot,  Q_in, Q_out, c_in: c_dot * V + V_dot * c - Q_in * c_in + Q_out * c),
-                ("calculate_residuals_visc_cstr", lambda *args : 0),
-                ("calculate_residual_volume_cstr", lambda V, V_dot, Q_in, Q_out: V_dot - Q_in + Q_out)
+                (
+                    "calculate_residual_concentration_cstr",
+                    lambda c, c_dot, V, V_dot,  Q_in, Q_out, c_in:
+                        c_dot * V + V_dot * c - Q_in * c_in + Q_out * c
+                ),
+                (
+                    "calculate_residual_visc_cstr",
+                    lambda *args: 0
+                ),
+                (
+                    "calculate_residual_volume_cstr",
+                    lambda V, V_dot, Q_in, Q_out: V_dot - Q_in + Q_out
+                )
             ],
             {
-                'inlet' : {
-                    'c' : np.array([7, 8]),
-                    'viscosity' : 0
+                'inlet': {
+                    'c': np.array([7, 8]),
+                    'viscosity': 0
                 },
-                'bulk' : {
-                    'c' :  np.array([-11,-7]),
-                    'Volume' : 3
+                'bulk': {
+                    'c': np.array([-11, -7]),
+                    'Volume': 3
                 }
             }
         ),
@@ -429,7 +438,7 @@ class TestUnitResidual():
         """Test the residual of unit operations."""
 
         for funcname, func in residualfunc:
-            monkeypatch.setattr('CADETPythonSimulator.unit_operation.'+funcname, func )
+            monkeypatch.setattr('CADETPythonSimulator.unit_operation.'+funcname, func)
 
         for key, value in case['states'].items():
             unit_operation.states[key] = value
@@ -444,7 +453,11 @@ class TestUnitResidual():
 
         for unit_module, module_dict in expected.items():
             for property, value in module_dict.items():
-                np.testing.assert_equal(value, unit_operation.residuals[unit_module][property])
+                np.testing.assert_equal(
+                    value,
+                    unit_operation.residuals[unit_module][property]
+                )
+
 
 # %% Run tests
 

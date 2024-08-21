@@ -88,7 +88,7 @@ class UnitOperationBase(Structure):
 
     @property
     def states(self) -> dict[str, State]:
-        """dict: State array blocks of the unit operation, indexed by name."""
+        """dict: State array block of the unit operation, indexed by name."""
         if self._states is None:
             raise NotInitializedError("Unit operation state is not yet initialized.")
 
@@ -109,7 +109,7 @@ class UnitOperationBase(Structure):
 
     @property
     def state_derivatives(self) -> dict[str, State]:
-        """dict: State derivative array blocks of the unit operation, indexed by name."""
+        """dict: State derivative array block of the unit operation, indexed by name."""
         if self._state_derivatives is None:
             raise NotInitializedError("Unit operation state is not yet initialized.")
 
@@ -321,7 +321,7 @@ class UnitOperationBase(Structure):
     def get_outlet_state_flat(
             self,
             unit_port_index: int
-            ) -> NoReturn:
+            ) -> dict[str, np.ndarray]:
         """
         Get the state of the unit operation outlet for a given port.
 
@@ -567,14 +567,16 @@ class Cstr(UnitOperationBase):
         Q_in = self.Q_in[0]
         Q_out = self.Q_out[0]
 
-        # for i in range(self.n_comp):
-        #     self.residuals['bulk']['c'][i] = c_dot[i] * V + V_dot * c[i] - Q_in * c_in[i] + Q_out * c[i]
-        # Alternative: Can we vectorize this?
-        self.residuals['bulk']['c'] = calculate_residual_concentration_cstr(c, c_dot, V, V_dot,  Q_in, Q_out, c_in)
 
-        self.residuals['bulk']['Volume'] = calculate_residual_volume_cstr(V, V_dot, Q_in, Q_out)
+        self.residuals['bulk']['c'] = calculate_residual_concentration_cstr(
+            c, c_dot, V, V_dot,  Q_in, Q_out, c_in
+            )
 
-        self.residuals['inlet']['viscosity'] = calculate_residuals_visc_cstr()
+        self.residuals['bulk']['Volume'] = calculate_residual_volume_cstr(
+            V, V_dot, Q_in, Q_out
+            )
+
+        self.residuals['inlet']['viscosity'] = calculate_residual_visc_cstr()
 
 class DeadEndFiltration(UnitOperationBase):
     """

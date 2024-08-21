@@ -7,8 +7,8 @@ from CADETPythonSimulator.residual import (
 from CADETPythonSimulator.exception import CADETPythonSimError
 
 
-# random number test
-TestCaseConc_level1 = {
+# Arbitrary parameter values
+TestCaseCSTRConc_level1 = {
     "values": {
         "c": np.array([1, 2, 3]),
         "c_dot": np.array([4, 5, 6]),
@@ -21,8 +21,8 @@ TestCaseConc_level1 = {
     "expected": np.array([-11, -7, -3])
 }
 
-# flow in and out are equal, concentrations to
-TestCaseConc_equal = {
+# Flow in and out are equal, concentrations are equal
+TestCaseCSTRConc_equal = {
     "values": {
         "c": np.array([0.1,]),
         "c_dot": np.array([0,]),
@@ -35,8 +35,8 @@ TestCaseConc_equal = {
     "expected": np.array([0,])
 }
 
-# flow in and out are equal, but concentrations going into the unit are not
-TestCaseConc_diffcin = {
+# Flow in and out are equal, concentrations differ
+TestCaseCSTRConc_diffcin = {
     "values": {
         "c": np.array([0.1,]),
         "c_dot": np.array([0,]),
@@ -49,8 +49,8 @@ TestCaseConc_diffcin = {
     "expected": np.array([-0.1,])
 }
 
-# flow in and out are not equal, concentrantions going in are
-TestCaseConc_diffvol = {
+# Flow in and out differ, concentrations are equal
+TestCaseCSTRConc_diffvol = {
     "values": {
         "c": np.array([0.1,]),
         "c_dot": np.array([0,]),
@@ -63,8 +63,8 @@ TestCaseConc_diffvol = {
     "expected": np.array([0,])
 }
 
-# flow in and out are not, equal, concentrations aren't equal too
-TestCaseConc_diffvolc = {
+# Flow in and out differ, concentrations differ
+TestCaseCSTRConc_diffvolc = {
     "values": {
         "c": np.array([0.1,]),
         "c_dot": np.array([0.2,]),
@@ -81,11 +81,11 @@ TestCaseConc_diffvolc = {
 @pytest.mark.parametrize(
     "parameters",
     [
-        TestCaseConc_level1,
-        TestCaseConc_equal,
-        TestCaseConc_diffcin,
-        TestCaseConc_diffvol,
-        TestCaseConc_diffvolc
+        TestCaseCSTRConc_level1,
+        TestCaseCSTRConc_equal,
+        TestCaseCSTRConc_diffcin,
+        TestCaseCSTRConc_diffvol,
+        TestCaseCSTRConc_diffvolc
     ]
 )
 class TestResidualConcCSTR():
@@ -93,12 +93,13 @@ class TestResidualConcCSTR():
 
         param_vec_conc = parameters["values"].values()
 
-        residual = calculate_residual_concentration_cstr(*param_vec_conc)
+        np.testing.assert_array_almost_equal(
+            calculate_residual_concentration_cstr(*param_vec_conc),
+            parameters["expected"]
+        )
 
-        np.testing.assert_array_almost_equal(residual, parameters["expected"])
 
-
-# random number test
+# Arbitrary parameter values
 TestCaseVol = {
     "values": {
         "V": 1,
@@ -120,7 +121,7 @@ TestCaseVol_equal = {
     "expected": 0
 }
 
-# Flow in is larger than out
+# Flow in is larger than flow out
 TestCaseVol_inge = {
     "values": {
         "V": 1,
@@ -131,7 +132,7 @@ TestCaseVol_inge = {
     "expected": 0
 }
 
-# Flow in is lesser than out
+# Flow in is sameller than flow out
 TestCaseVol_inle = {
     "values": {
         "V": 1,
@@ -142,11 +143,10 @@ TestCaseVol_inle = {
     "expected": 0
 }
 
-# Residual does not depend on Volumne
-
+# Residual does not depend on volume
 TestCaseVol_vol = {
     "values": {
-        "V": 1e10,
+        "V": 1,
         "V_dot": 0,
         "Q_in": 0,
         "Q_out": 0,
@@ -167,10 +167,10 @@ TestCaseVol_vol = {
 )
 class TestResidualVolCSTR():
     def test_calculation_cstr(self, parameters):
-
         param_vec_volume = parameters["values"].values()
-
         residual = calculate_residual_volume_cstr(*param_vec_volume)
+        np.testing.assert_equal(residual, parameters["expected"])
+
 
         np.testing.assert_equal(residual, parameters["expected"])
 
