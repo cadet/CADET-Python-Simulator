@@ -138,7 +138,7 @@ class UnitOperationBase(Structure):
             start_index = end_index
 
     @property
-    def residuals(self) -> list[State]:
+    def residuals(self) -> dict[str, State]:
         """list: Residual array blocks of the unit operation."""
         if self._residuals is None:
             raise NotInitializedError("Unit operation residual is not yet initialized.")
@@ -349,7 +349,6 @@ class UnitOperationBase(Structure):
     def compute_residual(
             self,
             t: float,
-            residual: np.ndarray,
             ) -> NoReturn:
         """
         Calculate the residual of the unit operation at time `t`.
@@ -358,13 +357,6 @@ class UnitOperationBase(Structure):
         ----------
         t : float
             Time at which to evaluate the residual.
-        y : np.ndarray
-            Current state of the unit operation.
-        y_dot : np.ndarray
-            Current state derivative of the unit operation.
-        residual : np.ndarray
-            Residual of the unit operation.
-
         """
         pass
 
@@ -529,7 +521,6 @@ class Cstr(UnitOperationBase):
     Continuous stirred tank reactor.
 
     """
-
     inlet = {
         'dimensions': (),
         'entries': {'c': 'n_comp', 'viscosity': 1},
@@ -541,7 +532,6 @@ class Cstr(UnitOperationBase):
         'n_outlet_ports': 1,
     }
     _state_structures = ['inlet', 'bulk']
-
 
     def compute_residual(
             self,
