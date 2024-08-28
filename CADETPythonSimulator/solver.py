@@ -7,56 +7,16 @@ from scikits.odes.dae import dae
 from CADETProcess.dataStructure import Structure
 from CADETPythonSimulator.exception import NotInitializedError
 from CADETPythonSimulator.unit_operation import UnitOperationBase
+from CADETPythonSimulator.system import SystemBase
 
 
-class SystemSolver(Structure):
-    def __init__(self, unit_operations: list[UnitOperationBase], sections: list[dict]):
+class Solver(Structure):
+    def __init__(self, system: SystemBase, sections: list[dict]):
         self.initialize_solver()
 
-        self._setup_unit_operations(unit_operations)
+        self._system = system
         self._setup_sections(sections)
 
-    def _setup_unit_operations(self, unit_operations):
-        self._unit_operations: list[UnitOperationBase] = unit_operations
-
-        self.unit_slices: dict[UnitOperationBase, slice] = {}
-        start_index = 0
-        for unit in self.unit_operations:
-            end_index = start_index + unit.n_dof
-            self.unit_slices[unit] = slice(start_index, end_index)
-            start_index = end_index
-
-        # dict with [origin_index]{unit, port}
-        origin_index_unit_operations = Dict()
-        # Nested dict with [unit_operations][ports]: origin_index in connectivity matrix
-        origin_unit_ports = Dict()
-        origin_counter = 0
-        for i_unit, unit in enumerate(self.unit_operations):
-            for port in range(unit.n_outlet_ports):
-                origin_unit_ports[i_unit][port] = origin_counter
-                origin_index_unit_operations[origin_counter] = {
-                    'unit': i_unit, 'port': port
-                    }
-                origin_counter += 1
-        self.origin_unit_ports = origin_unit_ports
-        self.origin_index_unit_operations = origin_index_unit_operations
-        self.n_origin_ports = origin_counter
-
-        # dict with [origin_index]{unit, port}
-        destination_index_unit_operations = Dict()
-        # Nested dict with [unit_operations][ports]: dest*_index in connectivity matrix
-        destination_unit_ports = Dict()
-        destination_counter = 0
-        for i_unit, unit in enumerate(self.unit_operations):
-            for port in range(unit.n_inlet_ports):
-                destination_unit_ports[i_unit][port] = destination_counter
-                destination_index_unit_operations[destination_counter] = {
-                    'unit': i_unit, 'port': port
-                    }
-                destination_counter += 1
-        self.destination_unit_ports = destination_unit_ports
-        self.destination_index_unit_operations = destination_index_unit_operations
-        self.n_destination_ports = destination_counter
 
     def _setup_sections(self, sections):
         # TODO: Check section continuity.
@@ -76,7 +36,33 @@ class SystemSolver(Structure):
         if solver not in ['ida']:
             raise ValueError(f"{solver} is not a supported solver.")
 
-        self.solver = dae(solver, self.compute_residual)
+        self.solver = dae(solver, self._compute_residual)
+
+    def _compute_residual(
+            self,
+            t: float,
+            y: np.ndarray,
+            y_dot: np.ndarray,
+            r: np.ndarray
+            ) -> NoReturn:
+        """
+        Compute residual of the system
+
+        Parameters
+        ----------
+        t : float
+            Time to evaluate
+        y : np.ndarray
+            State to evaluate
+        y_dot : np.ndarray
+            State derivative to evaluate
+        r : np.ndarray
+            Array to save the calculated residual
+        """
+        self._system.y = y
+        self._system.y_dot = y_dot
+        self._system.compute_residual(t)
+        r[...] = self._system.r
 
     def initialize_solution_recorder(self) -> NoReturn:
         """
@@ -88,11 +74,12 @@ class SystemSolver(Structure):
         """
         self.unit_solutions: dict[UnitOperationBase, dict] = {}
 
-        for unit in self.unit_operations:
+        for unit in self._system.unit_operations:
             self.unit_solutions[unit]: dict[str, np.ndarray] = {}
-            for state_name, state in unit.states_dict.items():
+            for state_name, state in unit.states.items():
                 self.unit_solutions[unit][state_name] = np.empty((0, *state.shape))
-                self.unit_solutions[unit][f"{state_name}_dot"] = np.empty((0, *state.shape))
+                self.unit_solutions[unit][f"{state_name}_dot"] =\
+                    np.empty((0, *state.shape))
 
     def write_solution(self, y: np.ndarray, y_dot: np.ndarray) -> NoReturn:
         """
@@ -129,11 +116,9 @@ class SystemSolver(Structure):
 
     def solve(self) -> NoReturn:
         """Simulate the system."""
+        self.initialize_system() #TODO: Has to point to system.initialize() 
         self.initialize_solution_recorder()
-
-        y_initial = self.y
-        y_initial_dot = self.y_dot
-        self.write_solution(y_initial, y_initial_dot)
+        self.write_solution()
 
         previous_end = self.sections[0].start
         for section in self.sections:
@@ -142,33 +127,13 @@ class SystemSolver(Structure):
             if section.start != previous_end:
                 raise ValueError("Sections times must be without gaps.")
 
-            self.update_section_states(
-                section.start,
-                section.end,
-                section.section_states,
-            )
-            self.couple_unit_operations(
-                section.connections,
-                y_initial,
-                y_initial_dot
-            )
-
-            section_solution_times = self.get_section_solution_times(section)
-            y, y_dot = self.solve_section(
-                section_solution_times, y_initial, y_initial_dot
-            )
-
-            self.write_solution(y, y_dot)
-
-            y_initial = y
-            y_initial_dot = y_dot
+            self.solve_section(section)
+            self.write_solution()
 
     def solve_section(
             self,
-            section_solution_times: np.ndarray,
-            y_initial: np.ndarray,
-            y_initial_dot: np.ndarray
-            ) -> tuple[np.ndarray, np.ndarray]:
+            section: Dict,
+            ) -> NoReturn:
         """
         Solve a time section of the differential-algebraic equation system.
 
@@ -177,29 +142,30 @@ class SystemSolver(Structure):
 
         Parameters
         ----------
-        section_solution_times : np.ndarray
+        section : Dict
             The time points at which the solution is sought.
-        y_initial : np.ndarray
-            Initial values of the state variables at the start of the section.
-        y_initial_dot : np.ndarray
-            Initial derivatives of the state variables at the start of the section.
-
-        Returns
-        -------
-        tuple[np.ndarray, np.ndarray]
-            A tuple containing two NumPy arrays: the first array contains the computed
-            values of the state variables (y) at each time point in
-            `section_solution_times`, and the second array contains the derivatives of
-            these state variables (y_dot) at each time point.
+        #TODO: Consider creating a section class instead of using Addict
         """
+        #TODO: Update section states could be renamed to update unit_operation_parameters
+        self._update_section_states(
+            section.start,
+            section.end,
+            section.section_states,
+        )
+        #TODO: Consider renaming to update system connectivity, maybe creating system property
+        self._system.couple_unit_operations(
+            section.connections
+        )
+
+        section_solution_times = self.get_section_solution_times(section)
+
+        y_initial = self.system.y
+        y_initial_dot = self.system.y_dot
         output = self.solver.solve(section_solution_times, y_initial, y_initial_dot)
-        y = output.values.y
-        y_dot = output.values.ydot
+        self.system.y = output.values.y
+        self.system.y_dot = output.values.ydot
 
-        return y, y_dot
-
-
-    def get_section_solution_times(self, section: dict) -> np.ndarray:
+    def get_section_solution_times(self, section: Dict) -> np.ndarray:
         # TODO: How to get section_solution_times from section.start, section.end, if user_solution times are provided?
         raise NotImplementedError()
 
@@ -210,6 +176,7 @@ class SystemSolver(Structure):
             section_states: dict[UnitOperationBase, dict]
             ) -> np.ndarray:
         """
+
         Update time dependent unit operation parameters.
 
         Parameters
@@ -252,4 +219,3 @@ class SystemSolver(Structure):
     #             counter += 1
 
     #     return dict(port_mapping)
-
