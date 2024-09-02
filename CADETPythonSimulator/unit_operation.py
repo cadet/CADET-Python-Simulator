@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Any, NoReturn
+from typing import Any, NoReturn, Optional
 
 import numpy as np
 
@@ -55,12 +55,12 @@ class UnitOperationBase(Structure):
 
         self.parameter_sections = {}
 
-        self._states = None
-        self._state_derivatives = None
-        self._residuals = None
+        self._states: Optional[dict[str, State]] = None
+        self._state_derivatives: Optional[dict[str, State]] = None
+        self._residuals: Optional[dict[str, State]] = None
 
-        self._Q_in = None
-        self._Q_out = None
+        self._Q_in: Optional[np.ndarray] = None
+        self._Q_out: Optional[np.ndarray] = None
 
     @property
     def n_dof(self) -> int:
