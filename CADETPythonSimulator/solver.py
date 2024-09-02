@@ -74,7 +74,7 @@ class Solver(Structure):
         """
         self.unit_solutions: dict[UnitOperationBase, dict] = {}
 
-        for unit in self._system.unit_operations:
+        for unit in self._system.unit_operations.values():
             self.unit_solutions[unit]: dict[str, np.ndarray] = {}
             for state_name, state in unit.states.items():
                 self.unit_solutions[unit][state_name] = np.empty((0, *state.shape))

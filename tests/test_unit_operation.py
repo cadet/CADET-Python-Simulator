@@ -31,12 +31,12 @@ class UnitOperationFixture(UnitOperationBase):
             component_system = TwoComponentFixture()
         super().__init__(component_system, name, *args, **kwargs)
 
-        self.initialize()
-        self.add_section()
-
     def add_section(self, *args, **kwargs):
         pass
 
+    def initialize(self) -> NoReturn:
+        super().initialize()
+        self.add_section()
 
 class InletFixture(UnitOperationFixture, Inlet):
     def __init__(
@@ -295,13 +295,17 @@ class _2DGRMFixture(UnitOperationFixture, _2DGRM):
     ]
 )
 class TestUnitStateStructure:
+    def test_initialize(self, unit_operation: UnitOperationBase, expected: dict):
+        with pytest.raises(Exception):
+            unit_operation.states
 
     def test_state_structure(self, unit_operation: UnitOperationBase, expected: dict):
+        unit_operation.initialize()
         assert unit_operation.n_inlet_ports == expected['n_inlet_ports']
         assert unit_operation.n_outlet_ports == expected['n_outlet_ports']
         assert unit_operation.n_dof == expected['n_dof']
 
-    def test_states(self, unit_operation, expected):
+    def test_states(self, unit_operation: UnitOperationBase, expected: dict):
         y_new = np.arange(unit_operation.n_dof, dtype=float)
         unit_operation.y = y_new
 
@@ -332,11 +336,6 @@ class TestUnitStateStructure:
             for port in range(unit_operation.n_outlet_ports):
                 s_out = unit_operation.get_outlet_state_flat(port)
                 np.testing.assert_equal(s_out, expected['outlet_state'][port])
-
-    def test_initialize(self, unit_operation: UnitOperationBase, expected: dict):
-        unit_operation.initialize()
-
-# %% TODO: Unit operation residual
 
 
 @pytest.mark.parametrize(
@@ -487,6 +486,7 @@ class TestUnitResidual():
             expected: dict
             ) -> NoReturn:
         """Test the residual of unit operations."""
+        unit_operation.initialize()
 
         for funcname, func in residualfunc:
             monkeypatch.setattr('CADETPythonSimulator.unit_operation.'+funcname, func)

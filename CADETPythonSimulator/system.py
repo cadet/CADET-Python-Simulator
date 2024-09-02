@@ -27,7 +27,9 @@ class SystemBase(Structure):
     @property
     def n_dof(self) -> int:
         """int: Total number of degrees of freedom."""
-        return sum([state.n_dof for state in self.states.values()])
+        return sum([
+            unit_operation.n_dof for unit_operation in self.unit_operations.values()
+            ])
 
     @property
     def n_comp(self) -> int:
