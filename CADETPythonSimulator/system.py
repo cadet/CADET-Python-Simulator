@@ -5,6 +5,7 @@ import numpy as np
 from scikits.odes.dae import dae
 
 from CADETPythonSimulator.state import State, state_factory
+from CADETPythonSimulator.coupling_interface import coupling_interface, average_coupling
 
 from CADETProcess.dataStructure import Structure
 from CADETPythonSimulator.exception import NotInitializedError, CADETPythonSimError
@@ -18,7 +19,9 @@ class SystemBase(Structure):
         self._state_derivatives: Optional[dict[str, State]] = None
         self._residuals: Optional[dict[str, State]] = None
         self._component_system: Optional[CPSComponentSystem] = None
+        self._connectivity: Optional[np.ndarray] = None
         self._setup_unit_operations(unit_operations)
+        self._coupling_module: Optional[coupling_interface] = average_coupling()
 
     @property
     def unit_operations(self) -> dict[str, UnitOperationBase]:
@@ -172,6 +175,21 @@ class SystemBase(Structure):
             'c': self.n_comp,
             'viscosity': 1,
         }
+    @property
+    def connections(self) -> np.ndarray:
+        return self._connectivity
+
+    @property
+    def coupling(self) -> coupling_interface:
+        return self._coupling_module
+
+    @coupling.setter
+    def coupling(self, coupling_module: coupling_interface) -> NoReturn:
+        self._coupling_module = coupling_module
+
+    def update_system_connectivity(self, connectivity) -> NoReturn:
+        if self._connectivity is None or self._connectivity.shape is not connectivity.shape:
+            self._connectivity = connectivity
 
     def compute_residual(
             self,
@@ -190,9 +208,6 @@ class SystemBase(Structure):
 
     def couple_unit_operations(
             self,
-            connections: list,
-            y_initial: np.ndarray,
-            y_initial_dot: np.ndarray,
             ) -> NoReturn:
         """
         Couple unit operations for set parameters.
@@ -208,7 +223,7 @@ class SystemBase(Structure):
             destination_unit = self.unit_operations[destination_info['name']]
             destination_port = destination_info['port']
 
-            s_new = None
+            unit_Q_list = []
             for origin_port_index, Q_destination in enumerate(Q_destinations):
                 if Q_destination == 0:
                     continue
@@ -219,17 +234,12 @@ class SystemBase(Structure):
 
                 s_unit = origin_unit.get_outlet_state_flat(origin_port)
 
-                if s_new:
-                    for couple_state in self.coupling_state_structure.keys():
-                        s_new[couple_state] += s_unit[couple_state] * Q_destination  # Accumulate weighted states
-                else:
-                    s_new = {couple_state: s_unit[couple_state] * Q_destination
-                             for couple_state in self.coupling_state_structure.keys()
-                            }
+                unit_Q_list.append((s_unit, Q_destination))
 
-            for value in s_new.values():
-                value /= Q_destination_total  # Normalize by total flow rate
 
+            s_new = self._coupling_module.get_coupled_state(unit_Q_list,
+                                                            self.coupling_state_structure
+                                                            )
             destination_unit.set_inlet_state_flat(
                     s_new, destination_port
                 )
