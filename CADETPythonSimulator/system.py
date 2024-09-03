@@ -57,11 +57,11 @@ class SystemBase(Structure):
         # Nested dict with [unit_operations][ports]: origin_index in connectivity matrix
         origin_unit_ports = Dict()
         origin_counter = 0
-        for i_unit, unit in enumerate(self.unit_operations.values()):
-            for port in range(unit.n_outlet_ports):
+        for i_unit, unit in enumerate(self.unit_operations.items()):
+            for port in range(unit[1].n_outlet_ports):
                 origin_unit_ports[i_unit][port] = origin_counter
                 origin_index_unit_operations[origin_counter] = {
-                    'unit': i_unit, 'port': port
+                    'unit': i_unit, 'port': port, 'name': unit[0]
                     }
                 origin_counter += 1
         self.origin_unit_ports = origin_unit_ports
@@ -73,11 +73,11 @@ class SystemBase(Structure):
         # Nested dict with [unit_operations][ports]: dest*_index in connectivity matrix
         destination_unit_ports = Dict()
         destination_counter = 0
-        for i_unit, unit in enumerate(self.unit_operations.values()):
-            for port in range(unit.n_inlet_ports):
+        for i_unit, unit in enumerate(self.unit_operations.items()):
+            for port in range(unit[1].n_inlet_ports):
                 destination_unit_ports[i_unit][port] = destination_counter
                 destination_index_unit_operations[destination_counter] = {
-                    'unit': i_unit, 'port': port
+                    'unit': i_unit, 'port': port, 'name': unit[0]
                     }
                 destination_counter += 1
         self.destination_unit_ports = destination_unit_ports
@@ -165,6 +165,14 @@ class SystemBase(Structure):
             unit_operation.r = r[start_index:end_index]
             start_index = end_index
 
+    @property
+    def coupling_state_structure(self):
+        """dict: State structure that must be accessible in inlet / outlet ports."""
+        return {
+            'c': self.n_comp,
+            'viscosity': 1,
+        }
+
     def compute_residual(
             self,
             t: float
@@ -187,18 +195,9 @@ class SystemBase(Structure):
             y_initial_dot: np.ndarray,
             ) -> NoReturn:
         """
-        Couple unit operations for a given section.
-
-        Parameters
-        ----------
-        connections : list
-            Flow sheet connectivity of the section.
-        y_initial : np.ndarray
-            Initial state of the sections.
-        y_initial_dot : np.ndarray
-            Initial state derivative of the sections.
+        Couple unit operations for set parameters.
         """
-        connectivity_matrix = self._compute_connectivity_matrix(connections)
+        connectivity_matrix = self._compute_connectivity_matrix(self.connections)
 
         for destination_port_index, Q_destinations in enumerate(connectivity_matrix):
             Q_destination_total = sum(Q_destinations)
@@ -206,28 +205,33 @@ class SystemBase(Structure):
                 continue
 
             destination_info = self.destination_index_unit_operations[destination_port_index]
-            destination_unit = self.unit_operations[destination_info['unit']]
+            destination_unit = self.unit_operations[destination_info['name']]
             destination_port = destination_info['port']
 
-            s_new = np.zeros((destination_unit.n_dof_coupling,))
+            s_new = None
             for origin_port_index, Q_destination in enumerate(Q_destinations):
                 if Q_destination == 0:
                     continue
 
                 origin_info = self.origin_index_unit_operations[origin_port_index]
-                origin_unit = self.unit_operations[origin_info['unit']]
+                origin_unit = self.unit_operations[origin_info['name']]
                 origin_port = origin_info['port']
 
-                y_origin_unit = y_initial[self.unit_slices[origin_unit]]
-                s_unit = origin_unit.get_outlet_state(y_origin_unit, origin_port)
+                s_unit = origin_unit.get_outlet_state_flat(origin_port)
 
-                s_new += s_unit * Q_destination  # Accumulate weighted states
+                if s_new:
+                    for couple_state in self.coupling_state_structure.keys():
+                        s_new[couple_state] += s_unit[couple_state] * Q_destination  # Accumulate weighted states
+                else:
+                    s_new = {couple_state: s_unit[couple_state] * Q_destination
+                             for couple_state in self.coupling_state_structure.keys()
+                            }
 
-            s_new /= Q_destination_total  # Normalize by total flow rate
+            for value in s_new.values():
+                value /= Q_destination_total  # Normalize by total flow rate
 
-            y_destination_unit = y_initial[self.unit_slices[destination_unit]]
-            destination_unit.set_inlet_state(
-                y_destination_unit, s_new, destination_port
+            destination_unit.set_inlet_state_flat(
+                    s_new, destination_port
                 )
 
     def _compute_connectivity_matrix(self, connections: list) -> np.ndarray:

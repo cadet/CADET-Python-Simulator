@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from test_solver import SystemFixture
+from CADETPythonSimulator.system import SystemBase
 
 
 @pytest.mark.parametrize(
@@ -102,7 +103,7 @@ class TestSystem():
                 [0.001, 0.   ],
                 [0.   , 0.001]
             ],
-            [0, 1, 2, 0, 1, 2, 6, 7, 8, 9, 10, 11, 12, 10, 11, 12],
+            [0, 1, 2, 0, 1, 2, 6, 7, 8, 9, 10, 11, 12, 9, 10, 11],
         ),
     ]
     # TODO: Add tests with split/combined streams.
@@ -122,7 +123,7 @@ class TestSystemConnectivity():
 
     def test_coupling(
             self,
-            system,
+            system: SystemBase,
             connections,
             expected_matrix,
             expected_state
@@ -131,12 +132,14 @@ class TestSystemConnectivity():
         y = np.arange(system.n_dof)
         y_dot = 2 * y
 
-        system.couple_unit_operations(connections, y, y_dot)
-        np.testing.assert_almost_equal(y, expected_state)
+        system.y = y
+        system.y_dot = y_dot
+
+        system.update_system_connectivity(connections)
+        system.couple_unit_operations()
+        np.testing.assert_almost_equal(system.y, expected_state)
 
 # %% TODO: System Residual
-
-
 
 
 if __name__ == "__main__":
