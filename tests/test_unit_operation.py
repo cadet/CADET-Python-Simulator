@@ -26,9 +26,10 @@ class TwoComponentFixture(CPSComponentSystem):
 
 
 class UnitOperationFixture(UnitOperationBase):
+    class_cps = TwoComponentFixture()
     def __init__(self, component_system, name, *args, **kwargs):
         if component_system is None:
-            component_system = TwoComponentFixture()
+            component_system = UnitOperationFixture.class_cps
         super().__init__(component_system, name, *args, **kwargs)
 
     def add_section(self, *args, **kwargs):
@@ -476,7 +477,6 @@ class TestUnitStateStructure:
     ]
 )
 class TestUnitResidual():
-
     def test_unit_residual(
             self,
             monkeypatch,

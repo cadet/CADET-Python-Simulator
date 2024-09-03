@@ -7,8 +7,9 @@ from scikits.odes.dae import dae
 from CADETPythonSimulator.state import State, state_factory
 
 from CADETProcess.dataStructure import Structure
-from CADETPythonSimulator.exception import NotInitializedError
+from CADETPythonSimulator.exception import NotInitializedError, CADETPythonSimError
 from CADETPythonSimulator.unit_operation import UnitOperationBase
+from CADETPythonSimulator.componentsystem import CPSComponentSystem
 
 class SystemBase(Structure):
 
@@ -16,7 +17,7 @@ class SystemBase(Structure):
         self._states: Optional[dict[str, State]] = None
         self._state_derivatives: Optional[dict[str, State]] = None
         self._residuals: Optional[dict[str, State]] = None
-
+        self._component_system: Optional[CPSComponentSystem] = None
         self._setup_unit_operations(unit_operations)
 
     @property
@@ -34,7 +35,7 @@ class SystemBase(Structure):
     @property
     def n_comp(self) -> int:
         """int: Number of components."""
-        return self.component_system.n_comp
+        return self._component_system.n_comp
 
     def initialize(self) -> NoReturn:
         """Initialize the system state and residual."""
@@ -85,6 +86,14 @@ class SystemBase(Structure):
 
     def _setup_unit_operations(self, unit_operations : list[UnitOperationBase]):
         #TODO: check if all unit_operation satisfy the system
+        self._component_system = unit_operations[0].component_system
+
+        for unit in unit_operations:
+            if unit.component_system is not self._component_system:
+                raise CADETPythonSimError(f"""Unit Operation {unit} has a different
+                                        Component System than the first unit operation
+                                        {unit_operations[0]}."""
+                                        )
         self._unit_operations = {unit.name: unit for unit in unit_operations}
 
     @property
