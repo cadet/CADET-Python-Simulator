@@ -146,16 +146,14 @@ class Solver(Structure):
             The time points at which the solution is sought.
         #TODO: Consider creating a section class instead of using Addict
         """
-        #TODO: Update section states could be renamed to update unit_operation_parameters
-        self._update_section_states(
+        self._update_unit_operation_parameters(
             section.start,
             section.end,
             section.section_states,
         )
         #TODO: Consider renaming to update system connectivity, maybe creating system property
-        self._system.couple_unit_operations(
-            section.connections
-        )
+        self._system.update_system_connectivity(section.connections)
+        self._system.couple_unit_operations()
 
         section_solution_times = self.get_section_solution_times(section)
 
@@ -169,7 +167,7 @@ class Solver(Structure):
         # TODO: How to get section_solution_times from section.start, section.end, if user_solution times are provided?
         raise NotImplementedError()
 
-    def _update_section_states(
+    def _update_unit_operation_parameters(
             self,
             start: float,
             end: float,
