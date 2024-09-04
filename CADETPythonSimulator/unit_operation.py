@@ -3,6 +3,7 @@ from collections import defaultdict
 from typing import Any, NoReturn, Optional
 
 import numpy as np
+import numpy.typing as npt
 
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.dataStructure import Structure
@@ -48,6 +49,7 @@ class UnitOperationBase(Structure):
     _section_dependent_parameters = []
 
     def __init__(self, component_system, name, *args, **kwargs):
+        """Construct the UnitOperationBase."""
         self.component_system = component_system
         self.name = name
 
@@ -263,6 +265,7 @@ class UnitOperationBase(Structure):
         ------
         ValueError
             If state is not found.
+
         """
         try:
             state = self.states[state]
@@ -285,6 +288,7 @@ class UnitOperationBase(Structure):
             A dictionary mapping each state entry to its new values at the inlet port.
         unit_port_index : int
             The index of the unit operation inlet port.
+
         """
         port_info = self.port_mapping['inlet'][unit_port_index]
 
@@ -296,7 +300,7 @@ class UnitOperationBase(Structure):
             self,
             state: str,
             state_port_index: int
-            ) -> NoReturn:
+            ) -> dict[str, np.ndarray]:
         """
         Get the state of the unit operation outlet for a given port.
 
@@ -316,6 +320,7 @@ class UnitOperationBase(Structure):
         ------
         ValueError
             If state is not found.
+
         """
         try:
             state = self.states[state]
@@ -340,6 +345,7 @@ class UnitOperationBase(Structure):
         -------
         Dict[str, np.ndarray]
             A dictionary mapping each state entry to the values at the outlet port.
+
         """
         port_info = self.port_mapping['outlet'][unit_port_index]
 
@@ -357,6 +363,7 @@ class UnitOperationBase(Structure):
         ----------
         t : float
             Time at which to evaluate the residual.
+
         """
         pass
 
@@ -387,6 +394,7 @@ class UnitOperationBase(Structure):
         ------
         ValueError
             If not all section dependent parameters are provided.
+
         """
         if list(parameters.keys()) != self.section_dependent_parameters:
             raise ValueError(
@@ -415,6 +423,7 @@ class UnitOperationBase(Structure):
         -------
         dict
             Current values for each parameter.
+
         """
         if len(self.section_dependent_parameters) != len(self.parameter_sections):
             raise Exception("Section dependent parameters are not initialized.")
@@ -444,6 +453,7 @@ class Inlet(UnitOperationBase):
         Polynomial coefficients for component concentration.
     viscosity : float
         Viscosity of the solvent.
+
     """
 
     c_poly = NdPolynomial(size=('n_comp', 4), default=0)
@@ -462,8 +472,7 @@ class Inlet(UnitOperationBase):
 
     def compute_residual(
             self,
-            t: float,
-            residual: np.ndarray,
+            t: float
             ) -> NoReturn:
         """
         Calculate the residual of the unit operation at time `t`.
@@ -493,10 +502,7 @@ class Outlet(UnitOperationBase):
 
     def compute_residual(
             self,
-            t: float,
-            y: np.ndarray,
-            y_dot: np.ndarray,
-            residual: np.ndarray,
+            t: float
             ) -> NoReturn:
         """
         Calculate the residual of the unit operation at time `t`.
@@ -505,22 +511,14 @@ class Outlet(UnitOperationBase):
         ----------
         t : float
             Time at which to evaluate the residual.
-        y : np.ndarray
-            Current state of the unit operation.
-        y_dot : np.ndarray
-            Current state derivative of the unit operation.
-        residual : np.ndarray
-            Residual of the unit operation.
 
         """
         raise NotImplementedError()
 
 
 class Cstr(UnitOperationBase):
-    """
-    Continuous stirred tank reactor.
+    """Continuous stirred tank reactor."""
 
-    """
     inlet = {
         'dimensions': (),
         'entries': {'c': 'n_comp', 'viscosity': 1},
@@ -544,6 +542,7 @@ class Cstr(UnitOperationBase):
         ----------
         t : float
             Time at which to evaluate the residual.
+
         """
         c_in = self.states['inlet']['c']
         c_in_dot = self.state_derivatives['inlet']['c']
@@ -563,14 +562,13 @@ class Cstr(UnitOperationBase):
         Q_in = self.Q_in[0]
         Q_out = self.Q_out[0]
 
-
         self.residuals['bulk']['c'] = calculate_residual_concentration_cstr(
-            c, c_dot, V, V_dot,  Q_in, Q_out, c_in
-            )
+            c, c_dot, V, V_dot, Q_in, Q_out, c_in
+        )
 
         self.residuals['bulk']['Volume'] = calculate_residual_volume_cstr(
             V, V_dot, Q_in, Q_out
-            )
+        )
 
         self.residuals['inlet']['viscosity'] = calculate_residual_visc_cstr()
 
@@ -590,6 +588,7 @@ class DeadEndFiltration(UnitOperationBase):
         Model for cake compressibility.
 
     """
+
     cake = {
         'dimensions': (),
         'entries': {'c': 'n_comp',
@@ -623,7 +622,7 @@ class DeadEndFiltration(UnitOperationBase):
             self,
             t: float,
             ) -> NoReturn:
-
+        """Calculate the Residuum for DEF."""
         Q_in = self.Q_in[0]
         Q_out = self.Q_out[0]
 
@@ -659,53 +658,52 @@ class DeadEndFiltration(UnitOperationBase):
         # Handle inlet DOFs, which are simply copied to the residual
         self.residuals['cake']['c'] = c_in
         self.residuals['cake']['cakevolume'] = calculate_residual_cake_vol_def(
-                                                Q_in,
-                                                rejection,
-                                                molar_volume,
-                                                c_in,
-                                                V_dot_C
-                                                )
+            Q_in,
+            rejection,
+            molar_volume,
+            c_in,
+            V_dot_C
+            )
 
         self.residuals['cake']['pressure'] = calculate_residual_press_easy_def(
-                                                Q_p,
-                                                V_C,
-                                                deltap,
-                                                membrane_area,
-                                                viscosity_in,
-                                                membrane_resistance,
-                                                specific_cake_resistance
-                                                )
+            Q_p,
+            V_C,
+            deltap,
+            membrane_area,
+            viscosity_in,
+            membrane_resistance,
+            specific_cake_resistance
+            )
 
         self.residuals['cake']['permeate'] = calculate_residual_volume_cstr(
-                                                V_C,
-                                                V_dot_C,
-                                                Q_in,
-                                                Q_p
-                                                )
+            V_C,
+            V_dot_C,
+            Q_in,
+            Q_p
+            )
 
         self.residuals['cake']['viscosity'] = calculate_residual_visc_def()
 
         new_c_in = (1-rejection)*c_in
 
         self.residuals['permeate']['c'] = calculate_residual_concentration_cstr(
-                                                c,
-                                                c_dot,
-                                                V,
-                                                V_dot,
-                                                Q_p,
-                                                Q_out,
-                                                new_c_in
-                                                )
+            c,
+            c_dot,
+            V,
+            V_dot,
+            Q_p,
+            Q_out,
+            new_c_in
+            )
 
         self.residuals['permeate']['Volume'] = calculate_residual_volume_cstr(
-                                                V,
-                                                V_dot,
-                                                Q_p,
-                                                Q_out
-                                                )
+            V,
+            V_dot,
+            Q_p,
+            Q_out
+            )
 
         self.residuals['permeate']['viscosity'] = calculate_residual_visc_cstr()
-
 
 
 class CrossFlowFiltration(UnitOperationBase):
@@ -720,8 +718,9 @@ class CrossFlowFiltration(UnitOperationBase):
         Area of the membrane.
     membrane_resistance : float
         Membrane resistance.
-    rejection_model : RejectionBase
+    rejection : RejectionBase
         Model for size dependent rejection.
+
     """
 
     n_axial = UnsignedInteger(default=10)
@@ -786,6 +785,7 @@ class _2DGRM(UnitOperationBase):
         Number of radial discretization cells.
     n_particle : int
         Number of particle discretization cells.
+
     """
 
     n_axial = UnsignedInteger(default=10)

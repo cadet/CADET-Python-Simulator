@@ -11,7 +11,10 @@ from CADETPythonSimulator.system import SystemBase
 
 
 class Solver(Structure):
+    """Solver Class to solve a System."""
+
     def __init__(self, system: SystemBase, sections: list[dict]):
+        """Construct the Solver Class."""
         self.initialize_solver()
 
         self._system = system
@@ -32,6 +35,7 @@ class Solver(Structure):
         ----------
         solver : str, optional
             Solver to use for integration. The default is `ida`.
+
         """
         if solver not in ['ida']:
             raise ValueError(f"{solver} is not a supported solver.")
@@ -46,7 +50,7 @@ class Solver(Structure):
             r: np.ndarray
             ) -> NoReturn:
         """
-        Compute residual of the system
+        Compute residual of the system.
 
         Parameters
         ----------
@@ -58,6 +62,7 @@ class Solver(Structure):
             State derivative to evaluate
         r : np.ndarray
             Array to save the calculated residual
+
         """
         self._system.y = y
         self._system.y_dot = y_dot
@@ -95,6 +100,7 @@ class Solver(Structure):
             The current complete state of the system as a NumPy array.
         y_dot : np.ndarray
             The current complete derivative of the system's state as a NumPy array.
+
         """
         for unit, unit_slice in self.unit_slices.items():
             current_state = unit.y_split
@@ -116,7 +122,7 @@ class Solver(Structure):
 
     def solve(self) -> NoReturn:
         """Simulate the system."""
-        self.initialize_system() #TODO: Has to point to system.initialize() 
+        self.initialize_system() #TODO: Has to point to system.initialize()
         self.initialize_solution_recorder()
         self.write_solution()
 
@@ -145,6 +151,7 @@ class Solver(Structure):
         section : Dict
             The time points at which the solution is sought.
         #TODO: Consider creating a section class instead of using Addict
+
         """
         self._update_unit_operation_parameters(
             section.start,
@@ -174,7 +181,6 @@ class Solver(Structure):
             section_states: dict[UnitOperationBase, dict]
             ) -> np.ndarray:
         """
-
         Update time dependent unit operation parameters.
 
         Parameters

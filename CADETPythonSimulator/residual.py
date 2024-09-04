@@ -24,10 +24,12 @@ def calculate_residual_volume_cstr(
         Volume entering the Unit
     Q_out : float
         Volume leaving the Unit
+
     Returns
     -------
     float
-        Residual of the Flow equation of the CSTR with dimensions like the inpu
+        Residual of the Flow equation of the CSTR with dimensions like the input
+
     """
     if V < 0:
         raise CADETPythonSimError("V can't be less then zero")
@@ -63,6 +65,7 @@ def calculate_residual_concentration_cstr(
         Volume leaving the Unit
     c_in : np.ndarray
         Initial concentration
+
     """
     if V < 0:
         raise CADETPythonSimError("V can't be less then zero")
@@ -91,12 +94,15 @@ def calculate_residual_cake_vol_def(
     ----------
     V_dot_f : float
         Flowrate of incoming feed
-    rejection : float
+    rejection : np.ndarray
         Rejection of the filter
-    gamma : float
-        Portion of suspended material
+    molar_volume : np.ndarray
+        Volume of suspended material
+    c_in : np.array
+        Incoming Concentration
     V_dot_C : float
         Change of Cake Volume
+
     """
     return -V_dot_C + np.sum(rejection * molar_volume * c_in * V_dot_f)
 
@@ -111,8 +117,10 @@ def calculate_residual_press_easy_def(
         alpha: float
         ) -> float:
     """
-    Calculate the residual equations fo a dead end filtration equation for the pressure
-    in the easy model.
+    Calculate the residual equations.
+
+    Calculates the residual equation for a dead end filtration equation
+    for the pressure in the easy model.
 
     Parameters
     ----------
@@ -130,6 +138,7 @@ def calculate_residual_press_easy_def(
         resistance of the medium
     alpha : float
         Specific cake resistance
+
     """
     hyd_resistance = (Rm + alpha*V_C/A) * mu
 
@@ -138,9 +147,7 @@ def calculate_residual_press_easy_def(
 
 
 def calculate_residual_visc_def():
-    """
-    Calculate the residual of the Viscosity equation of the CSTR.
-    """
+    """Calculate the residual of the Viscosity equation of the CSTR."""
     warnings.warn("Viscosity of def not yet implemented")
 
     return 0

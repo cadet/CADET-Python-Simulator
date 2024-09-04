@@ -6,7 +6,8 @@ from CADETPythonSimulator.exception import CADETPythonSimError
 from functools import wraps
 
 class CPSSpecies(Structure):
-    """Species class.
+    """
+    Species class.
 
     Represent a species in a chemical system.
     Same as in cadet Process but with added
@@ -26,6 +27,7 @@ class CPSSpecies(Structure):
         The molecular volume of the species
 
     """
+
     name = String()
     charge = Integer(default=0)
     molecular_weight = UnsignedFloat()
@@ -33,10 +35,11 @@ class CPSSpecies(Structure):
     molecular_volume = UnsignedFloat()
 
 class CPSComponent(Component):
-    """Information about single component.
-    Inherits from CadetProcess Component
-    Same function but with fixed molecular weight and added densities and volume
+    """
+    Information about single component.
 
+    Inherits from CadetProcess Component
+    Same function but with fixed molecular weight and added densities and volume.
     A component can contain subspecies (e.g. differently charged variants).
 
     Attributes
@@ -64,6 +67,7 @@ class CPSComponent(Component):
     ComponentSystem
 
     """
+
     def __init__(self,
                  name=None,
                  species=None,
@@ -71,7 +75,7 @@ class CPSComponent(Component):
                  molecular_weight=None,
                  density=None,
                  molecular_volume=None):
-
+        """Construct CPSComponent."""
         self.name = name
         self._species = []
 
@@ -102,21 +106,24 @@ class CPSComponent(Component):
 
     @property
     def molecular_volume(self):
-        """list of float or None: The molecular volume of the subspecies."""
+        """List of float or None: The molecular volume of the subspecies."""
         return [spec.molecular_volume for spec in self.species]
 
     @property
     def density(self):
-        """list of float or None: The density of the subspecies."""
+        """List of float or None: The density of the subspecies."""
         return [spec.density for spec in self.species]
 
     @property
     def molecular_weight(self):
-        """list of float or None: The molecular weights of the subspecies."""
+        """List of float or None: The molecular weights of the subspecies."""
         return [spec.molecular_weight for spec in self.species]
 
 class CPSComponentSystem(ComponentSystem):
-    """Information about components in system. Inherits from Component System. Adds
+    """
+    Component System Class.
+
+    Information about components in system. Inherits from Component System. Adds
     molecular Volume to the Component System.
 
     A component can contain subspecies (e.g. differently charged variants).
@@ -162,7 +169,8 @@ class CPSComponentSystem(ComponentSystem):
             densities=None,
             molecular_volume=None
         ):
-        """Initialize the ComponentSystem object.
+        """
+        Initialize the ComponentSystem object.
 
         Parameters
         ----------
@@ -186,7 +194,6 @@ class CPSComponentSystem(ComponentSystem):
             If the `components` argument is neither an int nor a list.
 
         """
-
         self.name = name
 
         self._components = []
