@@ -9,7 +9,8 @@ class RejectionBase(Structure):
 
     @abstractmethod
     def get_rejection(self, mw: float) -> float:
-        """Get rejection for a species with specific molecular weight.
+        """
+        Get rejection for a species with specific molecular weight.
 
         Parameters
         ----------
@@ -34,12 +35,14 @@ class StepCutOff(RejectionBase):
     cutoff_weight : float
         Cutoff size. All molecules smaller than the size will pass through the filter.
         All molecules larger or equal than the cutoff will be retained.
+
     """
 
     cutoff_weight = UnsignedFloat()
 
     def get_rejection(self, mw: float) -> float:
-        """Get rejection for a species with specific molecular weight.
+        """
+        Get rejection for a species with specific molecular weight.
 
         Parameters
         ----------

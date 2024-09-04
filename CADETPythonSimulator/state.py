@@ -27,6 +27,7 @@ class State(Structure):
         The name of the state
     s : np.ndarray
         The state array, initialized as zeros based on the computed shape.
+
     """
 
     name = String()
@@ -69,7 +70,7 @@ class State(Structure):
 
     @property
     def dimension_shape(self) -> tuple[int, ...]:
-        """tuple of int: Return the shape derived from dimensions."""
+        """Tuple of int: Return the shape derived from dimensions."""
         return tuple(self.dimensions.values())
 
     @property
@@ -84,7 +85,7 @@ class State(Structure):
 
     @property
     def shape(self) -> tuple[int, ...]:
-        """tuple of int: Return the complete shape of the state array."""
+        """Tuple of int: Return the complete shape of the state array."""
         shape = self.dimension_shape + (self.n_entries,)
         if isinstance(shape, int):
             shape = (shape, )
@@ -115,6 +116,7 @@ class State(Structure):
         Dict[str, np.ndarray]
             A dictionary where each key is an entry name and the value is the
             corresponding segment of the state array.
+
         """
         s_split = {}
         start_index = 0
@@ -180,7 +182,8 @@ class State(Structure):
         Raises
         ------
         Exception
-            If port index exceeds number of inlet ports.
+            If port index exceeds number of inlet ports.#
+
         """
         if port_index > (self.n_inlet_ports - 1):
             raise Exception("Port index exceeds number of inlet ports.")
@@ -229,6 +232,7 @@ class State(Structure):
         ------
         Exception
             If port index exceeds number of outlet ports.
+
         """
         if port_index > (self.n_outlet_ports - 1):
             raise ValueError("Port index exceeds number of outlet ports.")
@@ -265,7 +269,7 @@ class State(Structure):
 
         Parameters
         ----------
-        state_name : str
+        entry : str
             Name of the state entry.
 
         Returns
@@ -277,6 +281,7 @@ class State(Structure):
         ------
         KeyError
             If entry not in State
+
         """
         try:
             return self.s_split[entry]
@@ -300,6 +305,7 @@ class State(Structure):
             If entry is not in State.
         ValueError
             If the shape of the value does not match the expected shape for the entry.
+
         """
         if entry not in self.entries:
             raise KeyError('Not a valid state.')
@@ -347,6 +353,8 @@ def state_factory(
 
     Parameters
     ----------
+    instance : Any
+        instance to initialize
     name : str
         Name of the state
     dimensions : int or tuple
@@ -355,6 +363,11 @@ def state_factory(
     entries : dict
         The state entries at each cell. Individual elements can be either
         integers or strings (indicating other instance parameters).
+    n_inlet_ports: int | str
+        Noumber of inlet Ports
+    n_outlet_ports: int | str
+        Number of outlet Ports
+
     """
     dimensions = {
         dim: getattr(instance, dim) for dim in dimensions

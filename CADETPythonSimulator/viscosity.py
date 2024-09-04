@@ -12,7 +12,8 @@ class ViscosityBase(Structure):
     def get_mixture_viscosity(
             self, viscosities: np.ndarray, fractions: np.ndarray
             ) -> float:
-        """Calculate mixed viscosity with given viscosities and volume fractions.
+        """
+        Calculate mixed viscosity with given viscosities and volume fractions.
 
         Parameters
         ----------
@@ -25,6 +26,7 @@ class ViscosityBase(Structure):
         -------
         float
             Calculated mixed viscosity of the mixture.
+
         """
         pass
 
@@ -49,7 +51,8 @@ class AverageViscosity(ViscosityBase):
     def get_mixture_viscosity(
             self, viscosities: np.ndarray, fractions: np.ndarray
             ) -> float:
-        """Calculate mixed viscosity using the arithmetic mean.
+        """
+        Calculate mixed viscosity using the arithmetic mean.
 
         Parameters
         ----------
@@ -62,6 +65,7 @@ class AverageViscosity(ViscosityBase):
         -------
         float
             Weighted average mixed viscosity of the mixture.
+
         """
         self._validate_viscosities_input(viscosities, fractions)
 
@@ -75,7 +79,8 @@ class LogarithmicMixingViscosity(ViscosityBase):
     def get_mixture_viscosity(
             self, viscosities: np.ndarray, fractions: np.ndarray
             ) -> float:
-        """Calculate mixed viscosity using the logarithmic mixing rule.
+        """
+        Calculate mixed viscosity using the logarithmic mixing rule.
 
         Parameters
         ----------
@@ -88,6 +93,7 @@ class LogarithmicMixingViscosity(ViscosityBase):
         -------
         float
             Logarithmic mixed viscosity of the mixture.
+
         """
         self._validate_viscosities_input(viscosities, fractions)
 

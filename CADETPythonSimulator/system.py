@@ -2,10 +2,11 @@ from typing import NoReturn, Optional
 
 from addict import Dict
 import numpy as np
+import numpy.typing as npt
 from scikits.odes.dae import dae
 
 from CADETPythonSimulator.state import State, state_factory
-from CADETPythonSimulator.coupling_interface import coupling_interface, average_coupling
+from CADETPythonSimulator.coupling_interface import CouplingInterface, AverageCoupling
 
 from CADETProcess.dataStructure import Structure
 from CADETPythonSimulator.exception import NotInitializedError, CADETPythonSimError
@@ -13,15 +14,17 @@ from CADETPythonSimulator.unit_operation import UnitOperationBase
 from CADETPythonSimulator.componentsystem import CPSComponentSystem
 
 class SystemBase(Structure):
+    """Base Class Structure for a System."""
 
     def __init__(self, unit_operations: list[UnitOperationBase]):
+        """Construct the SystemBase Class."""
         self._states: Optional[dict[str, State]] = None
         self._state_derivatives: Optional[dict[str, State]] = None
         self._residuals: Optional[dict[str, State]] = None
         self._component_system: Optional[CPSComponentSystem] = None
         self._connectivity: Optional[np.ndarray] = None
         self._setup_unit_operations(unit_operations)
-        self._coupling_module: Optional[coupling_interface] = average_coupling()
+        self._coupling_module: Optional[CouplingInterface] = AverageCoupling()
 
     @property
     def unit_operations(self) -> dict[str, UnitOperationBase]:
@@ -33,7 +36,7 @@ class SystemBase(Structure):
         """int: Total number of degrees of freedom."""
         return sum([
             unit_operation.n_dof for unit_operation in self.unit_operations.values()
-            ])
+        ])
 
     @property
     def n_comp(self) -> int:
@@ -54,7 +57,7 @@ class SystemBase(Structure):
         self._setup_connectivity()
 
     def _setup_connectivity(self):
-        """Setup helper Parameters for connectivity"""
+        """Set up helper Parameters for connectivity."""
         # dict with [origin_index]{unit, port}
         origin_index_unit_operations = Dict()
         # Nested dict with [unit_operations][ports]: origin_index in connectivity matrix
@@ -64,8 +67,10 @@ class SystemBase(Structure):
             for port in range(unit[1].n_outlet_ports):
                 origin_unit_ports[i_unit][port] = origin_counter
                 origin_index_unit_operations[origin_counter] = {
-                    'unit': i_unit, 'port': port, 'name': unit[0]
-                    }
+                    'unit': i_unit,
+                    'port': port,
+                    'name': unit[0],
+                }
                 origin_counter += 1
         self.origin_unit_ports = origin_unit_ports
         self.origin_index_unit_operations = origin_index_unit_operations
@@ -80,8 +85,10 @@ class SystemBase(Structure):
             for port in range(unit[1].n_inlet_ports):
                 destination_unit_ports[i_unit][port] = destination_counter
                 destination_index_unit_operations[destination_counter] = {
-                    'unit': i_unit, 'port': port, 'name': unit[0]
-                    }
+                    'unit': i_unit,
+                    'port': port,
+                    'name': unit[0],
+                }
                 destination_counter += 1
         self.destination_unit_ports = destination_unit_ports
         self.destination_index_unit_operations = destination_index_unit_operations
@@ -93,10 +100,11 @@ class SystemBase(Structure):
 
         for unit in unit_operations:
             if unit.component_system is not self._component_system:
-                raise CADETPythonSimError(f"""Unit Operation {unit} has a different
-                                        Component System than the first unit operation
-                                        {unit_operations[0]}."""
-                                        )
+                raise CADETPythonSimError(
+                    f"""Unit Operation {unit} has a different
+                    Component System than the first unit operation
+                    {unit_operations[0]}."""
+                )
         self._unit_operations = {unit.name: unit for unit in unit_operations}
 
     @property
@@ -169,25 +177,28 @@ class SystemBase(Structure):
             start_index = end_index
 
     @property
+    # In future, this will be an abstractproperty which needs to be implemented by the different subclasses
     def coupling_state_structure(self):
         """dict: State structure that must be accessible in inlet / outlet ports."""
         return {
-            'c': self.n_comp,
-            'viscosity': 1,
+            'c': AverageCoupling(), # Note, instantiation is probably not ideal in the getter, maybe in the __init__?
+            'viscosity': AverageCoupling(),
         }
+
     @property
     def connections(self) -> np.ndarray:
         return self._connectivity
 
-    @property
-    def coupling(self) -> coupling_interface:
-        return self._coupling_module
+    def update_system_connectivity(self, connectivity: npt.ArrayLike) -> NoReturn:
+        """Setter for connectivity.
 
-    @coupling.setter
-    def coupling(self, coupling_module: coupling_interface) -> NoReturn:
-        self._coupling_module = coupling_module
+        Parameters
+        ----------
+        connectivity : ArrayLike
+            List or Array that may be cast to an array to be set
 
-    def update_system_connectivity(self, connectivity) -> NoReturn:
+        """
+        connectivity = np.array(connectivity)
         if self._connectivity is None or self._connectivity.shape is not connectivity.shape:
             self._connectivity = connectivity
 
@@ -202,6 +213,7 @@ class SystemBase(Structure):
         ----------
         t : float
             Current time point.
+
         """
         for unit_operation in self.unit_operations.values():
             unit_operation.compute_residual(t)
@@ -209,9 +221,7 @@ class SystemBase(Structure):
     def couple_unit_operations(
             self,
             ) -> NoReturn:
-        """
-        Couple unit operations for set parameters.
-        """
+        """Couple unit operations for set parameters."""
         connectivity_matrix = self._compute_connectivity_matrix(self.connections)
 
         for destination_port_index, Q_destinations in enumerate(connectivity_matrix):
@@ -236,15 +246,19 @@ class SystemBase(Structure):
 
                 unit_Q_list.append((s_unit, Q_destination))
 
-
-            s_new = self._coupling_module.get_coupled_state(unit_Q_list,
-                                                            self.coupling_state_structure
-                                                            )
+            s_new = CouplingInterface.get_coupled_state(
+                unit_Q_list,
+                self.coupling_state_structure
+            )
             destination_unit.set_inlet_state_flat(
-                    s_new, destination_port
-                )
+                s_new, destination_port
+            )
 
     def _compute_connectivity_matrix(self, connections: list) -> np.ndarray:
+        # TODO: This could be the setter for `connectivity`
+        # Note, maybe we already adapt the interface s.t. we compute this matrix,
+        # or we might even use a better maintainable data structure (e.g. a nested dict
+        # representing the flow sheet as directed graph)
         """
         Compute the connectivity matrix from the connections interface.
 
@@ -276,6 +290,7 @@ class SystemBase(Structure):
         -------
         np.ndarray
             Connectivity matrix.
+
         """
         connections = np.asarray(connections)
 

@@ -72,6 +72,7 @@ class SystemSolver(Structure):
         ----------
         solver : str, optional
             Solver to use for integration. The default is `ida`.
+
         """
         if solver not in ['ida']:
             raise ValueError(f"{solver} is not a supported solver.")
@@ -108,6 +109,7 @@ class SystemSolver(Structure):
             The current complete state of the system as a NumPy array.
         y_dot : np.ndarray
             The current complete derivative of the system's state as a NumPy array.
+
         """
         for unit, unit_slice in self.unit_slices.items():
             current_state = unit.y_split
@@ -191,6 +193,7 @@ class SystemSolver(Structure):
             values of the state variables (y) at each time point in
             `section_solution_times`, and the second array contains the derivatives of
             these state variables (y_dot) at each time point.
+
         """
         output = self.solver.solve(section_solution_times, y_initial, y_initial_dot)
         y = output.values.y

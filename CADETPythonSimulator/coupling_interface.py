@@ -3,7 +3,7 @@ import numpy as np
 from CADETPythonSimulator.unit_operation import UnitOperationBase
 
 
-class coupling_interface(abc.ABC):
+class CouplingInterface(abc.ABC):
     @abc.abstractmethod
     def get_coupled_state(self,
                           origin_list: list[(dict, float)],
@@ -13,7 +13,7 @@ class coupling_interface(abc.ABC):
 
 
 
-class average_coupling(coupling_interface):
+class AverageCoupling(CouplingInterface):
 
     def get_coupled_state(self,
                           origin_list: list[(dict, float)],

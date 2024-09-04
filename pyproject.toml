@@ -71,5 +71,5 @@ line-length = 88
 indent-width = 4
 
 [tool.ruff.lint]
-select = ["E", "F", "W"]
-ignore = ["F401"]
+select = ["E", "F", "W", "D"]
+ignore = ["F401", "D212", "D100"]
