@@ -491,14 +491,16 @@ class TestUnitResidual():
         for funcname, func in residualfunc:
             monkeypatch.setattr('CADETPythonSimulator.unit_operation.'+funcname, func)
 
-        for key, value in case['states'].items():
-            unit_operation.states[key] = value
+        for state, values in case['states'].items():
+            for dof, new_value in values.items():
+                unit_operation.states[state][dof] = new_value
 
-        for key, value in case['state_derivatives'].items():
-            unit_operation.state_derivatives[key] = value
+        for state, values in case['state_derivatives'].items():
+            for dof, new_value in values.items():
+                unit_operation.state_derivatives[state][dof] = new_value
 
-        unit_operation._Q_in = case['Q_in']
-        unit_operation._Q_out = case['Q_out']
+        unit_operation.Q_in = case['Q_in']
+        unit_operation.Q_out = case['Q_out']
 
         unit_operation.compute_residual(3)
 
