@@ -172,6 +172,15 @@ class UnitOperationBase(Structure):
 
         return self._Q_in
 
+    @Q_in.setter
+    def Q_in(self, Q_in: npt.ArrayLike):
+        if not (len(Q_in) == self.n_inlet_ports):
+            raise ValueError(
+                f"""Q_in has wrong shape. Expected ({self.n_inlet_ports},),
+                got ({len(Q_in)},)"""
+            )
+        self._Q_in = np.array(Q_in)
+
     @property
     def Q_out(self) -> np.ndarray:
         """np.ndarray: Ingoing flow rates."""
@@ -181,6 +190,27 @@ class UnitOperationBase(Structure):
             )
 
         return self._Q_out
+
+    @Q_out.setter
+    def Q_out(self, Q_out: npt.ArrayLike):
+        if not (len(Q_out) == self.n_outlet_ports):
+            raise ValueError(
+                f"""Q_out has wrong shape. Expected ({self.n_outlet_ports},),
+                got ({len(Q_out)},)"""
+            )
+        self._Q_out = np.array(Q_out)
+
+    def set_Q_in(self, port: int, Q_in: float):
+        """Set a portspecific Q_in."""
+        if not port < self.n_inlet_ports and port >=0:
+            raise f"""Port {port} is not inbetween 0 and {self.n_inlet_ports}"""
+        self._Q_in[port] = Q_in
+
+    def set_Q_out(self, port: int, Q_out: float):
+        """Set s portspecific Q_out."""
+        if not port < self.n_outlet_ports and port >=0:
+            raise f"""Port {port} is not inbetween 0 and {self.n_outlet_ports}""" 
+        self._Q_out[port] = Q_out
 
     @property
     def coupling_state_structure(self):
