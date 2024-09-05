@@ -1,5 +1,6 @@
 from typing import NoReturn, Optional
 
+import abc
 from addict import Dict
 import numpy as np
 import numpy.typing as npt
@@ -23,8 +24,12 @@ class SystemBase(Structure):
         self._residuals: Optional[dict[str, State]] = None
         self._component_system: Optional[CPSComponentSystem] = None
         self._connectivity: Optional[np.ndarray] = None
+
+        if not self._coupling_state_structure:
+            self._coupling_state_structure: Optional[dict[str, CouplingInterface]]\
+                = None
         self._setup_unit_operations(unit_operations)
-        self._coupling_module: Optional[CouplingInterface] = AverageCoupling()
+
 
     @property
     def unit_operations(self) -> dict[str, UnitOperationBase]:
@@ -177,30 +182,45 @@ class SystemBase(Structure):
             start_index = end_index
 
     @property
-    # In future, this will be an abstractproperty which needs to be implemented by the different subclasses
-    def coupling_state_structure(self):
+    def coupling_state_structure(self) -> dict[str, CouplingInterface]:
         """dict: State structure that must be accessible in inlet / outlet ports."""
-        return {
-            'c': AverageCoupling(), # Note, instantiation is probably not ideal in the getter, maybe in the __init__?
-            'viscosity': AverageCoupling(),
-        }
+        return self._coupling_state_structure
+
+    @coupling_state_structure.setter
+    def coupling_state_structure(self, coupling_state_structure: dict) -> NoReturn:
+        """Setter to set the coupling_state_structure."""
+        self._coupling_state_structure = coupling_state_structure
 
     @property
-    def connections(self) -> np.ndarray:
+    def connectivity(self) -> np.ndarray:
+        """np.ndarray: Connectivity Matrix."""
         return self._connectivity
 
-    def update_system_connectivity(self, connectivity: npt.ArrayLike) -> NoReturn:
-        """Setter for connectivity.
+    def update_system_connectivity(self, connections: list) -> NoReturn:
+        """
+        Update the System connectivity.
 
         Parameters
         ----------
-        connectivity : ArrayLike
-            List or Array that may be cast to an array to be set
+        connections : list
+            list that contains the conncections between Unit Operations
 
         """
-        connectivity = np.array(connectivity)
-        if self._connectivity is None or self._connectivity.shape is not connectivity.shape:
-            self._connectivity = connectivity
+        self._compute_connectivity_matrix(connections)
+        self.set_rates()
+        self.couple_unit_operations()
+
+    def set_rates(self) -> NoReturn:
+        """
+        Set Flowrates of Unit Operations.
+
+        Parameters
+        ----------
+        flowrates: dict[str:np.ndarray]
+            dictionary containing the rates
+
+        """
+        raise NotImplementedError("SystemBase is abstract.")
 
     def compute_residual(
             self,
@@ -222,16 +242,16 @@ class SystemBase(Structure):
             self,
             ) -> NoReturn:
         """Couple unit operations for set parameters."""
-        connectivity_matrix = self._compute_connectivity_matrix(self.connections)
-
-        for destination_port_index, Q_destinations in enumerate(connectivity_matrix):
+        for destination_port_index, Q_destinations in enumerate(self.connectivity):
             Q_destination_total = sum(Q_destinations)
             if Q_destination_total == 0:
                 continue
 
-            destination_info = self.destination_index_unit_operations[destination_port_index]
+            destination_info = \
+                self.destination_index_unit_operations[destination_port_index]
             destination_unit = self.unit_operations[destination_info['name']]
             destination_port = destination_info['port']
+
 
             unit_Q_list = []
             for origin_port_index, Q_destination in enumerate(Q_destinations):
@@ -242,17 +262,23 @@ class SystemBase(Structure):
                 origin_unit = self.unit_operations[origin_info['name']]
                 origin_port = origin_info['port']
 
-                s_unit = origin_unit.get_outlet_state_flat(origin_port)
+                unit_Q_list.append(
+                    (origin_unit.get_outlet_state_flat(origin_port), Q_destination)
+                    )
 
-                unit_Q_list.append((s_unit, Q_destination))
+            s_new = self.coupled_state_func(unit_Q_list)
 
-            s_new = CouplingInterface.get_coupled_state(
-                unit_Q_list,
-                self.coupling_state_structure
-            )
             destination_unit.set_inlet_state_flat(
                 s_new, destination_port
             )
+
+    def coupled_state_func(self, unit_Q_list: list[dict, float]) -> dict:
+        """Create new state."""
+        ret = {}
+        for state, calc_method in self.coupling_state_structure.items():
+            ret[state] = calc_method.get_coupled_state(unit_Q_list, state)
+        return ret
+
 
     def _compute_connectivity_matrix(self, connections: list) -> np.ndarray:
         # TODO: This could be the setter for `connectivity`
@@ -305,8 +331,48 @@ class SystemBase(Structure):
             destination_index =\
                 self.destination_unit_ports[destination_unit][destination_port]
 
-            flow_rate = connection[4]
+            rate = connection[4]
 
-            connections_matrix[destination_index, origin_index] = flow_rate
+            connections_matrix[destination_index, origin_index] = rate
 
-        return connections_matrix
+        self._connectivity = connections_matrix
+
+
+
+
+class FlowSystem(SystemBase):
+    """
+    SystemBase Class.
+
+    Class that implements the SystemBase with standard Flowrates
+    inbetween Unit Operations.
+    """
+
+    def __init__(self, unit_operations: list[UnitOperationBase]):
+        """Construct FlowSystem Object."""
+        self.coupling_state_structure={
+            'c': AverageCoupling(),
+            'viscosity': AverageCoupling()
+            }
+        super().__init__(unit_operations)
+
+    def set_rates(self) -> NoReturn:
+        """
+        Set Flowrates of Unit Operations.
+
+        Parameters
+        ----------
+        flowrates: dict[str:np.ndarray]
+            dictionary containing the rates
+
+        """
+        for dest_i, Q_n in enumerate(self.connectivity):
+            unit_operation = self.destination_index_unit_operations[dest_i]['name']
+            unit_port = self.destination_index_unit_operations[dest_i]['port']
+            self.unit_operations[unit_operation].set_Q_in(unit_port, np.sum(Q_n))
+
+        for origin_i, Q_n in enumerate(self.connectivity.T):
+            unit_operation = self.origin_index_unit_operations[origin_i]['name']
+            unit_port = self.origin_index_unit_operations[origin_i]['port']
+            self.unit_operations[unit_operation].set_Q_out(unit_port, np.sum(Q_n))
+

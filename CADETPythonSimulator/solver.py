@@ -160,7 +160,6 @@ class Solver(Structure):
         )
         #TODO: Consider renaming to update system connectivity, maybe creating system property
         self._system.update_system_connectivity(section.connections)
-        self._system.couple_unit_operations()
 
         section_solution_times = self.get_section_solution_times(section)
 

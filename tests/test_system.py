@@ -113,13 +113,13 @@ class TestSystem():
 class TestSystemConnectivity():
     def test_connections_matrix(
             self,
-            system,
+            system: SystemBase,
             connections,
             expected_matrix,
             expected_state
             ):
-        matrix = system._compute_connectivity_matrix(connections)
-        np.testing.assert_almost_equal(matrix, expected_matrix)
+        system._compute_connectivity_matrix(connections)
+        np.testing.assert_almost_equal(system._connectivity, expected_matrix)
 
     def test_coupling(
             self,

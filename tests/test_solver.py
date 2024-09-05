@@ -4,7 +4,7 @@ import pytest
 from test_unit_operation import (
     InletFixture, OutletFixture, CstrFixture, DeadEndFiltrationFixture
 )
-from CADETPythonSimulator.system import SystemBase
+from CADETPythonSimulator.system import SystemBase, FlowSystem
 from CADETPythonSimulator.solver import Solver
 
 
@@ -53,7 +53,7 @@ class SolverFixture(Solver):
 
         super().__init__(system, sections, *args, **kwargs)
 
-class SystemFixture(SystemBase):
+class SystemFixture(FlowSystem):
     def __init__(self, unit_operations=None, *args, **kwargs):
         if unit_operations is None:
             unit_operations = [
