@@ -1,12 +1,27 @@
 import numpy as np
 import pytest
+from addict import Dict
+from typing import NoReturn, Optional
 
 from test_unit_operation import (
     InletFixture, OutletFixture, CstrFixture, DeadEndFiltrationFixture
 )
+from CADETProcess.dataStructure import Structure
 from CADETPythonSimulator.system import SystemBase, FlowSystem
 from CADETPythonSimulator.solver import Solver
 
+
+class SolveDummy(Structure):
+    """Dummy class to Simulate a Solution Object of DAE."""
+
+    def __init__(self, test_dict=None):
+        """Construct a Solution Dummy."""
+        self._test_dict: Optional[Dict] = test_dict
+
+    @property
+    def values(self):
+        """Values Property to imitate."""
+        return self._test_dict
 
 # %% System Fixtures
 class SolverFixture(Solver):
@@ -77,32 +92,67 @@ class SystemFixture(FlowSystem):
                 'n_dof': 16,
                 'unit_solution': {
                     'inlet': {
-                        'c_out': np.array([[0., 1.], [0., 2.]]),
-                        'c_out_dot': np.array([[ 0.,  2.], [0., 4.]]),
-                        'viscosity_out': np.array([[ 2.], [4.]]),
-                        'viscosity_out_dot': np.array([[4.], [8.]]),
+                        'outlet':{
+                            'c': {
+                                'values': np.array([[0., 1.], [0., 2.]]),
+                                'derivatives': np.array([[ 0.,  2.], [0., 4.]])
+                                },
+                            'viscosity': {
+                                'values': np.array([[ 2.], [4.]]),
+                                'derivatives': np.array([[4.], [8.]]),
+                            }
+                        }
                     },
                     'dead_end_filtration': {
-                        'c_in': np.array([[ 3.,  4.], [6., 8.]]),
-                        'c_in_dot': np.array([[ 6.,  8.], [12., 16.]]),
-                        'viscosity_in': np.array([[ 5.], [10.]]),
-                        'viscosity_in_dot': np.array([[10.], [20.]]),
-                        'Vp': np.array([[ 6.], [12.]]),
-                        'Vp_dot': np.array([[12.], [24.]]),
-                        'Rc': np.array([[7.], [14.]]),
-                        'Rc_dot': np.array([[14.], [28.]]),
-                        'mc': np.array([[8., 9.], [16., 18.]]),
-                        'mc_dot': np.array([[16., 18.], [32., 36.]]),
-                        'c_out': np.array([[10., 11.], [20., 22.]]),
-                        'c_out_dot': np.array([[20., 22.], [40., 44.]]),
-                        'viscosity_out': np.array([[12.], [24.]]),
-                        'viscosity_out_dot': np.array([[24.], [48.]]),
+                        'cake': {
+                            'c': {
+                                'values': np.array([[ 3.,  4.], [6., 8.]]),
+                                'derivatives': np.array([[ 6.,  8.], [12., 16.]]),
+                            },
+                            'viscosity': {
+                                'values': np.array([[ 5.], [10.]]),
+                                'derivatives': np.array([[10.], [20.]]),
+
+                            },
+                            'pressure': {
+                                'values': np.array([[ 6.], [12.]]),
+                                'derivatives': np.array([[12.], [24.]]),
+                            },
+                            'cakevolume':{
+                                'values': np.array([[7.], [14.]]),
+                                'derivatives': np.array([[14.], [28.]]),
+                            },
+                            'permeate': {
+                                'values': np.array([[8.], [16.]]),
+                                'derivatives': np.array([[16.], [32.]]),
+                            }
+                        },
+                        'permeate': {
+                            'c': {
+                                'values': np.array([[9., 10.], [18., 20.]]),
+                                'derivatives': np.array([[18., 20.], [36., 40.]]),
+                            },
+                            'viscosity': {
+                                'values': np.array([[11.], [22.]]),
+                                'derivatives': np.array([[22.], [44.]]),
+                            },
+                            'Volume': {
+                                'values': np.array([[12.], [24.]]),
+                                'derivatives': np.array([[24.], [48.]]),
+                            }
+                        }
                     },
                     'outlet': {
-                        'c_in': np.array([[13., 14.], [26., 28.]]),
-                        'c_in_dot': np.array([[26., 28.], [52., 56.]]),
-                        'viscosity_in': np.array([[15.], [30.]]),
-                        'viscosity_in_dot': np.array([[30.], [60.]]),
+                        'inlet': {
+                            'c': {
+                                'values': np.array([[13., 14.], [26., 28.]]),
+                                'derivatives': np.array([[26., 28.], [52., 56.]]),
+                            },
+                            'viscosity': {
+                                'values': np.array([[15.], [30.]]),
+                                'derivatives': np.array([[30.], [60.]]),
+                            }
+                        },
                     },
                 },
                 'section_states': {
@@ -144,21 +194,36 @@ class SystemFixture(FlowSystem):
     ]
 )
 class TestSolver():
+    """Testing the Solver Object."""
 
     def test_solution_recorder(self, solver: Solver, expected):
         """Test the solution recorder."""
         solver.initialize_solution_recorder()
 
-        solution = np.arange(solver._system.n_dof)
-        solver.write_solution(solution, 2 * solution)
-        solver.write_solution(2 * solution, 4 * solution)
+        solution = np.arange(solver._system.n_dof).reshape((-1, solver._system.n_dof))
+
+
+        y = solution
+        ydot = 2* solution
+        t = [0]
+
+        solver.write_solution(t, y, ydot)
+
+        y = 2 * solution
+        ydot = 4 * solution
+        t = [1]
+
+        solver.write_solution(t, y, ydot)
 
         unit_solutions = solver.unit_solutions
         for unit, solutions in unit_solutions.items():
-            for state, values in solutions.items():
-                np.testing.assert_almost_equal(
-                    values, expected['unit_solution'][str(unit)][state]
-                )
+            for state, struct in solutions.items():
+                for d_of, sol in struct.items():
+                    for sol_type, sol_array in sol.items():
+                        np.testing.assert_almost_equal(
+                            sol_array,
+                            expected['unit_solution'][unit][state][d_of][sol_type]
+                        )
 
     def test_section_states(self, solver, expected):
         for i_sec, section in enumerate(solver.sections):
