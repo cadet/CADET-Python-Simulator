@@ -224,7 +224,7 @@ class SystemBase(Structure):
 
     def compute_residual(
             self,
-            t: float
+            t: float,
             ) -> NoReturn:
         """
         Compute the residual for the differential-algebraic equations system.
@@ -235,6 +235,7 @@ class SystemBase(Structure):
             Current time point.
 
         """
+        self.couple_unit_operations()
         for unit_operation in self.unit_operations.values():
             unit_operation.compute_residual(t)
 
