@@ -1,7 +1,8 @@
-from typing import NoReturn
+from typing import NoReturn, Optional
 
 from addict import Dict
 import numpy as np
+import numpy.typing as npt
 from scikits.odes.dae import dae
 
 from CADETProcess.dataStructure import Structure
@@ -16,7 +17,7 @@ class Solver(Structure):
     def __init__(self, system: SystemBase, sections: list[dict]):
         """Construct the Solver Class."""
         self.initialize_solver()
-
+        self._output = None
         self._system = system
         self._setup_sections(sections)
 
@@ -77,54 +78,55 @@ class Solver(Structure):
         each state variable within the unit. The structure and size of the array for
         each state variable are determined by the unit's state structure.
         """
-        self.unit_solutions: dict[UnitOperationBase, dict] = {}
+        self.unit_solutions: dict[str, dict] = {}
+        self.time_solutions: np.ndarray = np.empty((0,))
 
         for unit in self._system.unit_operations.values():
-            self.unit_solutions[unit]: dict[str, np.ndarray] = {}
+            self.unit_solutions[unit.name]: dict[str, dict] = {}
             for state_name, state in unit.states.items():
-                self.unit_solutions[unit][state_name] = np.empty((0, *state.shape))
-                self.unit_solutions[unit][f"{state_name}_dot"] =\
-                    np.empty((0, *state.shape))
+                self.unit_solutions[unit.name][state_name]: dict[str, dict] = {}
+                for entry, dim in state.entries.items():
+                    self.unit_solutions[unit.name][state_name][entry]:\
+                        dict[str, np.ndarray] = {}
+                    self.unit_solutions[unit.name][state_name][entry]['values'] =\
+                        np.empty((0, dim))
+                    self.unit_solutions[unit.name][state_name][entry]['derivatives'] =\
+                        np.empty((0, dim))
 
-    def write_solution(self, y: np.ndarray, y_dot: np.ndarray) -> NoReturn:
+    def write_solution(
+            self,
+            times: np.ndarray,
+            y_history: np.ndarray,
+            y_dot_history: np.ndarray
+        ) -> NoReturn:
         """
         Update the solution recorder for each unit with the current state.
 
         Iterates over each unit, to extract the relevant portions of `y` and `y_dot`.
         The current state of each unit is determined by splitting `y` according to each
         unit's requirements.
-
-        Parameters
-        ----------
-        y : np.ndarray
-            The current complete state of the system as a NumPy array.
-        y_dot : np.ndarray
-            The current complete derivative of the system's state as a NumPy array.
-
         """
-        for unit, unit_slice in self.unit_slices.items():
-            current_state = unit.y_split
+        it = 0
+        for state in self.unit_solutions.values():
+            for state_dict in state.values():
+                for sol_tuple in state_dict.values():
+                    itp = it + sol_tuple["values"].shape[1]
 
-            for state, value in current_state.items():
-                previous_states = self.unit_solutions[unit][state]
-                self.unit_solutions[unit][state] = np.vstack((
-                    previous_states,
-                    value.s.reshape((1, previous_states.shape[-1]))
-                ))
+                    y = y_history[:,it:itp]
+                    ydot = y_dot_history[:,it:itp]
 
-            current_state_dot = unit.y_dot_split
-            for state, value in current_state_dot.items():
-                previous_states_dot = self.unit_solutions[unit][f"{state}_dot"]
-                self.unit_solutions[unit][f"{state}_dot"] = np.vstack((
-                    previous_states_dot,
-                    value.s.reshape((1, previous_states_dot.shape[-1]))
-                ))
+                    sol_tuple["values"] = np.concatenate((sol_tuple["values"], y))
+                    sol_tuple["derivatives"] = np.concatenate((
+                        sol_tuple["derivatives"], ydot
+                    ))
+                    it = itp
+
+        self.time_solutions = np.concatenate((self.time_solutions, times))
 
     def solve(self) -> NoReturn:
         """Simulate the system."""
         self.initialize_system() #TODO: Has to point to system.initialize()
         self.initialize_solution_recorder()
-        self.write_solution()
 
         previous_end = self.sections[0].start
         for section in self.sections:
@@ -135,6 +137,11 @@ class Solver(Structure):
 
             self.solve_section(section)
             self.write_solution()
+
+    def initialize_system(self):
+        """Initialize System."""
+        self._system.initialize()
+
 
     def solve_section(
             self,
@@ -163,11 +170,20 @@ class Solver(Structure):
 
         section_solution_times = self.get_section_solution_times(section)
 
-        y_initial = self.system.y
-        y_initial_dot = self.system.y_dot
-        output = self.solver.solve(section_solution_times, y_initial, y_initial_dot)
-        self.system.y = output.values.y
-        self.system.y_dot = output.values.ydot
+        y_initial = self._system.y
+        y_initial_dot = self._system.y_dot
+        output = self.solver.solve(
+            section_solution_times, y_initial, y_initial_dot
+        )
+
+        y_history = output.values.y
+        y_dot_history = output.values.ydot
+        times = output.values.t
+
+        self._system.y = y_history[-1]
+        self._system.y_dot = y_dot_history[-1]
+
+        self.write_solution(times, y_history, y_dot_history)
 
     def get_section_solution_times(self, section: Dict) -> np.ndarray:
         # TODO: How to get section_solution_times from section.start, section.end, if user_solution times are provided?
@@ -177,7 +193,10 @@ class Solver(Structure):
             self,
             start: float,
             end: float,
-            section_states: dict[UnitOperationBase, dict]
+            unit_operation_parameters: dict[
+                UnitOperationBase | str,
+                dict[str, npt.ArrayLike]
+                ]
             ) -> np.ndarray:
         """
         Update time dependent unit operation parameters.
@@ -188,11 +207,11 @@ class Solver(Structure):
             Start time of the section.
         end: float
             End time of the section.
-        section_states : dict[UnitOperation, dict]
+        unit_operation_parameters : dict[UnitOperation | str, dict]
             Unit operation parameters for the next section.
 
         """
-        for unit, parameters in section_states.items():
+        for unit, parameters in unit_operation_parameters.items():
             # TODO: Check if unit is part of SystemSolver
             if isinstance(unit, str):
                 unit = self.unit_operations_dict[unit]
