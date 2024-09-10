@@ -17,8 +17,7 @@ class Solver(Structure):
     def __init__(self, system: SystemBase, sections: list[dict]):
         """Construct the Solver Class."""
         self.initialize_solver()
-        self._output = None
-        self._system = system
+        self._system: Optional[SystemBase] = system
         self._setup_sections(sections)
 
 
@@ -42,6 +41,16 @@ class Solver(Structure):
             raise ValueError(f"{solver} is not a supported solver.")
 
         self.solver = dae(solver, self._compute_residual)
+
+    @property
+    def system(self) -> SystemBase:
+        """Return System of Object."""
+        return self._system
+
+    @system.setter
+    def system(self, system:SystemBase) -> NoReturn:
+        """Setter for System."""
+        self._system = system
 
     def _compute_residual(
             self,
@@ -125,7 +134,7 @@ class Solver(Structure):
 
     def solve(self) -> NoReturn:
         """Simulate the system."""
-        self.initialize_system() #TODO: Has to point to system.initialize()
+        self.initialize_system()
         self.initialize_solution_recorder()
 
         previous_end = self.sections[0].start
@@ -140,7 +149,7 @@ class Solver(Structure):
 
     def initialize_system(self):
         """Initialize System."""
-        self._system.initialize()
+        self.system.initialize()
 
 
     def solve_section(
@@ -165,7 +174,6 @@ class Solver(Structure):
             section.end,
             section.section_states,
         )
-        #TODO: Consider renaming to update system connectivity, maybe creating system property
         self._system.update_system_connectivity(section.connections)
 
         section_solution_times = self.get_section_solution_times(section)
