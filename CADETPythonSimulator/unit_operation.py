@@ -513,8 +513,8 @@ class Inlet(UnitOperationBase):
 
         """
         # Inlet DOFs are simply copied to the residual.
-
-        self.residuals['outlet']['c_poly'] = self.states['outlet']['c_poly']
+        t_poly = np.array([1, t, t**2, t**3])
+        self.residuals['outlet']['c'] = self.c_poly @ t_poly
         self.residuals['outlet']['viscosity'] = self.states['outlet']['viscosity']
 
 class Outlet(UnitOperationBase):
@@ -540,7 +540,8 @@ class Outlet(UnitOperationBase):
             Time at which to evaluate the residual.
 
         """
-        raise NotImplementedError()
+        self.residuals['inlet']['c'] = np.zeros(self.states['inlet']['c'].shape)
+        self.residuals['inlet']['viscosity'] = 0
 
 
 class Cstr(UnitOperationBase):
