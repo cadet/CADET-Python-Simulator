@@ -60,7 +60,7 @@ class InletFixture(UnitOperationFixture, Inlet):
     def add_section(self, c_poly=None, start=0, end=1):
         if c_poly is None:
             c_poly = self.c_poly
-        self.update_section_dependent_parameters(start, end, {'c_poly': c_poly})
+        self.update_parameters(start, end, {'c_poly': c_poly})
 
 
 class OutletFixture(UnitOperationFixture, Outlet):
