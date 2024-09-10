@@ -402,14 +402,14 @@ class UnitOperationBase(Structure):
         """list: Section depdendent parameters."""
         return self._section_dependent_parameters
 
-    def update_section_dependent_parameters(
+    def update_parameters(
             self,
             start: float,
             end: float,
             parameters: dict[str, float | np.ndarray]
             ) -> NoReturn:
         """
-        Update section dependent parameters.
+        Update parameters.
 
         Parameters
         ----------
@@ -426,16 +426,13 @@ class UnitOperationBase(Structure):
             If not all section dependent parameters are provided.
 
         """
-        if list(parameters.keys()) != self.section_dependent_parameters:
-            raise ValueError(
-                "All (and only) section dependent parameters must be provided."
-            )
-
         for param, value in parameters.items():
             is_polynomial = param in self.polynomial_parameters
             setattr(self, param, value)
-            coeffs = getattr(self, param)
-            self.parameter_sections[param] = Section(start, end, coeffs, is_polynomial)
+            if param in self.section_dependent_parameters:
+                coeffs = getattr(self, param)
+                self.parameter_sections[param] =\
+                    Section(start, end, coeffs, is_polynomial)
 
     def get_parameter_values_at_time(
             self,

@@ -6,7 +6,7 @@ import numpy.typing as npt
 from scikits.odes.dae import dae
 
 from CADETProcess.dataStructure import Structure
-from CADETPythonSimulator.exception import NotInitializedError
+from CADETPythonSimulator.exception import NotInitializedError, CADETPythonSimError
 from CADETPythonSimulator.unit_operation import UnitOperationBase
 from CADETPythonSimulator.system import SystemBase
 
@@ -22,8 +22,23 @@ class Solver(Structure):
 
 
     def _setup_sections(self, sections):
-        # TODO: Check section continuity.
+        """
+        Check Connections.
 
+        Converts dict sections into addict.Dicts. Checks if start and end times
+        are continusly
+        """
+        for i, section in enumerate(sections):
+            if type(section) is dict:
+                sections[i] = Dict(section)
+
+        previous_end = sections[0].start
+        for section in sections:
+            if section.end <= section.start:
+                raise ValueError("Section end must be larger than section start.")
+            if section.start != previous_end:
+                raise ValueError("Sections times must be without gaps.")
+            previous_end = section.end
         self.sections = sections
 
 
@@ -137,20 +152,12 @@ class Solver(Structure):
         self.initialize_system()
         self.initialize_solution_recorder()
 
-        previous_end = self.sections[0].start
         for section in self.sections:
-            if section.start <= section.end:
-                raise ValueError("Section end must be larger than section start.")
-            if section.start != previous_end:
-                raise ValueError("Sections times must be without gaps.")
-
             self.solve_section(section)
-            self.write_solution()
 
     def initialize_system(self):
         """Initialize System."""
         self.system.initialize()
-
 
     def solve_section(
             self,
@@ -195,7 +202,12 @@ class Solver(Structure):
 
     def get_section_solution_times(self, section: Dict) -> np.ndarray:
         # TODO: How to get section_solution_times from section.start, section.end, if user_solution times are provided?
-        raise NotImplementedError()
+        time_resolution = section.get("time_resolution", 1.0)
+        start = section.start
+        end = section.end
+        return np.arange(start, end, time_resolution)
+
+
 
     def _update_unit_operation_parameters(
             self,
@@ -220,11 +232,16 @@ class Solver(Structure):
 
         """
         for unit, parameters in unit_operation_parameters.items():
-            # TODO: Check if unit is part of SystemSolver
             if isinstance(unit, str):
-                unit = self.unit_operations_dict[unit]
+                try:
+                    unit = self._system.unit_operations[unit]
+                except KeyError:
+                    raise CADETPythonSimError(f"Unit {unit} is not Part of the System.")
+            else:
+                if unit not in self._system.unit_operations.values():
+                    raise CADETPythonSimError(f"Unit {unit} is not Part of the System.")
 
-            unit.update_section_dependent_parameters(start, end, parameters)
+            unit.update_parameters(start, end, parameters)
 
     # @property
     # def port_mapping(self) -> dict[int, str]:

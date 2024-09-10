@@ -37,7 +37,7 @@ class SolverFixture(Solver):
                     ],
                     'section_states': {
                         'inlet': {
-                            'c': [
+                            'c_poly': [
                                 [1, 0, 0, 0],
                                 [2, 0, 0, 0],
                             ],
@@ -53,7 +53,7 @@ class SolverFixture(Solver):
                     ],
                     'section_states': {
                         'inlet': {
-                            'c': [
+                            'c_poly': [
                                 [0, 1, 0, 0],
                                 [1, 0, 0, 0],
                             ],
@@ -82,12 +82,13 @@ class SystemFixture(FlowSystem):
 
 
 # %% State Structure
-
+solver_fixture_obj = SolverFixture()
+rej_obj = solver_fixture_obj.system.unit_operations['dead_end_filtration'].rejection
 @pytest.mark.parametrize(
     "solver, expected",
     [
         (
-            SolverFixture(),
+            solver_fixture_obj,
             {
                 'n_dof': 16,
                 'unit_solution': {
@@ -159,32 +160,56 @@ class SystemFixture(FlowSystem):
                     0: {
                         'parameters_start': {
                             'inlet': {
-                                'c': np.array([1., 2.]),
+                                'c_poly': np.array([1., 2.]),
+                                'viscosity': 0.001
                             },
-                            'dead_end_filtration': {},
+                            'dead_end_filtration': {
+                                'rejection': rej_obj,
+                                'membrane_area': 1,
+                                'membrane_resistance': 1,
+                                'specific_cake_resistance': 1,
+                            },
                             'outlet': {},
                         },
                         'parameters_end': {
                             'inlet': {
-                                'c': np.array([1., 2.]),
+                                'c_poly': np.array([1., 2.]),
+                                'viscosity': 0.001
                             },
-                            'dead_end_filtration': {},
+                            'dead_end_filtration': {
+                                'rejection': rej_obj,
+                                'membrane_area': 1,
+                                'membrane_resistance': 1,
+                                'specific_cake_resistance': 1,
+                            },
                             'outlet': {},
                         },
                     },
                     1: {
                         'parameters_start': {
                             'inlet': {
-                                'c': np.array([0., 1.]),
+                                'c_poly': np.array([0., 1.]),
+                                'viscosity': 0.001
                             },
-                            'dead_end_filtration': {},
+                            'dead_end_filtration': {
+                                'rejection': rej_obj,
+                                'membrane_area': 1,
+                                'membrane_resistance': 1,
+                                'specific_cake_resistance': 1,
+                            },
                             'outlet': {},
                         },
                         'parameters_end': {
                             'inlet': {
-                                'c': np.array([2., 1.]),
+                                'c_poly': np.array([2., 1.]),
+                                'viscosity': 0.001
                             },
-                            'dead_end_filtration': {},
+                            'dead_end_filtration': {
+                                'rejection': rej_obj,
+                                'membrane_area': 1,
+                                'membrane_resistance': 1,
+                                'specific_cake_resistance': 1,
+                            },
                             'outlet': {},
                         },
                     },
@@ -225,21 +250,23 @@ class TestSolver():
                             expected['unit_solution'][unit][state][d_of][sol_type]
                         )
 
-    def test_section_states(self, solver, expected):
+    def test_parameters(self, solver: Solver, expected):
         for i_sec, section in enumerate(solver.sections):
-            solver._update_section_states(
+            solver._update_unit_operation_parameters(
                 section['start'], section['end'], section['section_states']
             )
 
-            for unit in solver.system.units:
+            for unit in solver.system.unit_operations.values():
                 expected_values = expected['section_states'][i_sec]
 
                 values_start = unit.get_parameter_values_at_time(section['start'])
+
                 np.testing.assert_equal(
                     values_start, expected_values['parameters_start'][str(unit)]
                 )
 
                 values_end = unit.get_parameter_values_at_time(section['end'])
+
                 np.testing.assert_equal(
                     values_end, expected_values['parameters_end'][str(unit)]
                 )
