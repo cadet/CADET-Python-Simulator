@@ -100,6 +100,18 @@ class SystemBase(Structure):
         self.n_destination_ports = destination_counter
 
     def _setup_unit_operations(self, unit_operations : list[UnitOperationBase]):
+        """
+        Set up unit operations.
+
+        Checks wheter every Unit has the same Component system and adds them to a
+        dictionary.
+
+        Parameters
+        ----------
+        unit_operations : list[UnitOperationBase]
+            list of UnitOperation that are part of the System
+
+        """
         #TODO: check if all unit_operation satisfy the system
         self._component_system = unit_operations[0].component_system
 
@@ -129,6 +141,7 @@ class SystemBase(Structure):
 
     @y.setter
     def y(self, y: np.ndarray) -> NoReturn:
+        """Setter for state in From of y array."""
         start_index = 0
         for unit_operation in self.unit_operations.values():
             end_index = start_index + unit_operation.n_dof
@@ -152,6 +165,7 @@ class SystemBase(Structure):
 
     @y_dot.setter
     def y_dot(self, y_dot: np.ndarray) -> NoReturn:
+        """Setter for y_dot."""
         start_index = 0
         for unit_operation in self.unit_operations.values():
             end_index = start_index + unit_operation.n_dof
@@ -175,6 +189,7 @@ class SystemBase(Structure):
 
     @r.setter
     def r(self, r: np.ndarray) -> NoReturn:
+        """Setter for r."""
         start_index = 0
         for unit_operation in self.unit_operations.values():
             end_index = start_index + unit_operation.n_dof
@@ -214,10 +229,7 @@ class SystemBase(Structure):
         """
         Set Flowrates of Unit Operations.
 
-        Parameters
-        ----------
-        flowrates: dict[str:np.ndarray]
-            dictionary containing the rates
+        Abstract Method that has to be implemented by every System
 
         """
         raise NotImplementedError("SystemBase is abstract.")
@@ -274,7 +286,19 @@ class SystemBase(Structure):
             )
 
     def coupled_state_func(self, unit_Q_list: list[dict, float]) -> dict:
-        """Create new state."""
+        """
+        Create new state.
+
+        Creates the new coupled state for a given Unit Operation by Iterating over the
+        coupling state structure and their coupling Interface.
+
+        Parameters
+        ----------
+        unit_Q_list : list[dict, float]
+            list that contains every state and thei corresponding rate that is connected
+            to the to create state
+
+        """
         ret = {}
         for state, calc_method in self.coupling_state_structure.items():
             ret[state] = calc_method.get_coupled_state(unit_Q_list, state)
@@ -376,4 +400,3 @@ class FlowSystem(SystemBase):
             unit_operation = self.origin_index_unit_operations[origin_i]['name']
             unit_port = self.origin_index_unit_operations[origin_i]['port']
             self.unit_operations[unit_operation].set_Q_out(unit_port, np.sum(Q_n))
-

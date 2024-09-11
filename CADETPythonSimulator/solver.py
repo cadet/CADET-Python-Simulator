@@ -129,6 +129,16 @@ class Solver(Structure):
         Iterates over each unit, to extract the relevant portions of `y` and `y_dot`.
         The current state of each unit is determined by splitting `y` according to each
         unit's requirements.
+
+        Parameters
+        ----------
+        times : np.ndarray
+            Time history to save
+        y_history : np.ndarray
+            Calculatet y to save
+        y_dot_history : np.ndarray
+            Calculated derivatives of y to save
+
         """
         it = 0
         for state in self.unit_solutions.values():
@@ -201,7 +211,21 @@ class Solver(Structure):
         self.write_solution(times, y_history, y_dot_history)
 
     def get_section_solution_times(self, section: Dict) -> np.ndarray:
-        # TODO: How to get section_solution_times from section.start, section.end, if user_solution times are provided?
+        """
+        Calculate Section Times.
+
+        Every Section describes the solution times with a start and end time.w
+        The solution times are simply calculated by using np.arange with time_resolution
+        as step size. If time_resolution is not given, a resolution of 1s is used.
+
+        Parameters
+        ----------
+        section : Dict
+            Section Dict that describes the Parameters
+
+        """
+        # TODO: How to get section_solution_times from section.start, section.end, if 
+        # user_solution times are provided?
         time_resolution = section.get("time_resolution", 1.0)
         start = section.start
         end = section.end
