@@ -21,12 +21,11 @@ TestCaseCutof = {
         TestCaseCutof
     ]
 )
-
 class TestRejection():
+    """Test Class to test all rejection Models."""
+
     def test_get_rejection(self, parameters):
-        """
-        Test to check wheter the get_rejection function works as intended
-        """
+        """Test to check wheter the get_rejection function works as intended."""
         model = parameters["model"](**parameters["model_param"])
 
         solution = [model.get_rejection(weight) for weight in parameters["weights"]]

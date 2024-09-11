@@ -86,8 +86,10 @@ from CADETPythonSimulator.system import SystemBase
     ]
 )
 class TestSystem():
+    """Test Class for system."""
 
     def test_system_structure(self, system, expected):
+        """Test system structure."""
         assert system.n_dof == expected['n_dof']
 
 
@@ -111,6 +113,8 @@ class TestSystem():
     # TODO: Add tests with multiple ports.
 )
 class TestSystemConnectivity():
+    """Test system connectivity class."""
+
     def test_connections_matrix(
             self,
             system: SystemBase,
@@ -118,6 +122,7 @@ class TestSystemConnectivity():
             expected_matrix,
             expected_state
             ):
+        """Test for computing the connectivity."""
         system._compute_connectivity_matrix(connections)
         np.testing.assert_almost_equal(system._connectivity, expected_matrix)
 
@@ -128,7 +133,7 @@ class TestSystemConnectivity():
             expected_matrix,
             expected_state
             ):
-
+        """Test for updating and coupling the system connectivity."""
         y = np.arange(system.n_dof)
         y_dot = 2 * y
 

@@ -333,7 +333,10 @@ from CADETPythonSimulator.state import State
     ]
 )
 class TestState():
+    """Test state class."""
+
     def test_state_dimensions(self, state_config, expected):
+        """Test if state parameters are set correctly."""
         state = State(**state_config)
         assert state.dimension_shape == expected['dimension_shape']
         assert state.n_dimensions == expected['n_dimensions']
@@ -347,6 +350,7 @@ class TestState():
         assert state.outlet_port_mapping == expected['outlet_port_mapping']
 
     def test_s_split(self, state_config, expected):
+        """Tests if state spltitting works as intended."""
         state = State(**state_config)
 
         new_state = np.arange(state.n_dof, dtype=float).reshape(state.shape)

@@ -200,16 +200,36 @@ class UnitOperationBase(Structure):
             )
         self._Q_out = np.array(Q_out)
 
-    def set_Q_in(self, port: int, Q_in: float):
-        """Set a portspecific Q_in."""
-        if not port < self.n_inlet_ports and port >=0:
+    def set_Q_in_port(self, port: int, Q_in: float):
+        """
+        Set a portspecific Q_in.
+
+        Parameters
+        ----------
+        port : int
+            port to set Q
+        Q_in : float
+            rate to set
+
+        """
+        if not port < self.n_inlet_ports and port >= 0:
             raise f"""Port {port} is not inbetween 0 and {self.n_inlet_ports}"""
         self._Q_in[port] = Q_in
 
-    def set_Q_out(self, port: int, Q_out: float):
-        """Set s portspecific Q_out."""
-        if not port < self.n_outlet_ports and port >=0:
-            raise f"""Port {port} is not inbetween 0 and {self.n_outlet_ports}""" 
+    def set_Q_out_port(self, port: int, Q_out: float):
+        """
+        Set a portspecific Q_out.
+
+        Parameters
+        ----------
+        port : int
+            port to set Q
+        Q_out : float
+            rate to set
+
+        """
+        if not port < self.n_outlet_ports and port >= 0:
+            raise f"""Port {port} is not inbetween 0 and {self.n_outlet_ports}"""
         self._Q_out[port] = Q_out
 
     @property
@@ -508,14 +528,12 @@ class Inlet(UnitOperationBase):
         ----------
         t : float
             Time at which to evaluate the residual.
-        residual : np.ndarray
-            Residual of the unit operation.
 
         """
-        # Inlet DOFs are simply copied to the residual.
         t_poly = np.array([1, t, t**2, t**3])
         self.residuals['outlet']['c'] = self.c_poly @ t_poly
         self.residuals['outlet']['viscosity'] = self.states['outlet']['viscosity']
+
 
 class Outlet(UnitOperationBase):
     """System outlet."""
@@ -573,9 +591,9 @@ class Cstr(UnitOperationBase):
 
         """
         c_in = self.states['inlet']['c']
-        c_in_dot = self.state_derivatives['inlet']['c']
+        # c_in_dot = self.state_derivatives['inlet']['c']
 
-        viscosity_in = self.states['inlet']['viscosity']
+        # viscosity_in = self.states['inlet']['viscosity']
 
         c = self.states['bulk']['c']
         c_dot = self.state_derivatives['bulk']['c']
@@ -599,6 +617,7 @@ class Cstr(UnitOperationBase):
         )
 
         self.residuals['inlet']['viscosity'] = calculate_residual_visc_cstr()
+
 
 class DeadEndFiltration(UnitOperationBase):
     """
@@ -649,18 +668,18 @@ class DeadEndFiltration(UnitOperationBase):
     def compute_residual(
             self,
             t: float,
-            ) -> NoReturn:
+        ) -> NoReturn:
         """Calculate the Residuum for DEF."""
         Q_in = self.Q_in[0]
         Q_out = self.Q_out[0]
 
         c_in = self.states['cake']['c']
-        c_in_dot = self.state_derivatives['cake']['c']
+        # c_in_dot = self.state_derivatives['cake']['c']
 
         V_C = self.states['cake']['cakevolume']
         V_dot_C = self.state_derivatives['cake']['cakevolume']
 
-        V_p = self.states['cake']['permeate']
+        # V_p = self.states['cake']['permeate']
         Q_p = self.state_derivatives['cake']['cakevolume']
 
         viscosity_in = self.states['cake']['viscosity']
@@ -673,7 +692,7 @@ class DeadEndFiltration(UnitOperationBase):
 
         deltap = self.states['cake']['pressure']
 
-        #parameters
+        # parameters
         molecular_weights = self.component_system.molecular_weights
         molar_volume = self.component_system.molecular_volumes
         membrane_area = self.parameters['membrane_area']
@@ -681,7 +700,8 @@ class DeadEndFiltration(UnitOperationBase):
         specific_cake_resistance = self.parameters['specific_cake_resistance']
 
         rejection = np.array(
-                        [self.rejection.get_rejection(mw) for mw in molecular_weights])
+                        [self.rejection.get_rejection(mw) for mw in molecular_weights]
+                    )
 
         # Handle inlet DOFs, which are simply copied to the residual
         self.residuals['cake']['c'] = c_in
@@ -691,7 +711,7 @@ class DeadEndFiltration(UnitOperationBase):
             molar_volume,
             c_in,
             V_dot_C
-            )
+        )
 
         self.residuals['cake']['pressure'] = calculate_residual_press_easy_def(
             Q_p,
@@ -701,18 +721,18 @@ class DeadEndFiltration(UnitOperationBase):
             viscosity_in,
             membrane_resistance,
             specific_cake_resistance
-            )
+        )
 
         self.residuals['cake']['permeate'] = calculate_residual_volume_cstr(
             V_C,
             V_dot_C,
             Q_in,
             Q_p
-            )
+        )
 
         self.residuals['cake']['viscosity'] = calculate_residual_visc_def()
 
-        new_c_in = (1-rejection)*c_in
+        new_c_in = (1 - rejection) * c_in
 
         self.residuals['permeate']['c'] = calculate_residual_concentration_cstr(
             c,
@@ -722,14 +742,14 @@ class DeadEndFiltration(UnitOperationBase):
             Q_p,
             Q_out,
             new_c_in
-            )
+        )
 
         self.residuals['permeate']['Volume'] = calculate_residual_volume_cstr(
             V,
             V_dot,
             Q_p,
             Q_out
-            )
+        )
 
         self.residuals['permeate']['viscosity'] = calculate_residual_visc_cstr()
 

@@ -20,10 +20,9 @@ class Solver(Structure):
         self._system: Optional[SystemBase] = system
         self._setup_sections(sections)
 
-
     def _setup_sections(self, sections):
         """
-        Check Connections.
+        Set up sections.
 
         Converts dict sections into addict.Dicts. Checks if start and end times
         are continusly
@@ -40,7 +39,6 @@ class Solver(Structure):
                 raise ValueError("Sections times must be without gaps.")
             previous_end = section.end
         self.sections = sections
-
 
     def initialize_solver(self, solver: str = 'ida') -> NoReturn:
         """
@@ -63,7 +61,7 @@ class Solver(Structure):
         return self._system
 
     @system.setter
-    def system(self, system:SystemBase) -> NoReturn:
+    def system(self, system: SystemBase) -> NoReturn:
         """Setter for System."""
         self._system = system
 
@@ -146,8 +144,8 @@ class Solver(Structure):
                 for sol_tuple in state_dict.values():
                     itp = it + sol_tuple["values"].shape[1]
 
-                    y = y_history[:,it:itp]
-                    ydot = y_dot_history[:,it:itp]
+                    y = y_history[:, it:itp]
+                    ydot = y_dot_history[:, it:itp]
 
                     sol_tuple["values"] = np.concatenate((sol_tuple["values"], y))
                     sol_tuple["derivatives"] = np.concatenate((
@@ -221,17 +219,15 @@ class Solver(Structure):
         Parameters
         ----------
         section : Dict
-            Section Dict that describes the Parameters
+            Section dict that describes the Parameters
 
         """
-        # TODO: How to get section_solution_times from section.start, section.end, if 
+        # TODO: How to get section_solution_times from section.start, section.end, if
         # user_solution times are provided?
         time_resolution = section.get("time_resolution", 1.0)
         start = section.start
         end = section.end
         return np.arange(start, end, time_resolution)
-
-
 
     def _update_unit_operation_parameters(
             self,
@@ -240,8 +236,8 @@ class Solver(Structure):
             unit_operation_parameters: dict[
                 UnitOperationBase | str,
                 dict[str, npt.ArrayLike]
-                ]
-            ) -> np.ndarray:
+            ]
+        ) -> np.ndarray:
         """
         Update time dependent unit operation parameters.
 
@@ -266,27 +262,3 @@ class Solver(Structure):
                     raise CADETPythonSimError(f"Unit {unit} is not Part of the System.")
 
             unit.update_parameters(start, end, parameters)
-
-    # @property
-    # def port_mapping(self) -> dict[int, str]:
-    #     """dict: Mapping of port indices to corresponding state entries."""
-    #     # TODO: Let this be handled by the SystemSolver?
-    #     port_mapping = defaultdict(dict)
-
-    #     counter = 0
-    #     for mapped_state, n_ports in self.inlet_ports.items():
-    #         for port in range(n_ports):
-    #             port_mapping['inlet'][counter] = {}
-    #             port_mapping['inlet'][counter]['mapped_state'] = mapped_state
-    #             port_mapping['inlet'][counter]['port_index'] = port
-    #             counter += 1
-
-    #     counter = 0
-    #     for mapped_state, n_ports in self.outlet_ports.items():
-    #         for port in range(n_ports):
-    #             port_mapping['outlet'][counter] = {}
-    #             port_mapping['outlet'][counter]['mapped_state'] = mapped_state
-    #             port_mapping['outlet'][counter]['port_index'] = port
-    #             counter += 1
-
-    #     return dict(port_mapping)

@@ -41,6 +41,7 @@ class State(Structure):
             n_inlet_ports: int = 0,
             n_outlet_ports: int = 0,
             ) -> NoReturn:
+        """Init a state."""
         self.name = name
         self.dimensions = dimensions
         self.entries = entries
