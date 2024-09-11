@@ -7,7 +7,10 @@ import numpy.typing as npt
 from scikits.odes.dae import dae
 
 from CADETPythonSimulator.state import State, state_factory
-from CADETPythonSimulator.coupling_interface import CouplingInterface, AverageCoupling
+from CADETPythonSimulator.coupling_interface import (
+    CouplingInterface,
+    WeightedAverageCoupling
+)
 
 from CADETProcess.dataStructure import Structure
 from CADETPythonSimulator.exception import NotInitializedError, CADETPythonSimError
@@ -29,7 +32,6 @@ class SystemBase(Structure):
             self._coupling_state_structure: Optional[dict[str, CouplingInterface]]\
                 = None
         self._setup_unit_operations(unit_operations)
-
 
     @property
     def unit_operations(self) -> dict[str, UnitOperationBase]:
@@ -254,7 +256,18 @@ class SystemBase(Structure):
     def couple_unit_operations(
             self,
             ) -> NoReturn:
-        """Couple unit operations for set parameters."""
+        """
+        Couple unit operations for set parameters.
+
+        Iterates first over all rows of the connectivity-matrix which is the
+        destination. If the total flow is 0, the row is ignored.
+
+        Then it iterates over every origin flow by iterating over the row itself and
+        saves the state and the rate into a touple that gets added to a list.
+
+        With this list, the new state for destination_unit is created with the
+        coupled_state_func. And afterward is set.
+        """
         for destination_port_index, Q_destinations in enumerate(self.connectivity):
             Q_destination_total = sum(Q_destinations)
             if Q_destination_total == 0:
@@ -264,8 +277,6 @@ class SystemBase(Structure):
                 self.destination_index_unit_operations[destination_port_index]
             destination_unit = self.unit_operations[destination_info['name']]
             destination_port = destination_info['port']
-
-
             unit_Q_list = []
             for origin_port_index, Q_destination in enumerate(Q_destinations):
                 if Q_destination == 0:
@@ -274,13 +285,11 @@ class SystemBase(Structure):
                 origin_info = self.origin_index_unit_operations[origin_port_index]
                 origin_unit = self.unit_operations[origin_info['name']]
                 origin_port = origin_info['port']
-
                 unit_Q_list.append(
                     (origin_unit.get_outlet_state_flat(origin_port), Q_destination)
-                    )
+                )
 
             s_new = self.coupled_state_func(unit_Q_list)
-
             destination_unit.set_inlet_state_flat(
                 s_new, destination_port
             )
@@ -303,7 +312,6 @@ class SystemBase(Structure):
         for state, calc_method in self.coupling_state_structure.items():
             ret[state] = calc_method.get_coupled_state(unit_Q_list, state)
         return ret
-
 
     def _compute_connectivity_matrix(self, connections: list) -> np.ndarray:
         # TODO: This could be the setter for `connectivity`
@@ -363,8 +371,6 @@ class SystemBase(Structure):
         self._connectivity = connections_matrix
 
 
-
-
 class FlowSystem(SystemBase):
     """
     SystemBase Class.
@@ -376,8 +382,8 @@ class FlowSystem(SystemBase):
     def __init__(self, unit_operations: list[UnitOperationBase]):
         """Construct FlowSystem Object."""
         self.coupling_state_structure={
-            'c': AverageCoupling(),
-            'viscosity': AverageCoupling()
+            'c': WeightedAverageCoupling(),
+            'viscosity': WeightedAverageCoupling()
             }
         super().__init__(unit_operations)
 
@@ -394,9 +400,9 @@ class FlowSystem(SystemBase):
         for dest_i, Q_n in enumerate(self.connectivity):
             unit_operation = self.destination_index_unit_operations[dest_i]['name']
             unit_port = self.destination_index_unit_operations[dest_i]['port']
-            self.unit_operations[unit_operation].set_Q_in(unit_port, np.sum(Q_n))
+            self.unit_operations[unit_operation].set_Q_in_port(unit_port, np.sum(Q_n))
 
         for origin_i, Q_n in enumerate(self.connectivity.T):
             unit_operation = self.origin_index_unit_operations[origin_i]['name']
             unit_port = self.origin_index_unit_operations[origin_i]['port']
-            self.unit_operations[unit_operation].set_Q_out(unit_port, np.sum(Q_n))
+            self.unit_operations[unit_operation].set_Q_out_port(unit_port, np.sum(Q_n))

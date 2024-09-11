@@ -21,6 +21,7 @@ class CakeCompressibilityBase(Structure):
         -------
         float
             Specific pressure difference.
+
         """
         return
 
@@ -33,6 +34,7 @@ class NoCakeCompressibility(CakeCompressibilityBase):
     ----------
     cake_resistance: float
         Constant value of cake resistance factor.
+
     """
 
     cake_resistance = UnsignedFloat()
@@ -50,6 +52,7 @@ class NoCakeCompressibility(CakeCompressibilityBase):
         -------
         float
             Specific pressure difference.
+
         """
         return self.cake_resistance
 
@@ -64,6 +67,7 @@ class LinearCakeCompressibility(CakeCompressibilityBase):
         Base value of cake resistance factor.
     cake_resistance_linear: float
         Slope of cake resistance factor.
+
     """
 
     cake_resistance_base = UnsignedFloat()
@@ -82,5 +86,6 @@ class LinearCakeCompressibility(CakeCompressibilityBase):
         -------
         float
             Specific pressure difference.
+
         """
         return self.cake_resistance_base + self.cake_resistance_linear * delta_p

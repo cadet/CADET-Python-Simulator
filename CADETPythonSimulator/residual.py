@@ -36,7 +36,6 @@ def calculate_residual_volume_cstr(
 
     return V_dot - Q_in + Q_out
 
-
 def calculate_residual_concentration_cstr(
         c: np.ndarray,
         c_dot: np.ndarray,
@@ -72,13 +71,11 @@ def calculate_residual_concentration_cstr(
 
     return c_dot * V + V_dot * c - Q_in * c_in + Q_out * c
 
-
 def calculate_residual_visc_cstr():
     """Calculate the residual of the Viscosity equation of the CSTR."""
     warnings.warn("Viscosity of CSTR not yet implemented")
 
     return 0
-
 
 def calculate_residual_cake_vol_def(
         V_dot_f: float,
@@ -105,7 +102,6 @@ def calculate_residual_cake_vol_def(
 
     """
     return -V_dot_C + np.sum(rejection * molar_volume * c_in * V_dot_f)
-
 
 def calculate_residual_press_easy_def(
         V_dot_Perm: float,
@@ -143,8 +139,6 @@ def calculate_residual_press_easy_def(
     hyd_resistance = (Rm + alpha*V_C/A) * mu
 
     return -V_dot_Perm + deltap * A *hyd_resistance
-
-
 
 def calculate_residual_visc_def():
     """Calculate the residual of the Viscosity equation of the CSTR."""

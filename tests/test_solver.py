@@ -23,9 +23,13 @@ class SolveDummy(Structure):
         """Values Property to imitate."""
         return self._test_dict
 
+
 # %% System Fixtures
 class SolverFixture(Solver):
+    """Solver Fixture Class for testing Solver."""
+
     def __init__(self, system=None, sections=None, *args, **kwargs):
+        """Init of the Solver Fixture with pre set sections."""
         if sections is None:
             sections = [
                 {
@@ -63,13 +67,17 @@ class SolverFixture(Solver):
             ]
 
         if system is None:
-            system=SystemFixture()
+            system = SystemFixture()
             system.initialize()
 
         super().__init__(system, sections, *args, **kwargs)
 
+
 class SystemFixture(FlowSystem):
+    """System Fixture Class for Testing purposes."""
+
     def __init__(self, unit_operations=None, *args, **kwargs):
+        """Init System Fixture with set untitoperations when not given."""
         if unit_operations is None:
             unit_operations = [
                 InletFixture(),
@@ -84,6 +92,8 @@ class SystemFixture(FlowSystem):
 # %% State Structure
 solver_fixture_obj = SolverFixture()
 rej_obj = solver_fixture_obj.system.unit_operations['dead_end_filtration'].rejection
+
+
 @pytest.mark.parametrize(
     "solver, expected",
     [
@@ -93,13 +103,13 @@ rej_obj = solver_fixture_obj.system.unit_operations['dead_end_filtration'].rejec
                 'n_dof': 16,
                 'unit_solution': {
                     'inlet': {
-                        'outlet':{
+                        'outlet': {
                             'c': {
                                 'values': np.array([[0., 1.], [0., 2.]]),
-                                'derivatives': np.array([[ 0.,  2.], [0., 4.]])
+                                'derivatives': np.array([[0., 2.], [0., 4.]])
                                 },
                             'viscosity': {
-                                'values': np.array([[ 2.], [4.]]),
+                                'values': np.array([[2.], [4.]]),
                                 'derivatives': np.array([[4.], [8.]]),
                             }
                         }
@@ -107,19 +117,19 @@ rej_obj = solver_fixture_obj.system.unit_operations['dead_end_filtration'].rejec
                     'dead_end_filtration': {
                         'cake': {
                             'c': {
-                                'values': np.array([[ 3.,  4.], [6., 8.]]),
-                                'derivatives': np.array([[ 6.,  8.], [12., 16.]]),
+                                'values': np.array([[3., 4.], [6., 8.]]),
+                                'derivatives': np.array([[6., 8.], [12., 16.]]),
                             },
                             'viscosity': {
-                                'values': np.array([[ 5.], [10.]]),
+                                'values': np.array([[5.], [10.]]),
                                 'derivatives': np.array([[10.], [20.]]),
 
                             },
                             'pressure': {
-                                'values': np.array([[ 6.], [12.]]),
+                                'values': np.array([[6.], [12.]]),
                                 'derivatives': np.array([[12.], [24.]]),
                             },
-                            'cakevolume':{
+                            'cakevolume': {
                                 'values': np.array([[7.], [14.]]),
                                 'derivatives': np.array([[14.], [28.]]),
                             },
@@ -227,9 +237,8 @@ class TestSolver():
 
         solution = np.arange(solver._system.n_dof).reshape((-1, solver._system.n_dof))
 
-
         y = solution
-        ydot = 2* solution
+        ydot = 2 * solution
         t = [0]
 
         solver.write_solution(t, y, ydot)
@@ -251,6 +260,7 @@ class TestSolver():
                         )
 
     def test_parameters(self, solver: Solver, expected):
+        """Test updating of parameters."""
         for i_sec, section in enumerate(solver.sections):
             solver._update_unit_operation_parameters(
                 section['start'], section['end'], section['section_states']

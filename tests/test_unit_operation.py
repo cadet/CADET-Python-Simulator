@@ -18,7 +18,10 @@ from CADETPythonSimulator.rejection import StepCutOff
 
 # %% Unit Operation Fixtures
 class TwoComponentFixture(CPSComponentSystem):
+    """Component Fixture class wiht two pre set components."""
+
     def __init__(self, *args, **kwargs):
+        """Initialize the component with parameters."""
         super().__init__(*args, **kwargs)
 
         self.add_component('A', molecular_weight=1e3, density=1e3, molecular_volume=1)
@@ -26,20 +29,27 @@ class TwoComponentFixture(CPSComponentSystem):
 
 
 class UnitOperationFixture(UnitOperationBase):
+    """Unit Operation Fixture Class for testing purpose."""
+
     class_cps = TwoComponentFixture()
     def __init__(self, component_system, name, *args, **kwargs):
+        """Initialize the unit operation."""
         if component_system is None:
             component_system = UnitOperationFixture.class_cps
         super().__init__(component_system, name, *args, **kwargs)
 
     def add_section(self, *args, **kwargs):
+        """Add section depending on unit operation."""
         pass
 
     def initialize(self) -> NoReturn:
+        """Initialize unit operation dependend for testing purpose."""
         super().initialize()
         self.add_section()
 
 class InletFixture(UnitOperationFixture, Inlet):
+    """Inlet fixture class for testing purpose, inherits from UnitOperationFixture."""
+
     def __init__(
             self,
             component_system=None,
@@ -48,7 +58,8 @@ class InletFixture(UnitOperationFixture, Inlet):
             viscosity=1e-3,
             *args,
             **kwargs
-            ):
+        ):
+        """Initialize class for inlet fixture."""
         super().__init__(component_system, name, *args, **kwargs)
 
         if c_poly is None:
@@ -58,22 +69,31 @@ class InletFixture(UnitOperationFixture, Inlet):
         self.viscosity = viscosity
 
     def add_section(self, c_poly=None, start=0, end=1):
+        """For testing purpose, c_poly is set."""
         if c_poly is None:
             c_poly = self.c_poly
         self.update_parameters(start, end, {'c_poly': c_poly})
 
 
 class OutletFixture(UnitOperationFixture, Outlet):
+    """Oulet fixture class for testing purpose, inherits from UnitOperationFixture."""
+
     def __init__(self, component_system=None, name='outlet', *args, **kwargs):
+        """Initialize the outlet fixture."""
         super().__init__(component_system, name, *args, **kwargs)
 
 
 class CstrFixture(UnitOperationFixture, Cstr):
+    """Cstr fixture class for testing purpose, inherits from UnitOperationFixture."""
+
     def __init__(self, component_system=None, name='cstr', *args, **kwargs):
+        """Initialize the cstr fixture."""
         super().__init__(component_system, name, *args, **kwargs)
 
 
 class DeadEndFiltrationFixture(UnitOperationFixture, DeadEndFiltration):
+    """DEF fixture class for testing purpose, inherits from UnitOperationFixture."""
+
     def __init__(self,
                  component_system=None,
                  name='dead_end_filtration',
@@ -83,7 +103,8 @@ class DeadEndFiltrationFixture(UnitOperationFixture, DeadEndFiltration):
                  rejection=StepCutOff(cutoff_weight=0),
                  *args,
                  **kwargs
-                 ):
+        ):
+        """Initialize DEF fixture with default parameter and default rejection."""
         super().__init__(component_system, name, *args, **kwargs)
 
         self.membrane_area = membrane_area
@@ -93,6 +114,8 @@ class DeadEndFiltrationFixture(UnitOperationFixture, DeadEndFiltration):
 
 
 class CrossFlowFiltrationFixture(UnitOperationFixture, CrossFlowFiltration):
+    """CFF fixture class for testing purpose, inherits from UnitOperationFixture."""
+
     def __init__(self,
                  component_system=None,
                  name='cross_flow_filtration',
@@ -100,7 +123,8 @@ class CrossFlowFiltrationFixture(UnitOperationFixture, CrossFlowFiltration):
                  membrane_resistance=1e-9,
                  *args,
                  **kwargs
-                 ):
+        ):
+        """Initialize CFF fixture with default parameter and defaultrejection."""
         super().__init__(component_system, name, *args, **kwargs)
 
         self.membrane_area = membrane_area
@@ -296,17 +320,22 @@ class _2DGRMFixture(UnitOperationFixture, _2DGRM):
     ]
 )
 class TestUnitStateStructure:
+    """Test class for unit state structure."""
+
     def test_initialize(self, unit_operation: UnitOperationBase, expected: dict):
+        """Check exception raising while not initialized."""
         with pytest.raises(Exception):
             unit_operation.states
 
     def test_state_structure(self, unit_operation: UnitOperationBase, expected: dict):
+        """Initialize the unit operation and test structure."""
         unit_operation.initialize()
         assert unit_operation.n_inlet_ports == expected['n_inlet_ports']
         assert unit_operation.n_outlet_ports == expected['n_outlet_ports']
         assert unit_operation.n_dof == expected['n_dof']
 
     def test_states(self, unit_operation: UnitOperationBase, expected: dict):
+        """Test state and directly state setting."""
         y_new = np.arange(unit_operation.n_dof, dtype=float)
         unit_operation.y = y_new
 
@@ -314,6 +343,7 @@ class TestUnitStateStructure:
             np.testing.assert_equal(state.s, expected['states'][name])
 
     def test_set_inlet_state(self, unit_operation: UnitOperationBase, expected: dict):
+        """Test set_inlet_state_flat function."""
         s_in = {
             'c': [.1, .2],
             'viscosity': [.3],
@@ -330,6 +360,7 @@ class TestUnitStateStructure:
                 np.testing.assert_array_equal(state_slice, slice_information['value'])
 
     def test_get_outlet_state(self, unit_operation: UnitOperationBase, expected: dict):
+        """Test getter for outlet state."""
         if unit_operation.n_outlet_ports == 0:
             with pytest.raises(Exception):
                 unit_operation.get_outlet_port_state(0)
@@ -477,6 +508,8 @@ class TestUnitStateStructure:
     ]
 )
 class TestUnitResidual():
+    """Test class for resdiual related functions of unit operations."""
+
     def test_unit_residual(
             self,
             monkeypatch,

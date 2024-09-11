@@ -5,6 +5,7 @@ from CADETProcess.dataStructure import Structure
 from CADETPythonSimulator.exception import CADETPythonSimError
 from functools import wraps
 
+
 class CPSSpecies(Structure):
     """
     Species class.
@@ -33,6 +34,7 @@ class CPSSpecies(Structure):
     molecular_weight = UnsignedFloat()
     density = UnsignedFloat()
     molecular_volume = UnsignedFloat()
+
 
 class CPSComponent(Component):
     """
@@ -100,6 +102,7 @@ class CPSComponent(Component):
             raise CADETPythonSimError("Could not determine number of species")
 
     def add_species(self, species, *args, **kwargs):
+        """Add a species to the component System."""
         if not isinstance(species, CPSSpecies):
             species = CPSSpecies(species, *args, **kwargs)
         self._species.append(species)
@@ -118,6 +121,7 @@ class CPSComponent(Component):
     def molecular_weight(self):
         """List of float or None: The molecular weights of the subspecies."""
         return [spec.molecular_weight for spec in self.species]
+
 
 class CPSComponentSystem(ComponentSystem):
     """

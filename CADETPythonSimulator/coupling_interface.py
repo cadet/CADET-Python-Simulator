@@ -15,7 +15,7 @@ class CouplingInterface(abc.ABC):
         """Calculate new state for destination_unit."""
 
 
-class AverageCoupling(CouplingInterface):
+class WeightedAverageCoupling(CouplingInterface):
     """Implements the Coupling Interface for average Coupling."""
 
     def get_coupled_state(self,
@@ -26,7 +26,7 @@ class AverageCoupling(CouplingInterface):
         ret = np.zeros(origin_list[0][0][state].shape)
         rate_tot = 0
         for list_state, rate in origin_list:
-            ret += list_state[state]*rate
+            ret += list_state[state] * rate
             rate_tot += rate
 
         ret /= rate_tot

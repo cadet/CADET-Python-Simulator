@@ -92,8 +92,10 @@ TestCaseCSTRConc_diffvolc = {
     ]
 )
 class TestResidualConcCSTR():
-    def test_calculation_concentration_cstr(self, parameters):
+    """Class to test the Residual concentration function for cstr."""
 
+    def test_calculation_concentration_cstr(self, parameters):
+        """Test implementation."""
         param_vec_conc = parameters["values"].values()
 
         np.testing.assert_array_almost_equal(
@@ -169,7 +171,10 @@ TestCaseVol_vol = {
     ]
 )
 class TestResidualVolCSTR():
+    """Test class vor the residual volume function."""
+
     def test_calculation_cstr(self, parameters):
+        """Test the implementation."""
         param_vec_volume = parameters["values"].values()
         residual = calculate_residual_volume_cstr(*param_vec_volume)
         np.testing.assert_equal(residual, parameters["expected"])
@@ -235,7 +240,10 @@ TestCaseDEFCake_C2_le_C1 = {
     ]
 )
 class TestResidualCakeVolDEF():
+    """Class for testing the CAKE volume residual fucntion."""
+
     def test_calculation_def(self, parameters):
+        """Test the residual cake function."""
         param_vec_cake_vol = parameters["values"].values()
         np.testing.assert_equal(
             calculate_residual_cake_vol_def(*param_vec_cake_vol),
@@ -280,7 +288,10 @@ TestCaseDEFPressureDrop_no_cake = {
     ]
 )
 class TestResidualPressureDropDEF():
+    """Test class for the residual pressure prop of dead end filtration model."""
+
     def test_calculation_def(self, parameters):
+        """Test the calculation method."""
         param_vec_pressure = parameters["values"].values()
         residual = calculate_residual_press_easy_def(*param_vec_pressure)
         np.testing.assert_equal(residual, parameters["expected"])
@@ -307,14 +318,17 @@ TestCaseConcError = {
     ]
 )
 class TestResidualError():
+    """Test class for error handling."""
 
     def test_calculation_vol_cstr_error(self, parameters):
+        """Test error of volume function of cstr."""
         param_vec_volume = parameters["values"].values()
 
         with pytest.raises(CADETPythonSimError):
             calculate_residual_volume_cstr(*list(param_vec_volume)[2:6])
 
     def test_calculation_concentration_cstr_error(self, parameters):
+        """Test error of concentration function of cstr."""
         param_vec_volume = parameters["values"].values()
 
         with pytest.raises(CADETPythonSimError):
