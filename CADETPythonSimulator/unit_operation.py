@@ -485,6 +485,20 @@ class UnitOperationBase(Structure):
 
         return current_parameters
 
+    def initialize_initial_values(self, t_zero: float):
+        """
+        Initialize Derivatives if possible.
+
+        Initializes with zeroes by default.
+
+        Parameters
+        ----------
+        t_zero: float
+            initial value at time t_zero
+
+        """
+        self.y_dot = np.zeros(self.n_dof)
+
     def __str__(self) -> str:
         """Return string represenation of the unit operation."""
         return self.name
@@ -530,10 +544,24 @@ class Inlet(UnitOperationBase):
             Time at which to evaluate the residual.
 
         """
+        c = self.states['outlet']['c']
         t_poly = np.array([1, t, t**2, t**3])
-        self.residuals['outlet']['c'] = self.c_poly @ t_poly
+        self.residuals['outlet']['c'] = self.c_poly @ t_poly - c
         self.residuals['outlet']['viscosity'] = self.states['outlet']['viscosity']
 
+    def initialize_initial_values(self, t_zero: float):
+        """
+        Initialize initial values for Inlet Unit Operation.
+
+        Parameters
+        ----------
+        t_zero : float
+            Time to initialize the values
+
+        """
+        t_poly = np.array([0, 1, 2*t_zero, 3*t_zero**2])
+        self.state_derivatives['outlet']['c'] = self.c_poly @ t_poly
+        self.state_derivatives['outlet']['viscosity'] = 0
 
 class Outlet(UnitOperationBase):
     """System outlet."""
@@ -618,6 +646,28 @@ class Cstr(UnitOperationBase):
 
         self.residuals['inlet']['viscosity'] = calculate_residual_visc_cstr()
 
+    def initialize_initial_values(self, t_zero: float):
+        """
+        Initialize initial values for Inlet Unit Operation.
+
+        Parameters
+        ----------
+        t_zero : float
+            Time to initialize the values
+
+        """
+        Q_in = self.Q_in[0]
+        Q_out = self.Q_out[0]
+        V = self.states['bulk']['Volume']
+        V_dot = Q_in - Q_out
+        c_in = self.states['inlet']['c']
+        c = self.states['bulk']['c']
+
+        self.state_derivatives['bulk']['c'] = - V_dot/V*c + Q_in/V*c_in - Q_out/V*c
+        self.state_derivatives['bulk']['volume'] = V_dot
+        self.state_derivatives['bulk']['viscosity'] = 0
+        self.state_derivatives['inlet']['viscosity'] = 0
+        self.state_derivatives['inlet']['c'] = np.zeros(self.n_comp)
 
 class DeadEndFiltration(UnitOperationBase):
     """

@@ -141,8 +141,34 @@ class TestSystemConnectivity():
         system.y_dot = y_dot
 
         system.update_system_connectivity(connections)
-        system.couple_unit_operations()
         np.testing.assert_almost_equal(system.y, expected_state)
+
+@pytest.mark.parametrize(
+    "system, connections, initial_values, expected_state",
+    [
+        (
+            SystemFixture(),
+            [[0, 1, 0, 0, 1e-3], [1, 2, 0, 0, 1e-3]],
+            [0, 1, 2, 0, 1, 2, 6, 7, 8, 9, 10, 11, 12, 9, 10, 11],
+            [0, 1, 2, 0, 1, 2, 6, 7, 8, 9, 10, 11, 12, 9, 10, 11],
+        ),
+    ]
+)
+class TestSystemInitializeInitialValue():
+    """Class to test the Initialization of Initial Values."""
+
+    def test_initialize(
+            self,
+            system: SystemBase,
+            connections,
+            initial_values,
+            expected_state
+            ):
+        """Test to check calculation of Initial Values."""
+        system.y = initial_values
+        system.update_system_connectivity(connections)
+        system.initialize_initial_values(0)
+
 
 # %% TODO: System Residual
 

@@ -4,7 +4,7 @@ import abc
 from addict import Dict
 import numpy as np
 import numpy.typing as npt
-from scikits.odes.dae import dae
+import scipy.optimize as scipyopt
 
 from CADETPythonSimulator.state import State, state_factory
 from CADETPythonSimulator.coupling_interface import (
@@ -27,6 +27,8 @@ class SystemBase(Structure):
         self._residuals: Optional[dict[str, State]] = None
         self._component_system: Optional[CPSComponentSystem] = None
         self._connectivity: Optional[np.ndarray] = None
+
+        self._t_zero: Optional[float] = None
 
         if not self._coupling_state_structure:
             self._coupling_state_structure: Optional[dict[str, CouplingInterface]]\
@@ -213,6 +215,16 @@ class SystemBase(Structure):
         """np.ndarray: Connectivity Matrix."""
         return self._connectivity
 
+    @property
+    def t_zero(self) -> float:
+        """float: Initial Time of current Section."""
+        return self._t_zero
+
+    @t_zero.setter
+    def t_zero(self, t0: float) -> NoReturn:
+        """Setter for Initial Time of current Section."""
+        self._t_zero = t0
+
     def update_system_connectivity(self, connections: list) -> NoReturn:
         """
         Update the System connectivity.
@@ -370,8 +382,37 @@ class SystemBase(Structure):
 
         self._connectivity = connections_matrix
 
-    def initialize_initial_values():
-        pass
+    def compute_residual_for_initial_values(self, y_dot: np.ndarray) -> np.ndarray:
+        """
+        Compute the residual for calculating the initial values.
+
+        Parameters
+        ----------
+        y_dot: np.ndarray
+            derivative array to calculate
+
+        """
+        self.y_dot = y_dot
+        self.compute_residual(self.t_zero)
+        return self.r
+
+    def initialize_initial_values(self, t0: float):
+        """
+        Calculate initial values and set them up.
+
+        First iterates over every Unit Operation to set their initial values up and
+        then tries to calculate a consistent one.
+
+        """
+        self.t_zero = t0
+        for unit_operation in self.unit_operations.values():
+            unit_operation.initialize_initial_values(t0)
+
+        y_dot = self.y_dot
+
+        y_dot = scipyopt.fsolve(self.compute_residual_for_initial_values, y_dot)
+
+        self.y_dot = y_dot
 
 class FlowSystem(SystemBase):
     """
