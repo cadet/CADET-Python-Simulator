@@ -34,6 +34,7 @@ class CPSSpecies(Structure):
     molecular_weight = UnsignedFloat()
     density = UnsignedFloat()
     molecular_volume = UnsignedFloat()
+    viscosity = UnsignedFloat()
 
 
 class CPSComponent(Component):
@@ -62,6 +63,8 @@ class CPSComponent(Component):
         density of component (including species).
     molecular_volume : list
         Molecular volume of component (including species).
+    viscosity : list
+        Viscosity of component(including species)
 
     See Also
     --------
@@ -76,16 +79,30 @@ class CPSComponent(Component):
                  charge=None,
                  molecular_weight=None,
                  density=None,
-                 molecular_volume=None):
+                 molecular_volume=None,
+                 viscosity=None):
         """Construct CPSComponent."""
         self.name = name
         self._species = []
 
         if species is None:
-            self.add_species(name, charge, molecular_weight, density, molecular_volume)
+            self.add_species(
+                name,
+                charge,
+                molecular_weight,
+                density,
+                molecular_volume,
+                viscosity
+            )
         elif isinstance(species, str):
-            self.add_species(species,
-                            charge, molecular_weight, density, molecular_volume)
+            self.add_species(
+                species,
+                charge,
+                molecular_weight,
+                density,
+                molecular_volume,
+                viscosity
+            )
         elif isinstance(species, list):
             if charge is None:
                 charge = len(species) * [None]
@@ -95,9 +112,17 @@ class CPSComponent(Component):
                 density = len(species) * [None]
             if molecular_volume is None:
                 molecular_volume = len(species) * [None]
+            if viscosity is None:
+                viscosity = len(species) * [None]
             for i, spec in enumerate(species):
-                self.add_species(spec,
-                        charge[i], molecular_weight[i], density[i], molecular_volume[i])
+                self.add_species(
+                    spec,
+                    charge[i],
+                    molecular_weight[i],
+                    density[i],
+                    molecular_volume[i],
+                    viscosity[i]
+                )
         else:
             raise CADETPythonSimError("Could not determine number of species")
 
@@ -122,6 +147,10 @@ class CPSComponent(Component):
         """List of float or None: The molecular weights of the subspecies."""
         return [spec.molecular_weight for spec in self.species]
 
+    @property
+    def viscosity(self):
+        """List of float or None: The viscosity of the subspecies."""
+        return [spec.viscosity for spec in self.species]
 
 class CPSComponentSystem(ComponentSystem):
     """
@@ -156,6 +185,8 @@ class CPSComponentSystem(ComponentSystem):
         Molecular weights of all component species.
     molecular_volume : list
         Molecular volume of all component species.
+    viscosity : list
+        Viscosity of all component species.
 
     See Also
     --------
@@ -171,7 +202,8 @@ class CPSComponentSystem(ComponentSystem):
             charges=None,
             molecular_weights=None,
             densities=None,
-            molecular_volume=None
+            molecular_volume=None,
+            viscosities=None
         ):
         """
         Initialize the ComponentSystem object.
@@ -191,6 +223,8 @@ class CPSComponentSystem(ComponentSystem):
             Densities of each component
         molecular_volume : list, None
             The molecular volume of each component.
+        viscosities : list, None
+            viscosity of each component.
 
         Raises
         ------
@@ -221,6 +255,8 @@ class CPSComponentSystem(ComponentSystem):
             densities = n_comp * [None]
         if molecular_volume is None:
             molecular_volume = n_comp * [None]
+        if viscosities is None:
+            viscosities = n_comp * [None]
 
         for i, comp in enumerate(components):
             self.add_component(
@@ -228,7 +264,8 @@ class CPSComponentSystem(ComponentSystem):
                 charge=charges[i],
                 molecular_weight=molecular_weights[i],
                 density=densities[i],
-                molecular_volume=molecular_volume[i]
+                molecular_volume=molecular_volume[i],
+                viscosity=viscosities[i]
             )
 
     @wraps(CPSComponent.__init__)
@@ -274,3 +311,12 @@ class CPSComponentSystem(ComponentSystem):
             densities += comp.density
 
         return densities
+
+    @property
+    def viscosities(self):
+        """list: List of species viscosity."""
+        viscosities = []
+        for comp in self.components:
+            viscosities +=comp.viscosity
+
+        return viscosities
