@@ -165,7 +165,7 @@ class Solver(Structure):
 
     def initialize_system(self):
         """Initialize System."""
-        self.system.initialize()
+        self.system.initialize_initial_values()
 
     def solve_section(
             self,

@@ -68,7 +68,6 @@ class SolverFixture(Solver):
 
         if system is None:
             system = SystemFixture()
-            system.initialize()
 
         super().__init__(system, sections, *args, **kwargs)
 
@@ -86,7 +85,7 @@ class SystemFixture(FlowSystem):
             ]
 
         super().__init__(unit_operations, *args, **kwargs)
-        self.initialize()
+        self.initialize_state()
 
 
 # %% State Structure

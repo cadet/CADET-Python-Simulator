@@ -50,13 +50,13 @@ class SystemBase(Structure):
         """int: Number of components."""
         return self._component_system.n_comp
 
-    def initialize(self) -> NoReturn:
+    def initialize_state(self) -> NoReturn:
         """Initialize the system state and residual."""
         self._states = {}
         self._state_derivatives = {}
         self._residuals = {}
         for unit_name, unit_operation in self.unit_operations.items():
-            unit_operation.initialize()
+            unit_operation.initialize_state()
             self._states[unit_name] = unit_operation.states
             self._state_derivatives[unit_name] = unit_operation.state_derivatives
             self._residuals[unit_name] = unit_operation.residuals
@@ -370,6 +370,8 @@ class SystemBase(Structure):
 
         self._connectivity = connections_matrix
 
+    def initialize_initial_values():
+        pass
 
 class FlowSystem(SystemBase):
     """

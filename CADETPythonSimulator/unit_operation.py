@@ -74,7 +74,7 @@ class UnitOperationBase(Structure):
         """int: Number of components."""
         return self.component_system.n_comp
 
-    def initialize(self) -> NoReturn:
+    def initialize_state(self) -> NoReturn:
         """Initialize the unit operation state and residual."""
         self._states = {}
         self._state_derivatives = {}

@@ -42,9 +42,9 @@ class UnitOperationFixture(UnitOperationBase):
         """Add section depending on unit operation."""
         pass
 
-    def initialize(self) -> NoReturn:
+    def initialize_state(self) -> NoReturn:
         """Initialize unit operation dependend for testing purpose."""
-        super().initialize()
+        super().initialize_state()
         self.add_section()
 
 class InletFixture(UnitOperationFixture, Inlet):
@@ -329,7 +329,7 @@ class TestUnitStateStructure:
 
     def test_state_structure(self, unit_operation: UnitOperationBase, expected: dict):
         """Initialize the unit operation and test structure."""
-        unit_operation.initialize()
+        unit_operation.initialize_state()
         assert unit_operation.n_inlet_ports == expected['n_inlet_ports']
         assert unit_operation.n_outlet_ports == expected['n_outlet_ports']
         assert unit_operation.n_dof == expected['n_dof']
@@ -519,7 +519,7 @@ class TestUnitResidual():
             expected: dict
             ) -> NoReturn:
         """Test the residual of unit operations."""
-        unit_operation.initialize()
+        unit_operation.initialize_state()
 
         for funcname, func in residualfunc:
             monkeypatch.setattr('CADETPythonSimulator.unit_operation.'+funcname, func)
