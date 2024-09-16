@@ -425,8 +425,7 @@ class FlowSystem(SystemBase):
     def __init__(self, unit_operations: list[UnitOperationBase]):
         """Construct FlowSystem Object."""
         self.coupling_state_structure={
-            'c': WeightedAverageCoupling(),
-            'viscosity': WeightedAverageCoupling()
+            'c': WeightedAverageCoupling()
             }
         super().__init__(unit_operations)
 

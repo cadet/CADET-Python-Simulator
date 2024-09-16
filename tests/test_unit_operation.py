@@ -14,6 +14,7 @@ from CADETPythonSimulator.unit_operation import (
 )
 
 from CADETPythonSimulator.rejection import StepCutOff
+from CADETPythonSimulator.viscosity import LogarithmicMixingViscosity
 
 
 # %% Unit Operation Fixtures
@@ -24,8 +25,20 @@ class TwoComponentFixture(CPSComponentSystem):
         """Initialize the component with parameters."""
         super().__init__(*args, **kwargs)
 
-        self.add_component('A', molecular_weight=1e3, density=1e3, molecular_volume=1)
-        self.add_component('B', molecular_weight=10e3, density=1e3, molecular_volume=1)
+        self.add_component(
+            'A',
+            molecular_weight=1e3,
+            density=1e3,
+            molecular_volume=1,
+            viscosity=1
+            )
+        self.add_component(
+            'B',
+            molecular_weight=10e3,
+            density=1e3,
+            molecular_volume=1,
+            viscosity=1
+            )
 
 
 class UnitOperationFixture(UnitOperationBase):
@@ -100,7 +113,9 @@ class DeadEndFiltrationFixture(UnitOperationFixture, DeadEndFiltration):
                  membrane_area=1,
                  membrane_resistance=1,
                  specific_cake_resistance=1,
-                 rejection=StepCutOff(cutoff_weight=0),
+                 solution_viscosity=1,
+                 rejection_model=StepCutOff(cutoff_weight=0),
+                 viscosity_model=LogarithmicMixingViscosity(),
                  *args,
                  **kwargs
         ):
@@ -110,7 +125,9 @@ class DeadEndFiltrationFixture(UnitOperationFixture, DeadEndFiltration):
         self.membrane_area = membrane_area
         self.membrane_resistance = membrane_resistance
         self.specific_cake_resistance = specific_cake_resistance
-        self.rejection = rejection
+        self.rejection_model = rejection_model
+        self.solution_viscosity = solution_viscosity
+        self.viscosity_model = viscosity_model
 
 
 class CrossFlowFiltrationFixture(UnitOperationFixture, CrossFlowFiltration):
@@ -151,14 +168,13 @@ class _2DGRMFixture(UnitOperationFixture, _2DGRM):
             {
                 'n_inlet_ports': 0,
                 'n_outlet_ports': 1,
-                'n_dof': 3,
+                'n_dof': 2,
                 'states': {
-                    'outlet': [0., 1., 2.],
+                    'outlet': [0., 1.],
                 },
                 'outlet_state': {
                     0: {
                         'c': [0., 1.],
-                        'viscosity': [2.]
                     },
                 },
             },
@@ -169,14 +185,14 @@ class _2DGRMFixture(UnitOperationFixture, _2DGRM):
             {
                 'n_inlet_ports': 1,
                 'n_outlet_ports': 0,
-                'n_dof': 3,
+                'n_dof': 2,
                 'states': {
-                    'inlet': [0., 1., 2.],
+                    'inlet': [0., 1.],
                 },
                 'inlet_state': {
                     0: {
                         'slice': np.s_[:],
-                        'value': [.1, .2, .3],
+                        'value': [.1, .2],
                     },
                 },
             },
@@ -186,22 +202,21 @@ class _2DGRMFixture(UnitOperationFixture, _2DGRM):
             {
                 'n_inlet_ports': 1,
                 'n_outlet_ports': 1,
-                'n_dof': 7,
+                'n_dof': 5,
                 'states': {
-                    'inlet': [0., 1., 2.],
-                    'bulk': [3., 4., 5., 6.],
+                    'inlet': [0., 1.],
+                    'bulk': [2., 3., 4.],
                 },
                 'inlet_state': {
                     0: {
                         'slice': np.s_[:],
-                        'value': [.1, .2, .3, 3., 4., 5., 6.],
+                        'value': [.1, .2, 2., 3., 4.],
                     },
                 },
                 'outlet_state': {
                     0: {
-                        'c': [3., 4.],
-                        'viscosity': [5.],
-                        'Volume': [6.],
+                        'c': [2., 3.],
+                        'Volume': [4.],
                     },
                 },
             },
@@ -211,22 +226,21 @@ class _2DGRMFixture(UnitOperationFixture, _2DGRM):
             {
                 'n_inlet_ports': 1,
                 'n_outlet_ports': 1,
-                'n_dof': 10,
+                'n_dof': 8,
                 'states': {
-                    'cake': [0., 1., 2., 3., 4., 5.],
-                    'permeate': [6., 7., 8., 9.],
+                    'cake': [0., 1., 2., 3., 4.],
+                    'permeate': [5., 6., 7.],
                 },
                 'inlet_state': {
                     0: {
                         'slice': np.s_[:],
-                        'value': [.1, .2, .3, 3., 4., 5., 6., 7., 8., 9.],
+                        'value': [.1, .2, 2., 3., 4., 5., 6., 7.],
                     },
                 },
                 'outlet_state': {
                     0: {
-                        'c': [6., 7.],
-                        'viscosity': [8.],
-                        'Volume': [9.],
+                        'c': [5., 6.],
+                        'Volume': [7.],
                     },
                 },
             },
@@ -346,7 +360,11 @@ class TestUnitStateStructure:
         """Test set_inlet_state_flat function."""
         s_in = {
             'c': [.1, .2],
-            'viscosity': [.3],
+        }
+        if 'viscosity' in unit_operation.coupling_state_structure:
+            s_in = {
+                'c': [.1, .2],
+                'viscosity': [.3],
         }
         if unit_operation.n_inlet_ports == 0:
             with pytest.raises(Exception):
@@ -393,7 +411,6 @@ class TestUnitStateStructure:
                 'states': {
                     'inlet': {
                         'c': np.array([7, 8]),
-                        'viscosity': [3]
                     },
                     'bulk': {
                         'c': np.array([1, 2]),
@@ -419,18 +436,13 @@ class TestUnitStateStructure:
                         c_dot * V + V_dot * c - Q_in * c_in + Q_out * c
                 ),
                 (
-                    "calculate_residual_visc_cstr",
-                    lambda *args: 0
-                ),
-                (
                     "calculate_residual_volume_cstr",
                     lambda V, V_dot, Q_in, Q_out: V_dot - Q_in + Q_out
                 )
             ],
             {
                 'inlet': {
-                    'c': np.array([7, 8]),
-                    'viscosity': 0
+                    'c': np.array([7, 8])
                 },
                 'bulk': {
                     'c': np.array([-11, -7]),
@@ -444,28 +456,24 @@ class TestUnitStateStructure:
                 'states': {
                     'cake': {
                         'c': np.array([0.5, 0.5]),
-                        'viscosity': 1,
                         'pressure': 1,
                         'cakevolume': 1,
                         'permeate': 1,
                     },
                     'permeate': {
                         'c': np.array([0.5, 0.5]),
-                        'viscosity': 1,
                         'Volume': 1,
                     }
                 },
                 'state_derivatives': {
                     'cake': {
                         'c': np.array([0.5, 0.5]),
-                        'viscosity': 1,
                         'pressure': 1,
                         'cakevolume': 1,
                         'permeate': 1,
                     },
                     'permeate': {
                         'c': np.array([0.5, 0.5]),
-                        'viscosity': 1,
                         'Volume': 1,
                     }
                 },
@@ -479,14 +487,12 @@ class TestUnitStateStructure:
              {
                 'cake': {
                     'c': np.array([0.5, 0.5]),
-                    'viscosity': 0,
                     'pressure': 1,
                     'cakevolume': 0,
                     'permeate': 1,
                 },
                 'permeate': {
                     'c': np.array([1.5, 1.5]),
-                    'viscosity': 0,
                     'Volume': 1,
                 }
              }

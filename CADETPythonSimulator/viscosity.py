@@ -35,7 +35,8 @@ class ViscosityBase(Structure):
             viscosities: np.ndarray,
             fractions: np.ndarray
             ) -> None:
-        if not viscosities or not fractions or len(viscosities) != len(fractions):
+        if not np.all(viscosities, where=[0]) or not np.all(fractions, where=[0])\
+            or len(viscosities) != len(fractions):
             raise ValueError(
                 "Viscosities and fractions lists must be of the same length."
             )

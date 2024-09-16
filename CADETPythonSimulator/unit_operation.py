@@ -63,6 +63,9 @@ class UnitOperationBase(Structure):
 
         self._Q_in: Optional[np.ndarray] = None
         self._Q_out: Optional[np.ndarray] = None
+        self._coupling_state_structure = {
+            'c': component_system.n_comp
+        }
 
     @property
     def n_dof(self) -> int:
@@ -233,12 +236,14 @@ class UnitOperationBase(Structure):
         self._Q_out[port] = Q_out
 
     @property
-    def coupling_state_structure(self):
+    def coupling_state_structure(self) -> dict:
         """dict: State structure that must be accessible in inlet / outlet ports."""
-        return {
-            'c': self.n_comp,
-            'viscosity': 1,
-        }
+        return self._coupling_state_structure
+
+    @coupling_state_structure.setter
+    def coupling_state_structure(self, coupling_state_structure: dict) -> NoReturn:
+        """Set coupling state structure."""
+        self._coupling_state_structure = coupling_state_structure
 
     @property
     def n_dof_coupling(self) -> int:
@@ -512,21 +517,19 @@ class Inlet(UnitOperationBase):
     ----------
     c_poly : NdPolynomial
         Polynomial coefficients for component concentration.
-    viscosity : float
-        Viscosity of the solvent.
 
     """
 
     c_poly = NdPolynomial(size=('n_comp', 4), default=0)
     viscosity = UnsignedFloat()
 
-    _parameters = ['c_poly', 'viscosity']
+    _parameters = ['c_poly']
     _polynomial_parameters = ['c_poly']
     _section_dependent_parameters = ['c_poly']
 
     outlet = {
         'dimensions': (),
-        'entries': {'c': 'n_comp', 'viscosity': 1},
+        'entries': {'c': 'n_comp'},
         'n_outlet_ports': 1,
     }
     _state_structures = ['outlet']
@@ -547,7 +550,6 @@ class Inlet(UnitOperationBase):
         c = self.states['outlet']['c']
         t_poly = np.array([1, t, t**2, t**3])
         self.residuals['outlet']['c'] = self.c_poly @ t_poly - c
-        self.residuals['outlet']['viscosity'] = self.states['outlet']['viscosity']
 
     def initialize_initial_values(self, t_zero: float):
         """
@@ -561,14 +563,13 @@ class Inlet(UnitOperationBase):
         """
         t_poly = np.array([0, 1, 2*t_zero, 3*t_zero**2])
         self.state_derivatives['outlet']['c'] = self.c_poly @ t_poly
-        self.state_derivatives['outlet']['viscosity'] = 0
 
 class Outlet(UnitOperationBase):
     """System outlet."""
 
     inlet = {
         'dimensions': (),
-        'entries': {'c': 'n_comp', 'viscosity': 1},
+        'entries': {'c': 'n_comp'},
         'n_inlet_ports': 1,
     }
     _state_structures = ['inlet']
@@ -587,7 +588,6 @@ class Outlet(UnitOperationBase):
 
         """
         self.residuals['inlet']['c'] = np.zeros(self.states['inlet']['c'].shape)
-        self.residuals['inlet']['viscosity'] = 0
 
 
 class Cstr(UnitOperationBase):
@@ -595,12 +595,12 @@ class Cstr(UnitOperationBase):
 
     inlet = {
         'dimensions': (),
-        'entries': {'c': 'n_comp', 'viscosity': 1},
+        'entries': {'c': 'n_comp'},
         'n_inlet_ports': 1,
     }
     bulk = {
         'dimensions': (),
-        'entries': {'c': 'n_comp', 'viscosity': 1, 'Volume': 1},
+        'entries': {'c': 'n_comp', 'Volume': 1},
         'n_outlet_ports': 1,
     }
     _state_structures = ['inlet', 'bulk']
@@ -620,8 +620,6 @@ class Cstr(UnitOperationBase):
         """
         c_in = self.states['inlet']['c']
         # c_in_dot = self.state_derivatives['inlet']['c']
-
-        # viscosity_in = self.states['inlet']['viscosity']
 
         c = self.states['bulk']['c']
         c_dot = self.state_derivatives['bulk']['c']
@@ -644,8 +642,6 @@ class Cstr(UnitOperationBase):
             V, V_dot, Q_in, Q_out
         )
 
-        self.residuals['inlet']['viscosity'] = calculate_residual_visc_cstr()
-
     def initialize_initial_values(self, t_zero: float):
         """
         Initialize initial values for Inlet Unit Operation.
@@ -665,8 +661,6 @@ class Cstr(UnitOperationBase):
 
         self.state_derivatives['bulk']['c'] = - V_dot/V*c + Q_in/V*c_in - Q_out/V*c
         self.state_derivatives['bulk']['volume'] = V_dot
-        self.state_derivatives['bulk']['viscosity'] = 0
-        self.state_derivatives['inlet']['viscosity'] = 0
         self.state_derivatives['inlet']['c'] = np.zeros(self.n_comp)
 
 class DeadEndFiltration(UnitOperationBase):
@@ -679,17 +673,20 @@ class DeadEndFiltration(UnitOperationBase):
         Area of the membrane.
     membrane_resistance : float
         Membrane resistance.
+    solution_viscosity : float
+        viscosity of the solution
     rejection_model : RejectionBase
         Model for size dependent rejection.
     cake_compressibility_model : CakeCompressibilityBase
         Model for cake compressibility.
+    viscosity_model : ViscosityBase
+        Model for viscosities
 
     """
 
     cake = {
         'dimensions': (),
         'entries': {'c': 'n_comp',
-                    'viscosity': 1,
                     'pressure': 1,
                     'cakevolume': 1,
                     'permeate': 1
@@ -698,7 +695,7 @@ class DeadEndFiltration(UnitOperationBase):
     }
     permeate = {
         'dimensions': (),
-        'entries': {'c': 'n_comp', 'viscosity': 1, 'Volume': 1},
+        'entries': {'c': 'n_comp', 'Volume': 1},
         'n_outlet_ports': 1,
     }
     _state_structures = ['cake', 'permeate']
@@ -706,13 +703,17 @@ class DeadEndFiltration(UnitOperationBase):
     membrane_area = UnsignedFloat()
     membrane_resistance = UnsignedFloat()
     specific_cake_resistance = UnsignedFloat()
-    rejection = Typed(ty=RejectionBase)
+    solution_viscosity = UnsignedFloat()
+    rejection_model = Typed(ty=RejectionBase)
+    viscosity_model = Typed(ty=ViscosityBase)
 
     _parameters = [
         'membrane_area',
         'membrane_resistance',
         'specific_cake_resistance',
-        'rejection'
+        'solution_viscosity',
+        'rejection_model',
+        'viscosity_model'
     ]
 
     def compute_residual(
@@ -732,8 +733,6 @@ class DeadEndFiltration(UnitOperationBase):
         # V_p = self.states['cake']['permeate']
         Q_p = self.state_derivatives['cake']['cakevolume']
 
-        viscosity_in = self.states['cake']['viscosity']
-
         c = self.states['permeate']['c']
         c_dot = self.state_derivatives['permeate']['c']
 
@@ -745,13 +744,26 @@ class DeadEndFiltration(UnitOperationBase):
         # parameters
         molecular_weights = self.component_system.molecular_weights
         molar_volume = self.component_system.molecular_volumes
+        viscosities = self.component_system.viscosities
         membrane_area = self.parameters['membrane_area']
         membrane_resistance = self.parameters['membrane_resistance']
         specific_cake_resistance = self.parameters['specific_cake_resistance']
+        solution_viscosity = self.parameters['solution_viscosity']
 
         rejection = np.array(
-                        [self.rejection.get_rejection(mw) for mw in molecular_weights]
+                        [
+                            self.rejection_model.get_rejection(mw)\
+                            for mw in molecular_weights
+                        ]
                     )
+        # Handle viscosities
+
+        c_part =  c*molar_volume
+        c_liquid = 1 - np.sum(c_part)
+        c_part = np.append(c_part, c_liquid)
+
+        viscosities.append(solution_viscosity)
+        viscosity = self.viscosity_model.get_mixture_viscosity(viscosities, c_part)
 
         # Handle inlet DOFs, which are simply copied to the residual
         self.residuals['cake']['c'] = c_in
@@ -768,7 +780,7 @@ class DeadEndFiltration(UnitOperationBase):
             V_C,
             deltap,
             membrane_area,
-            viscosity_in,
+            viscosity,
             membrane_resistance,
             specific_cake_resistance
         )
@@ -779,8 +791,6 @@ class DeadEndFiltration(UnitOperationBase):
             Q_in,
             Q_p
         )
-
-        self.residuals['cake']['viscosity'] = calculate_residual_visc_def()
 
         new_c_in = (1 - rejection) * c_in
 
@@ -800,8 +810,6 @@ class DeadEndFiltration(UnitOperationBase):
             Q_p,
             Q_out
         )
-
-        self.residuals['permeate']['viscosity'] = calculate_residual_visc_cstr()
 
 
 class CrossFlowFiltration(UnitOperationBase):
@@ -845,6 +853,11 @@ class CrossFlowFiltration(UnitOperationBase):
         'membrane_area',
         'membrane_resistance',
     ]
+
+    def __init__(self, component_system, name, *args, **kwargs):
+        """Construct CFF."""
+        super().__init__(component_system, name, *args, **kwargs)
+        self.coupling_state_structure['viscosity'] = 1
 
     def compute_residual(
             self,

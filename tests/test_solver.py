@@ -90,16 +90,17 @@ class SystemFixture(FlowSystem):
 
 # %% State Structure
 solver_fixture_obj = SolverFixture()
-rej_obj = solver_fixture_obj.system.unit_operations['dead_end_filtration'].rejection
-
-
+rej_obj = \
+    solver_fixture_obj.system.unit_operations['dead_end_filtration'].rejection_model
+viscosity_obj = \
+    solver_fixture_obj.system.unit_operations['dead_end_filtration'].viscosity_model
 @pytest.mark.parametrize(
     "solver, expected",
     [
         (
             solver_fixture_obj,
             {
-                'n_dof': 16,
+                'n_dof': 12,
                 'unit_solution': {
                     'inlet': {
                         'outlet': {
@@ -107,61 +108,44 @@ rej_obj = solver_fixture_obj.system.unit_operations['dead_end_filtration'].rejec
                                 'values': np.array([[0., 1.], [0., 2.]]),
                                 'derivatives': np.array([[0., 2.], [0., 4.]])
                                 },
-                            'viscosity': {
-                                'values': np.array([[2.], [4.]]),
-                                'derivatives': np.array([[4.], [8.]]),
-                            }
                         }
                     },
                     'dead_end_filtration': {
                         'cake': {
                             'c': {
-                                'values': np.array([[3., 4.], [6., 8.]]),
-                                'derivatives': np.array([[6., 8.], [12., 16.]]),
-                            },
-                            'viscosity': {
-                                'values': np.array([[5.], [10.]]),
-                                'derivatives': np.array([[10.], [20.]]),
-
+                                'values': np.array([[2., 3.], [4., 6.]]),
+                                'derivatives': np.array([[4., 6.], [8., 12.]]),
                             },
                             'pressure': {
-                                'values': np.array([[6.], [12.]]),
-                                'derivatives': np.array([[12.], [24.]]),
+                                'values': np.array([[4.], [8.]]),
+                                'derivatives': np.array([[8.], [16.]]),
                             },
                             'cakevolume': {
-                                'values': np.array([[7.], [14.]]),
-                                'derivatives': np.array([[14.], [28.]]),
+                                'values': np.array([[5.], [10.]]),
+                                'derivatives': np.array([[10.], [20.]]),
                             },
                             'permeate': {
-                                'values': np.array([[8.], [16.]]),
-                                'derivatives': np.array([[16.], [32.]]),
+                                'values': np.array([[6.], [12.]]),
+                                'derivatives': np.array([[12.], [24.]]),
                             }
                         },
                         'permeate': {
                             'c': {
-                                'values': np.array([[9., 10.], [18., 20.]]),
-                                'derivatives': np.array([[18., 20.], [36., 40.]]),
-                            },
-                            'viscosity': {
-                                'values': np.array([[11.], [22.]]),
-                                'derivatives': np.array([[22.], [44.]]),
+                                'values': np.array([[7., 8.], [14., 16.]]),
+                                'derivatives': np.array([[14., 16.], [28., 32.]]),
                             },
                             'Volume': {
-                                'values': np.array([[12.], [24.]]),
-                                'derivatives': np.array([[24.], [48.]]),
+                                'values': np.array([[9.], [18.]]),
+                                'derivatives': np.array([[18.], [36.]]),
                             }
                         }
                     },
                     'outlet': {
                         'inlet': {
                             'c': {
-                                'values': np.array([[13., 14.], [26., 28.]]),
-                                'derivatives': np.array([[26., 28.], [52., 56.]]),
+                                'values': np.array([[10., 11.], [20., 22.]]),
+                                'derivatives': np.array([[20., 22.], [40., 44.]]),
                             },
-                            'viscosity': {
-                                'values': np.array([[15.], [30.]]),
-                                'derivatives': np.array([[30.], [60.]]),
-                            }
                         },
                     },
                 },
@@ -170,26 +154,28 @@ rej_obj = solver_fixture_obj.system.unit_operations['dead_end_filtration'].rejec
                         'parameters_start': {
                             'inlet': {
                                 'c_poly': np.array([1., 2.]),
-                                'viscosity': 0.001
                             },
                             'dead_end_filtration': {
-                                'rejection': rej_obj,
+                                'rejection_model': rej_obj,
+                                'viscosity_model': viscosity_obj,
                                 'membrane_area': 1,
                                 'membrane_resistance': 1,
                                 'specific_cake_resistance': 1,
+                                'solution_viscosity': 1
                             },
                             'outlet': {},
                         },
                         'parameters_end': {
                             'inlet': {
                                 'c_poly': np.array([1., 2.]),
-                                'viscosity': 0.001
                             },
                             'dead_end_filtration': {
-                                'rejection': rej_obj,
+                                'rejection_model': rej_obj,
+                                'viscosity_model': viscosity_obj,
                                 'membrane_area': 1,
                                 'membrane_resistance': 1,
                                 'specific_cake_resistance': 1,
+                                'solution_viscosity': 1
                             },
                             'outlet': {},
                         },
@@ -198,26 +184,28 @@ rej_obj = solver_fixture_obj.system.unit_operations['dead_end_filtration'].rejec
                         'parameters_start': {
                             'inlet': {
                                 'c_poly': np.array([0., 1.]),
-                                'viscosity': 0.001
                             },
                             'dead_end_filtration': {
-                                'rejection': rej_obj,
+                                'rejection_model': rej_obj,
+                                'viscosity_model': viscosity_obj,
                                 'membrane_area': 1,
                                 'membrane_resistance': 1,
                                 'specific_cake_resistance': 1,
+                                'solution_viscosity': 1
                             },
                             'outlet': {},
                         },
                         'parameters_end': {
                             'inlet': {
                                 'c_poly': np.array([2., 1.]),
-                                'viscosity': 0.001
                             },
                             'dead_end_filtration': {
-                                'rejection': rej_obj,
+                                'rejection_model': rej_obj,
+                                'viscosity_model': viscosity_obj,
                                 'membrane_area': 1,
                                 'membrane_resistance': 1,
                                 'specific_cake_resistance': 1,
+                                'solution_viscosity': 1
                             },
                             'outlet': {},
                         },
