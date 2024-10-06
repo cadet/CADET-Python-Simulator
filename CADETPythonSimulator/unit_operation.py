@@ -143,6 +143,22 @@ class UnitOperationBase(Structure):
             start_index = end_index
 
     @property
+    def y_init(self) -> np.ndarray:
+        """np.ndarray: State derivative array flattened into one dimension."""
+        return np.concatenate([
+                state_derivative.s_flat
+                for state_derivative in self.state_derivatives.values()
+        ])
+
+    @y_init.setter
+    def y_init(self, y_init: np.ndarray) -> NoReturn:
+        start_index = 0
+        for state_derivative in self.state_derivatives.values():
+            end_index = start_index + state_derivative.n_dof
+            state_derivative.s_flat = y_init[start_index:end_index]
+            start_index = end_index
+
+    @property
     def residuals(self) -> dict[str, State]:
         """list: Residual array blocks of the unit operation."""
         if self._residuals is None:
@@ -508,6 +524,10 @@ class UnitOperationBase(Structure):
         """Return string represenation of the unit operation."""
         return self.name
 
+    def compute_residual_for_initial_values(self, t_zero: float):
+        """Calculate Residual for initial values."""
+        self.compute_residual(t_zero)
+
 
 class Inlet(UnitOperationBase):
     """
@@ -561,6 +581,8 @@ class Inlet(UnitOperationBase):
             Time to initialize the values
 
         """
+        t_poly = np.array([1, t_zero, t_zero**2, t_zero**3])
+        self.states['outlet']['c'] = self.c_poly @ t_poly
         t_poly = np.array([0, 1, 2*t_zero, 3*t_zero**2])
         self.state_derivatives['outlet']['c'] = self.c_poly @ t_poly
 
@@ -587,7 +609,7 @@ class Outlet(UnitOperationBase):
             Time at which to evaluate the residual.
 
         """
-        self.residuals['inlet']['c'] = np.zeros(self.states['inlet']['c'].shape)
+        self.residuals['inlet']['c'] -= self.states['inlet']['c']
 
 
 class Cstr(UnitOperationBase):
@@ -628,7 +650,7 @@ class Cstr(UnitOperationBase):
         V_dot = self.state_derivatives['bulk']['Volume']
 
         # Handle inlet DOFs, which are simply copied to the residual
-        self.residuals['inlet']['c'] = c_in
+        self.residuals['inlet']['c'] -= c_in
 
         # Handle bulk/outlet DOFs
         Q_in = self.Q_in[0]
@@ -686,32 +708,37 @@ class DeadEndFiltration(UnitOperationBase):
 
     cake = {
         'dimensions': (),
-        'entries': {'c': 'n_comp',
-                    'pressure': 1,
-                    'cakevolume': 1,
-                    'permeate': 1
-                    },
+        'entries': {
+            'c': 'n_comp',
+            'n_feed': 'n_comp',
+            'cakevolume': 'n_comp',
+            'n_cake': 'n_comp',
+            'permeatevolume': 1,
+            'n_permeate': 'n_comp',
+            'c_permeate': 'n_comp',
+            'pressure': 1
+        },
         'n_inlet_ports': 1,
     }
-    permeate = {
+    permeate_tank = {
         'dimensions': (),
-        'entries': {'c': 'n_comp', 'Volume': 1},
+        'entries': {
+            'c': 'n_comp',
+            'tankvolume': 1
+        },
         'n_outlet_ports': 1,
     }
-    _state_structures = ['cake', 'permeate']
+
+    _state_structures = ['cake', 'permeate_tank']
 
     membrane_area = UnsignedFloat()
     membrane_resistance = UnsignedFloat()
-    specific_cake_resistance = UnsignedFloat()
-    solution_viscosity = UnsignedFloat()
     rejection_model = Typed(ty=RejectionBase)
     viscosity_model = Typed(ty=ViscosityBase)
 
     _parameters = [
         'membrane_area',
         'membrane_resistance',
-        'specific_cake_resistance',
-        'solution_viscosity',
         'rejection_model',
         'viscosity_model'
     ]
@@ -724,31 +751,43 @@ class DeadEndFiltration(UnitOperationBase):
         Q_in = self.Q_in[0]
         Q_out = self.Q_out[0]
 
-        c_in = self.states['cake']['c']
-        # c_in_dot = self.state_derivatives['cake']['c']
+        c_feed = self.states['cake']['c']
+        c_feed_dot = self.state_derivatives['cake']['c']
 
-        V_C = self.states['cake']['cakevolume']
-        V_dot_C = self.state_derivatives['cake']['cakevolume']
+        n_feed = self.states['cake']['n_feed']
+        n_feed_dot = self.state_derivatives['cake']['n_feed']
 
-        # V_p = self.states['cake']['permeate']
-        Q_p = self.state_derivatives['cake']['cakevolume']
+        n_cake = self.states['cake']['n_cake']
+        n_cake_dot = self.state_derivatives['cake']['n_cake']
 
-        c = self.states['permeate']['c']
-        c_dot = self.state_derivatives['permeate']['c']
+        cake_vol = self.states['cake']['cakevolume']
+        cake_vol_dot = self.state_derivatives['cake']['cakevolume']
 
-        V = self.states['permeate']['Volume']
-        V_dot = self.state_derivatives['permeate']['Volume']
+        c_permeate = self.states['cake']['c_permeate']
+        c_permeate_dot = self.state_derivatives['cake']['c_permeate']
+
+        n_permeate = self.states['cake']['n_permeate']
+        n_permeate_dot = self.state_derivatives['cake']['n_permeate']
+
+        permeate_vol = self.states['cake']['permeatevolume']
+        permeate_vol_dot = self.state_derivatives['cake']['permeatevolume']
 
         deltap = self.states['cake']['pressure']
 
+        c_tank = self.states['permeate_tank']['c']
+        c_tank_dot = self.state_derivatives['permeate_tank']['c']
+
+        tankvolume = self.states['permeate_tank']['tankvolume']
+        tankvolume_dot = self.state_derivatives['permeate_tank']['tankvolume']
+
         # parameters
-        molecular_weights = self.component_system.molecular_weights
-        molar_volume = self.component_system.molecular_volumes
-        viscosities = self.component_system.viscosities
+        molecular_weights = np.array(self.component_system.molecular_weights)
+        densities = np.array(self.component_system.pure_densities)
+        viscosities = np.array(self.component_system.viscosities)
         membrane_area = self.parameters['membrane_area']
         membrane_resistance = self.parameters['membrane_resistance']
-        specific_cake_resistance = self.parameters['specific_cake_resistance']
-        solution_viscosity = self.parameters['solution_viscosity']
+        specific_cake_resistance =\
+            np.array(self.component_system.specific_cake_resistances)
 
         rejection = np.array(
                         [
@@ -756,60 +795,171 @@ class DeadEndFiltration(UnitOperationBase):
                             for mw in molecular_weights
                         ]
                     )
-        # Handle viscosities
 
-        c_part =  c*molar_volume
-        c_liquid = 1 - np.sum(c_part)
-        c_part = np.append(c_part, c_liquid)
+        # Coupling residual equation
+        self.residuals['cake']['c'] -= c_feed
 
-        viscosities.append(solution_viscosity)
-        viscosity = self.viscosity_model.get_mixture_viscosity(viscosities, c_part)
+        # Number of Feed
 
-        # Handle inlet DOFs, which are simply copied to the residual
-        self.residuals['cake']['c'] = c_in
-        self.residuals['cake']['cakevolume'] = calculate_residual_cake_vol_def(
-            Q_in,
-            rejection,
-            molar_volume,
-            c_in,
-            V_dot_C
+        self.residuals['cake']['n_feed'] = n_feed_dot - Q_in * c_feed
+
+        # Number of cake
+
+        self.residuals['cake']['n_cake'] = n_cake_dot - rejection * n_feed_dot
+
+        # Number of Permeate
+
+        self.residuals['cake']['n_permeate'] =\
+            n_permeate_dot - (1 - rejection) * n_feed_dot
+
+        # Cakevolume
+
+        self.residuals['cake']['cakevolume'] =\
+            cake_vol_dot - n_cake_dot * molecular_weights / densities
+
+        # Permeate flow
+
+        self.residuals['cake']['permeatevolume'] =\
+            permeate_vol_dot - np.sum(n_permeate_dot * molecular_weights / densities)
+
+        # Concentration Permeate
+
+        self.residuals['cake']['c_permeate'] =\
+            c_permeate - n_permeate_dot / permeate_vol_dot
+
+        # Pressure equation
+
+        cakresistance = \
+            np.sum(specific_cake_resistance * densities * cake_vol/membrane_area)
+
+        viscositiy = \
+            np.exp(np.sum(n_permeate_dot* np.log(viscosities)) / np.sum(n_permeate_dot))
+
+        self.residuals['cake']['pressure'] = \
+            viscositiy * permeate_vol_dot * (membrane_resistance + cakresistance)\
+            / membrane_area - deltap
+
+        # Tank equations
+
+        self.residuals['permeate_tank']['c'] = calculate_residual_concentration_cstr(
+            c=c_tank,
+            c_dot=c_tank_dot,
+            V=tankvolume,
+            V_dot=tankvolume_dot,
+            Q_in=permeate_vol_dot,
+            Q_out=Q_out,
+            c_in=c_permeate
         )
 
-        self.residuals['cake']['pressure'] = calculate_residual_press_easy_def(
-            Q_p,
-            V_C,
-            deltap,
-            membrane_area,
-            viscosity,
-            membrane_resistance,
-            specific_cake_resistance
-        )
+        self.residuals['permeate_tank']['tankvolume'] =\
+            tankvolume_dot - permeate_vol_dot + Q_out
 
-        self.residuals['cake']['permeate'] = calculate_residual_volume_cstr(
-            V_C,
-            V_dot_C,
-            Q_in,
-            Q_p
-        )
 
-        new_c_in = (1 - rejection) * c_in
+    @property
+    def y_init(self) -> np.ndarray:
+        """np.ndarray: State derivative array flattened into one dimension."""
+        ret = []
+        for state, state_derivative in self.state_derivatives.items():
+            if state != "cake":
+                ret.append(state_derivative.s_flat)
+            else:
+                for entry in state_derivative.entries.keys():
+                    if entry != "pressure":
+                        ret.append(state_derivative[entry])
+                    else:
+                        ret.append(self.states[state][entry])
+        return np.concatenate(ret, axis=None)
 
-        self.residuals['permeate']['c'] = calculate_residual_concentration_cstr(
-            c,
-            c_dot,
-            V,
-            V_dot,
-            Q_p,
-            Q_out,
-            new_c_in
-        )
+    @y_init.setter
+    def y_init(self, y_init: np.ndarray) -> NoReturn:
+        start_index = 0
+        for state, state_derivative in self.state_derivatives.items():
+            end_index = start_index + state_derivative.n_dof
+            if state != "cake":
+                state_derivative.s_flat = y_init[start_index:end_index]
+            else:
+                sub_start_index = start_index
+                for entry, dim in state_derivative.entries.items():
+                    sub_end_index = sub_start_index + dim
+                    if state != "pressure":
+                        self.state_derivatives[state][entry] =\
+                            y_init[sub_start_index:sub_end_index]
+                    else:
+                        self.states[state][entry] =\
+                            y_init[sub_start_index:sub_end_index]
+                    sub_start_index = sub_end_index
+            start_index = end_index
 
-        self.residuals['permeate']['Volume'] = calculate_residual_volume_cstr(
-            V,
-            V_dot,
-            Q_p,
-            Q_out
-        )
+    def initialize_initial_values(self, t_zero: float):
+        """Initialize the values."""
+        molecular_weights = np.array(self.component_system.molecular_weights)
+        densities = np.array(self.component_system.pure_densities)
+        viscosities = np.array(self.component_system.viscosities)
+        membrane_area = self.parameters['membrane_area']
+        membrane_resistance = self.parameters['membrane_resistance']
+        specific_cake_resistance =\
+            np.array(self.component_system.specific_cake_resistances)
+
+        Q_in = self.Q_in[0]
+        Q_out = self.Q_out[0]
+        c_feed = self.states['cake']['c']
+
+        n_feed_dot = Q_in * c_feed
+        self.state_derivatives['cake']['n_feed'] = n_feed_dot
+
+        rejection = np.array(
+                [
+                    self.rejection_model.get_rejection(mw)\
+                    for mw in molecular_weights
+                ]
+            )
+
+        n_cake_dot = rejection * n_feed_dot
+        self.state_derivatives['cake']['n_cake'] = n_cake_dot
+
+        cake_vol = self.states['cake']['cakevolume']
+
+        cake_vol_dot = molecular_weights * n_cake_dot / densities
+
+        self.state_derivatives['cake']['cakevolume'] = cake_vol_dot
+
+
+        n_permeate_dot = (1 - rejection) * n_feed_dot
+        self.state_derivatives['cake']['n_permeate'] = n_permeate_dot
+
+        c_permeate_dot = self.state_derivatives['cake']['c_permeate']
+
+        permeate_vol_dot = np.sum(n_permeate_dot * molecular_weights / densities)
+        self.state_derivatives['cake']['permeatevolume'] = permeate_vol_dot
+
+        c_permeate = n_permeate_dot / permeate_vol_dot
+        self.states['cake']['c_permeate'] = c_permeate
+
+
+        cakresistance = \
+            np.sum(specific_cake_resistance * densities * cake_vol/membrane_area)
+
+        viscositiy = \
+            np.exp(np.sum(n_permeate_dot* np.log(viscosities)) / np.sum(n_permeate_dot))
+
+        self.states['cake']['pressure'] = \
+            viscositiy * permeate_vol_dot * (membrane_resistance + cakresistance)\
+            / membrane_area
+
+        c_tank = self.states['permeate_tank']['c']
+
+        tankvolume = self.states['permeate_tank']['tankvolume']
+        tankvolume_dot = permeate_vol_dot - Q_out
+        self.state_derivatives['permeate_tank']['tankvolume'] = tankvolume_dot
+
+        if tankvolume == 0:
+            raise CADETPythonSimError("""Initialize error
+                        Volume of Permeate tank can't be initialized with 0""")
+        c_tank_dot =\
+            (permeate_vol_dot * c_permeate - Q_out * c_tank -c_tank*tankvolume_dot)\
+            /tankvolume
+        self.state_derivatives['permeate_tank']['c'] = c_tank_dot
+
 
 
 class CrossFlowFiltration(UnitOperationBase):

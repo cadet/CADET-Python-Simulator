@@ -26,6 +26,8 @@ class CPSSpecies(Structure):
         Density of the species.
     molecular_volume : float
         The molecular volume of the species
+    specific_cake_resistance : float
+        The specific cake resistance of the species
 
     """
 
@@ -35,6 +37,8 @@ class CPSSpecies(Structure):
     density = UnsignedFloat()
     molecular_volume = UnsignedFloat()
     viscosity = UnsignedFloat()
+    pure_density = UnsignedFloat()
+    specific_cake_resistance = UnsignedFloat()
 
 
 class CPSComponent(Component):
@@ -65,6 +69,10 @@ class CPSComponent(Component):
         Molecular volume of component (including species).
     viscosity : list
         Viscosity of component(including species)
+    pure_density : list
+        pure_density of component(including species)
+    specific_cake_resistance : list
+        specific_cake_resistance of component(including species)
 
     See Also
     --------
@@ -80,7 +88,9 @@ class CPSComponent(Component):
                  molecular_weight=None,
                  density=None,
                  molecular_volume=None,
-                 viscosity=None):
+                 viscosity=None,
+                 pure_density=None,
+                 specific_cake_resistance=None):
         """Construct CPSComponent."""
         self.name = name
         self._species = []
@@ -92,7 +102,9 @@ class CPSComponent(Component):
                 molecular_weight,
                 density,
                 molecular_volume,
-                viscosity
+                viscosity,
+                pure_density,
+                specific_cake_resistance
             )
         elif isinstance(species, str):
             self.add_species(
@@ -101,7 +113,9 @@ class CPSComponent(Component):
                 molecular_weight,
                 density,
                 molecular_volume,
-                viscosity
+                viscosity,
+                pure_density,
+                specific_cake_resistance
             )
         elif isinstance(species, list):
             if charge is None:
@@ -114,6 +128,10 @@ class CPSComponent(Component):
                 molecular_volume = len(species) * [None]
             if viscosity is None:
                 viscosity = len(species) * [None]
+            if pure_density is None:
+                pure_density = len(species) * [None]
+            if specific_cake_resistance is None:
+                specific_cake_resistance = len(species) * [None]
             for i, spec in enumerate(species):
                 self.add_species(
                     spec,
@@ -121,7 +139,9 @@ class CPSComponent(Component):
                     molecular_weight[i],
                     density[i],
                     molecular_volume[i],
-                    viscosity[i]
+                    viscosity[i],
+                    pure_density[i],
+                    specific_cake_resistance[i]
                 )
         else:
             raise CADETPythonSimError("Could not determine number of species")
@@ -151,6 +171,16 @@ class CPSComponent(Component):
     def viscosity(self):
         """List of float or None: The viscosity of the subspecies."""
         return [spec.viscosity for spec in self.species]
+
+    @property
+    def pure_density(self):
+        """List of float or None: Density of the subspecies."""
+        return [spec.pure_density for spec in self.species]
+
+    @property
+    def specific_cake_resistance(self):
+        """List of float or None: specific cake resistance of the subspecies."""
+        return [spec.specific_cake_resistance for spec in self.species]
 
 class CPSComponentSystem(ComponentSystem):
     """
@@ -187,6 +217,8 @@ class CPSComponentSystem(ComponentSystem):
         Molecular volume of all component species.
     viscosity : list
         Viscosity of all component species.
+    pure_density : list
+        Pure density of all component species.
 
     See Also
     --------
@@ -203,7 +235,9 @@ class CPSComponentSystem(ComponentSystem):
             molecular_weights=None,
             densities=None,
             molecular_volume=None,
-            viscosities=None
+            viscosities=None,
+            pure_densities=None,
+            specific_cake_resistances=None
         ):
         """
         Initialize the ComponentSystem object.
@@ -225,6 +259,10 @@ class CPSComponentSystem(ComponentSystem):
             The molecular volume of each component.
         viscosities : list, None
             viscosity of each component.
+        pure_densities : list, None
+            pure densities of each component.
+        specific_cake_resistances : list, None.
+            specific cake resistance of each component
 
         Raises
         ------
@@ -257,6 +295,11 @@ class CPSComponentSystem(ComponentSystem):
             molecular_volume = n_comp * [None]
         if viscosities is None:
             viscosities = n_comp * [None]
+        if pure_densities is None:
+            pure_densities = n_comp * [None]
+        if specific_cake_resistances is None:
+            specific_cake_resistances = n_comp * [None]
+
 
         for i, comp in enumerate(components):
             self.add_component(
@@ -265,7 +308,9 @@ class CPSComponentSystem(ComponentSystem):
                 molecular_weight=molecular_weights[i],
                 density=densities[i],
                 molecular_volume=molecular_volume[i],
-                viscosity=viscosities[i]
+                viscosity=viscosities[i],
+                pure_density=pure_densities[i],
+                specific_cake_resistance=specific_cake_resistances[i]
             )
 
     @wraps(CPSComponent.__init__)
@@ -320,3 +365,21 @@ class CPSComponentSystem(ComponentSystem):
             viscosities +=comp.viscosity
 
         return viscosities
+
+    @property
+    def pure_densities(self):
+        """list: List of species density if pure."""
+        pure_densities = []
+        for comp in self.components:
+            pure_densities += comp.pure_density
+
+        return pure_densities
+
+    @property
+    def specific_cake_resistances(self):
+        """list: List of species cake resistance if pure."""
+        specific_cake_resistances = []
+        for comp in self.components:
+            specific_cake_resistances += comp.specific_cake_resistance
+
+        return specific_cake_resistances

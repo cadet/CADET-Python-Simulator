@@ -442,7 +442,7 @@ class TestUnitStateStructure:
             ],
             {
                 'inlet': {
-                    'c': np.array([7, 8])
+                    'c': np.array([-7, -8])
                 },
                 'bulk': {
                     'c': np.array([-11, -7]),
@@ -486,14 +486,14 @@ class TestUnitStateStructure:
              ],
              {
                 'cake': {
-                    'c': np.array([0.5, 0.5]),
-                    'pressure': 1,
+                    'c': np.array([-0.5, -0.5]),
+                    'pressure': 2,
                     'cakevolume': 0,
-                    'permeate': 1,
+                    'permeate': 0,
                 },
                 'permeate': {
                     'c': np.array([1.5, 1.5]),
-                    'Volume': 1,
+                    'Volume': 2,
                 }
              }
         ),

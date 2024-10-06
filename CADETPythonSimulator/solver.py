@@ -87,9 +87,7 @@ class Solver(Structure):
             Array to save the calculated residual
 
         """
-        self._system.y = y
-        self._system.y_dot = y_dot
-        self._system.compute_residual(t)
+        self._system.compute_residual(t, y, y_dot)
         r[...] = self._system.r
 
     def initialize_solution_recorder(self) -> NoReturn:
@@ -157,7 +155,7 @@ class Solver(Structure):
 
     def solve(self) -> NoReturn:
         """Simulate the system."""
-        self.initialize_system()
+        # self.initialize_system()
         self.initialize_solution_recorder()
 
         for section in self.sections:

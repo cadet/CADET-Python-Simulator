@@ -63,7 +63,7 @@ def calculate_residual_concentration_cstr(
     Q_out : float
         Volume leaving the Unit
     c_in : np.ndarray
-        Initial concentration
+        Incomming concentration
 
     """
     if V < 0:
@@ -78,30 +78,33 @@ def calculate_residual_visc_cstr():
     return 0
 
 def calculate_residual_cake_vol_def(
-        V_dot_f: float,
+        V: float,
         rejection: np.ndarray,
-        molar_volume: np.ndarray,
+        densities: np.ndarray,
+        molecular_weights: np.ndarray,
         c_in: np.ndarray,
-        V_dot_C: float
+        V_C: float
         ) -> float:
     """
     Residual equation for the Cake Volume.
 
     Parameters
     ----------
-    V_dot_f : float
-        Flowrate of incoming feed
+    V : float
+        Volume of liquid pressured into the filter
     rejection : np.ndarray
         Rejection of the filter
-    molar_volume : np.ndarray
-        Volume of suspended material
+    densities : np.ndarray
+        densities of suspended material
+    molecular_weights : np.ndarray
+        molecular weights of the components
     c_in : np.array
         Incoming Concentration
-    V_dot_C : float
-        Change of Cake Volume
+    V_C : float
+        Cake Volume
 
     """
-    return -V_dot_C + np.sum(rejection * molar_volume * c_in * V_dot_f)
+    return -V_C + V * np.sum(rejection * c_in * molecular_weights / densities)
 
 def calculate_residual_press_easy_def(
         V_dot_Perm: float,
@@ -138,7 +141,7 @@ def calculate_residual_press_easy_def(
     """
     hyd_resistance = (Rm + alpha*V_C/A) * mu
 
-    return -V_dot_Perm + deltap * A *hyd_resistance
+    return deltap * A - V_dot_Perm* hyd_resistance
 
 def calculate_residual_visc_def():
     """Calculate the residual of the Viscosity equation of the CSTR."""

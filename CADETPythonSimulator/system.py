@@ -153,6 +153,22 @@ class SystemBase(Structure):
             start_index = end_index
 
     @property
+    def y_init(self) -> np.ndarray:
+        """np.ndarray: State array flattened into one dimension."""
+        return np.concatenate([
+            unit_operation.y_init for unit_operation in self.unit_operations.values()
+        ])
+
+    @y_init.setter
+    def y_init(self, y_init: np.ndarray) -> NoReturn:
+        """Setter for state in From of y_init array."""
+        start_index = 0
+        for unit_operation in self.unit_operations.values():
+            end_index = start_index + unit_operation.n_dof
+            unit_operation.y_init = y_init[start_index:end_index]
+            start_index = end_index
+
+    @property
     def state_derivatives(self) -> dict[str, dict[str, State]]:
         """dict: State derivative array block of the system, indexed by name."""
         if self._state_derivatives is None:
@@ -237,7 +253,6 @@ class SystemBase(Structure):
         """
         self._compute_connectivity_matrix(connections)
         self.set_rates()
-        self.couple_unit_operations()
 
     def set_rates(self) -> NoReturn:
         """
@@ -251,6 +266,8 @@ class SystemBase(Structure):
     def compute_residual(
             self,
             t: float,
+            y: np.ndarray,
+            y_dot: np.ndarray
             ) -> NoReturn:
         """
         Compute the residual for the differential-algebraic equations system.
@@ -259,8 +276,15 @@ class SystemBase(Structure):
         ----------
         t : float
             Current time point.
+        y : np.ndarray
+            initial state
+        y_dot : np.ndarray
+            initial state derivative
 
         """
+        self.y = y
+        self.y_dot = y_dot
+        self.r = y
         self.couple_unit_operations()
         for unit_operation in self.unit_operations.values():
             unit_operation.compute_residual(t)
@@ -382,20 +406,6 @@ class SystemBase(Structure):
 
         self._connectivity = connections_matrix
 
-    def compute_residual_for_initial_values(self, y_dot: np.ndarray) -> np.ndarray:
-        """
-        Compute the residual for calculating the initial values.
-
-        Parameters
-        ----------
-        y_dot: np.ndarray
-            derivative array to calculate
-
-        """
-        self.y_dot = y_dot
-        self.compute_residual(self.t_zero)
-        return self.r
-
     def initialize_initial_values(self, t0: float):
         """
         Calculate initial values and set them up.
@@ -405,14 +415,12 @@ class SystemBase(Structure):
 
         """
         self.t_zero = t0
+        self.set_rates()
+        self.couple_unit_operations()
         for unit_operation in self.unit_operations.values():
             unit_operation.initialize_initial_values(t0)
+            self.couple_unit_operations()
 
-        y_dot = self.y_dot
-
-        y_dot = scipyopt.fsolve(self.compute_residual_for_initial_values, y_dot)
-
-        self.y_dot = y_dot
 
 class FlowSystem(SystemBase):
     """

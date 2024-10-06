@@ -133,6 +133,7 @@ class TestSystemConnectivity():
         system.y_dot = y_dot
 
         system.update_system_connectivity(connections)
+        system.couple_unit_operations()
         np.testing.assert_almost_equal(system.y, expected_state)
 
 @pytest.mark.parametrize(
