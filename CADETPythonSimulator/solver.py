@@ -205,7 +205,7 @@ class Solver(Structure):
         self._system.y = y_history[-1]
         self._system.y_dot = y_dot_history[-1]
 
-        self.write_solution(times, y_history, y_dot_history)
+        self.write_solution(times[:-1], y_history[:-1], y_dot_history[:-1])
 
     def get_section_solution_times(self, section: Dict) -> np.ndarray:
         """
@@ -225,7 +225,7 @@ class Solver(Structure):
         # user_solution times are provided?
         time_resolution = section.get("time_resolution", 1.0)
         start = section.start
-        end = section.end
+        end = section.end + time_resolution
         return np.arange(start, end, time_resolution)
 
     def _update_unit_operation_parameters(

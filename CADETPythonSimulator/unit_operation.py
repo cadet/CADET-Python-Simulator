@@ -27,6 +27,7 @@ from CADETPythonSimulator.rejection import RejectionBase
 from CADETPythonSimulator.cake_compressibility import CakeCompressibilityBase
 from CADETPythonSimulator.viscosity import LogarithmicMixingViscosity, ViscosityBase
 
+from CADETPythonSimulator.distribution_base import DistributionBase
 
 class UnitOperationBase(Structure):
     """
@@ -541,11 +542,12 @@ class Inlet(UnitOperationBase):
     """
 
     c_poly = NdPolynomial(size=('n_comp', 4), default=0)
+    t_K = UnsignedFloat()
     viscosity = UnsignedFloat()
 
-    _parameters = ['c_poly']
+    _parameters = ['c_poly', 't_K']
     _polynomial_parameters = ['c_poly']
-    _section_dependent_parameters = ['c_poly']
+    _section_dependent_parameters = ['c_poly', 't_K']
 
     outlet = {
         'dimensions': (),
@@ -567,8 +569,9 @@ class Inlet(UnitOperationBase):
             Time at which to evaluate the residual.
 
         """
+        t_K = t - self.parameters['t_K']
         c = self.states['outlet']['c']
-        t_poly = np.array([1, t, t**2, t**3])
+        t_poly = np.array([1, t_K, t_K**2, t_K**3])
         self.residuals['outlet']['c'] = self.c_poly @ t_poly - c
 
     def initialize_initial_values(self, t_zero: float):
@@ -581,10 +584,77 @@ class Inlet(UnitOperationBase):
             Time to initialize the values
 
         """
+        t_zero = 0
         t_poly = np.array([1, t_zero, t_zero**2, t_zero**3])
         self.states['outlet']['c'] = self.c_poly @ t_poly
         t_poly = np.array([0, 1, 2*t_zero, 3*t_zero**2])
         self.state_derivatives['outlet']['c'] = self.c_poly @ t_poly
+
+class DistributionInlet(UnitOperationBase):
+    """
+    System inlet.
+
+    Attributes
+    ----------
+    distribution_function : DistributionBase
+        Function to describe concentration profile.
+
+    """
+
+    distribution_function = Typed(ty=DistributionBase)
+    section_number = Typed(ty=int)
+
+    outlet = {
+        'dimensions': (),
+        'entries': {'c': 'n_comp'},
+        'n_outlet_ports': 1,
+    }
+    _state_structures = ['outlet']
+    _parameters = ['section_number']
+    _section_dependent_parameters = ['section_number']
+    def compute_residual(
+            self,
+            t: float
+            ) -> NoReturn:
+        """
+        Calculate the residual of the unit operation at time `t`.
+
+        Parameters
+        ----------
+        t : float
+            Time at which to evaluate the residual.
+
+        """
+        c = self.states['outlet']['c']
+        nr = self.section_number
+        xi = self.distribution_function.get_distribution(t, nr)
+        molecular_weights = np.array(self.component_system.molecular_weights)
+        densities = np.array(self.component_system.pure_densities)
+
+        ci =  xi*densities / molecular_weights
+
+        self.residuals['outlet']['c'] = ci - c
+
+    def initialize_initial_values(self, t_zero: float):
+        """
+        Initialize initial values for Inlet Unit Operation.
+
+        Parameters
+        ----------
+        t_zero : float
+            Time to initialize the values
+
+        """
+        nr = self.parameters['section_number']
+        xi = self.distribution_function.get_distribution(t_zero, nr)
+        molecular_weights = np.array(self.component_system.molecular_weights)
+        densities = np.array(self.component_system.pure_densities)
+
+        ci =  xi*densities / molecular_weights
+
+        self.states['outlet']['c'] = ci
+
+
 
 class Outlet(UnitOperationBase):
     """System outlet."""
@@ -825,7 +895,7 @@ class DeadEndFiltration(UnitOperationBase):
         # Concentration Permeate
 
         self.residuals['cake']['c_permeate'] =\
-            c_permeate - n_permeate_dot / permeate_vol_dot
+            c_permeate*permeate_vol_dot - n_permeate_dot
 
         # Pressure equation
 
@@ -837,10 +907,9 @@ class DeadEndFiltration(UnitOperationBase):
 
         self.residuals['cake']['pressure'] = \
             viscositiy * permeate_vol_dot * (membrane_resistance + cakresistance)\
-            / membrane_area - deltap
+            - deltap*membrane_area
 
         # Tank equations
-
         self.residuals['permeate_tank']['c'] = calculate_residual_concentration_cstr(
             c=c_tank,
             c_dot=c_tank_dot,
@@ -939,8 +1008,10 @@ class DeadEndFiltration(UnitOperationBase):
         cakresistance = \
             np.sum(specific_cake_resistance * densities * cake_vol/membrane_area)
 
+        is_viscos =  viscosities > 0
         viscositiy = \
-            np.exp(np.sum(n_permeate_dot* np.log(viscosities)) / np.sum(n_permeate_dot))
+            np.exp(np.sum(n_permeate_dot[is_viscos]* np.log(viscosities[is_viscos]))\
+                / np.sum(n_permeate_dot[is_viscos]))
 
         self.states['cake']['pressure'] = \
             viscositiy * permeate_vol_dot * (membrane_resistance + cakresistance)\
