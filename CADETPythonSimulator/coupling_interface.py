@@ -29,6 +29,8 @@ class WeightedAverageCoupling(CouplingInterface):
             ret += list_state[state] * rate
             rate_tot += rate
 
-        ret /= rate_tot
+        if rate_tot < 1e-13:
+            np.zeros(origin_list[0][0][state].shape)
 
+        ret /= rate_tot
         return ret
