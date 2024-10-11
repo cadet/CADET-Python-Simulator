@@ -792,7 +792,7 @@ class DeadEndFiltration(UnitOperationBase):
     permeate_tank = {
         'dimensions': (),
         'entries': {
-            'n_permeate_tank': 'n_comp',
+#            'n_permeate_tank': 'n_comp',
             'c': 'n_comp',
             'tankvolume': 1
         },
@@ -844,8 +844,8 @@ class DeadEndFiltration(UnitOperationBase):
         c_tank = self.states['permeate_tank']['c']
         c_tank_dot = self.state_derivatives['permeate_tank']['c']
 
-        n_tank = self.states['permeate_tank']['n_permeate_tank']
-        n_tank_dot = self.state_derivatives['permeate_tank']['n_permeate_tank']
+#        n_tank = self.states['permeate_tank']['n_permeate_tank']
+#        n_tank_dot = self.state_derivatives['permeate_tank']['n_permeate_tank']
 
         tankvolume = self.states['permeate_tank']['tankvolume']
         tankvolume_dot = self.state_derivatives['permeate_tank']['tankvolume']
@@ -897,7 +897,7 @@ class DeadEndFiltration(UnitOperationBase):
         cakresistance = \
             np.sum(specific_cake_resistance * densities * cake_vol/membrane_area)
 
-        if not np.sum(n_permeate_dot) < 1e-13:
+        if not np.sum(n_permeate_dot) < 1e-16:
             viscositiy = \
                 np.exp(np.sum(n_permeate_dot* np.log(viscosities)) / np.sum(n_permeate_dot))
 
@@ -907,30 +907,16 @@ class DeadEndFiltration(UnitOperationBase):
         else:
             self.residuals['cake']['pressure'] = deltap
 
-        # ni in the tank
-        self.residuals['permeate_tank']['n_permeate_tank'] =\
-            n_tank_dot - n_permeate_dot + Q_out * c_tank
-
         # Tank equations
 
-        res = np.ndarray(c_tank.shape)
+        c_tank_dot_new =\
+            (n_permeate_dot - Q_out * c_tank - tankvolume_dot * c_tank) / tankvolume
 
-        for i, n_tank_i in enumerate(n_tank):
-            if n_tank_i < 1e-13:
-                if n_permeate_dot[i] > 1e-13:
-                    weight = np.sum(n_permeate_dot*molecular_weights)
-                    res[i] =\
-                        c_tank[i] - n_permeate_dot[i] * densities[i] / weight
-                else:
-                    res[i] = c_tank[i]
-            else:
-                weight = np.sum(n_tank*molecular_weights)
-                res[i] = c_tank[i] - n_tank_i * densities[i] / weight
-
-        self.residuals['permeate_tank']['c'] = res
+        self.residuals['permeate_tank']['c'] = c_tank_dot - c_tank_dot_new
 
         self.residuals['permeate_tank']['tankvolume'] =\
-            tankvolume - np.sum(n_tank * molecular_weights / densities)
+            tankvolume_dot - permeate_vol_dot + Q_out
+
 
 
     @property
@@ -1028,25 +1014,15 @@ class DeadEndFiltration(UnitOperationBase):
 
         c_tank = self.states['permeate_tank']['c']
         tankvolume = self.states['permeate_tank']['tankvolume']
+        tankvolume_dot = permeate_vol_dot - Q_out
 
-        n_tank = self.states['permeate_tank']['n_permeate_tank']
-        n_tank_dot = n_permeate_dot - Q_out * c_tank
+        c_tank_dot =\
+            (n_permeate_dot - Q_out * c_tank - tankvolume_dot * c_tank) / tankvolume
 
-        for i, n_tank_i in enumerate(n_tank):
-            if n_tank_i < 1e-13:
-                if n_permeate_dot[i] > 1e-13:
-                    weight = np.sum(n_permeate_dot*molecular_weights)
-                    c_tank[i] =\
-                        n_permeate_dot[i] * densities[i] / weight
-            else:
-                weight = np.sum(n_tank*molecular_weights)
-                c_tank[i] = n_tank_i * densities[i] / weight
+        self.state_derivatives['permeate_tank']['c'] = c_tank_dot
 
-        self.state_derivatives['permeate_tank']['n_permeate_tank'] = n_tank_dot
-        self.states['permeate_tank']['c'] = c_tank
+        self.state_derivatives['permeate_tank']['tankvolume'] = tankvolume_dot
 
-        self.states['permeate_tank']['tankvolume'] =\
-            np.sum(n_tank * molecular_weights / densities)
 
 
 
