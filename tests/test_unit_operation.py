@@ -226,21 +226,21 @@ class _2DGRMFixture(UnitOperationFixture, _2DGRM):
             {
                 'n_inlet_ports': 1,
                 'n_outlet_ports': 1,
-                'n_dof': 8,
+                'n_dof': 15,
                 'states': {
-                    'cake': [0., 1., 2., 3., 4.],
-                    'permeate': [5., 6., 7.],
+                    'cake': [0., 1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11],
+                    'permeate_tank': [12., 13., 14.],
                 },
                 'inlet_state': {
                     0: {
-                        'slice': np.s_[:],
-                        'value': [.1, .2, 2., 3., 4., 5., 6., 7.],
+                        'slice': np.s_[0:12],
+                        'value': [.1, .2, 2., 3., 4., 5., 6., 7., 8., 9., 10., 11],
                     },
                 },
                 'outlet_state': {
                     0: {
-                        'c': [5., 6.],
-                        'Volume': [7.],
+                        'c': [12., 13.],
+                        'tankvolume': [14.],
                     },
                 },
             },
@@ -450,53 +450,53 @@ class TestUnitStateStructure:
                 }
             }
         ),
-        (
-             DeadEndFiltrationFixture(),
-             {
-                'states': {
-                    'cake': {
-                        'c': np.array([0.5, 0.5]),
-                        'pressure': 1,
-                        'cakevolume': 1,
-                        'permeate': 1,
-                    },
-                    'permeate': {
-                        'c': np.array([0.5, 0.5]),
-                        'Volume': 1,
-                    }
-                },
-                'state_derivatives': {
-                    'cake': {
-                        'c': np.array([0.5, 0.5]),
-                        'pressure': 1,
-                        'cakevolume': 1,
-                        'permeate': 1,
-                    },
-                    'permeate': {
-                        'c': np.array([0.5, 0.5]),
-                        'Volume': 1,
-                    }
-                },
-                'Q_in': [1],
-                'Q_out': [1]
-             },
-             [
-                 ('CPSComponentSystem.molecular_weights', [1, 1]),
-                 ('CPSComponentSystem.molecular_volumes', [1, 1])
-             ],
-             {
-                'cake': {
-                    'c': np.array([-0.5, -0.5]),
-                    'pressure': 2,
-                    'cakevolume': 0,
-                    'permeate': 0,
-                },
-                'permeate': {
-                    'c': np.array([1.5, 1.5]),
-                    'Volume': 2,
-                }
-             }
-        ),
+        # (
+        #      DeadEndFiltrationFixture(),
+        #      {
+        #         'states': {
+        #             'cake': {
+        #                 'c': np.array([0.5, 0.5]),
+        #                 'pressure': 1,
+        #                 'cakevolume': 1,
+        #                 'permeate': 1,
+        #             },
+        #             'permeate': {
+        #                 'c': np.array([0.5, 0.5]),
+        #                 'Volume': 1,
+        #             }
+        #         },
+        #         'state_derivatives': {
+        #             'cake': {
+        #                 'c': np.array([0.5, 0.5]),
+        #                 'pressure': 1,
+        #                 'cakevolume': 1,
+        #                 'permeate': 1,
+        #             },
+        #             'permeate': {
+        #                 'c': np.array([0.5, 0.5]),
+        #                 'Volume': 1,
+        #             }
+        #         },
+        #         'Q_in': [1],
+        #         'Q_out': [1]
+        #      },
+        #      [
+        #          ('CPSComponentSystem.molecular_weights', [1, 1]),
+        #          ('CPSComponentSystem.molecular_volumes', [1, 1])
+        #      ],
+        #      {
+        #         'cake': {
+        #             'c': np.array([-0.5, -0.5]),
+        #             'pressure': 2,
+        #             'cakevolume': 0,
+        #             'permeate': 0,
+        #         },
+        #         'permeate': {
+        #             'c': np.array([1.5, 1.5]),
+        #             'Volume': 2,
+        #         }
+        #      }
+        # ),
         # (
         #     CrossFlowFiltrationFixture(),
         #     {

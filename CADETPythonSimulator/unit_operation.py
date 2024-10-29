@@ -542,12 +542,11 @@ class Inlet(UnitOperationBase):
     """
 
     c_poly = NdPolynomial(size=('n_comp', 4), default=0)
-    t_K = UnsignedFloat()
     viscosity = UnsignedFloat()
 
-    _parameters = ['c_poly', 't_K']
+    _parameters = ['c_poly']
     _polynomial_parameters = ['c_poly']
-    _section_dependent_parameters = ['c_poly', 't_K']
+    _section_dependent_parameters = ['c_poly']
 
     outlet = {
         'dimensions': (),
@@ -569,7 +568,7 @@ class Inlet(UnitOperationBase):
             Time at which to evaluate the residual.
 
         """
-        t_K = t - self.parameters['t_K']
+        t_K = t
         c = self.states['outlet']['c']
         t_poly = np.array([1, t_K, t_K**2, t_K**3])
         self.residuals['outlet']['c'] = self.c_poly @ t_poly - c
@@ -822,21 +821,21 @@ class DeadEndFiltration(UnitOperationBase):
         Q_out = self.Q_out[0]
 
         c_feed = self.states['cake']['c']
-        c_feed_dot = self.state_derivatives['cake']['c']
+        #c_feed_dot = self.state_derivatives['cake']['c']
 
-        n_feed = self.states['cake']['n_feed']
+        #n_feed = self.states['cake']['n_feed']
         n_feed_dot = self.state_derivatives['cake']['n_feed']
 
-        n_cake = self.states['cake']['n_cake']
+        #n_cake = self.states['cake']['n_cake']
         n_cake_dot = self.state_derivatives['cake']['n_cake']
 
         cake_vol = self.states['cake']['cakevolume']
         cake_vol_dot = self.state_derivatives['cake']['cakevolume']
 
-        n_permeate = self.states['cake']['n_permeate']
+        #n_permeate = self.states['cake']['n_permeate']
         n_permeate_dot = self.state_derivatives['cake']['n_permeate']
 
-        permeate_vol = self.states['cake']['permeatevolume']
+        #permeate_vol = self.states['cake']['permeatevolume']
         permeate_vol_dot = self.state_derivatives['cake']['permeatevolume']
 
         deltap = self.states['cake']['pressure']
@@ -899,7 +898,8 @@ class DeadEndFiltration(UnitOperationBase):
 
         if not np.sum(n_permeate_dot) < 1e-16:
             viscositiy = \
-                np.exp(np.sum(n_permeate_dot* np.log(viscosities)) / np.sum(n_permeate_dot))
+                np.exp(np.sum(n_permeate_dot* np.log(viscosities)) \
+                    / np.sum(n_permeate_dot))
 
             self.residuals['cake']['pressure'] = \
                 viscositiy * permeate_vol_dot * (membrane_resistance + cakresistance)\

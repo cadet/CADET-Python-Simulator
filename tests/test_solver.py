@@ -100,7 +100,7 @@ viscosity_obj = \
         (
             solver_fixture_obj,
             {
-                'n_dof': 12,
+                'n_dof': 17,
                 'unit_solution': {
                     'inlet': {
                         'outlet': {
@@ -116,35 +116,47 @@ viscosity_obj = \
                                 'values': np.array([[2., 3.], [4., 6.]]),
                                 'derivatives': np.array([[4., 6.], [8., 12.]]),
                             },
-                            'pressure': {
-                                'values': np.array([[4.], [8.]]),
-                                'derivatives': np.array([[8.], [16.]]),
+                            'n_feed': {
+                                'values': np.array([[4., 5.], [8., 10.]]),
+                                'derivatives': np.array([[8., 10.], [16., 20.]]),
                             },
                             'cakevolume': {
-                                'values': np.array([[5.], [10.]]),
-                                'derivatives': np.array([[10.], [20.]]),
+                                'values': np.array([[6., 7.], [12., 14.]]),
+                                'derivatives': np.array([[12., 14. ], [24., 28.]]),
                             },
-                            'permeate': {
-                                'values': np.array([[6.], [12.]]),
-                                'derivatives': np.array([[12.], [24.]]),
-                            }
+                            'n_cake': {
+                                'values': np.array([[8., 9.], [16., 18.]]),
+                                'derivatives': np.array([[16., 18.], [32., 36]]),
+                            },
+                            'permeatevolume': {
+                                'values': np.array([[10.], [20.]]),
+                                'derivatives': np.array([[20.], [40.]]),
+                            },
+                            'n_permeate': {
+                                'values': np.array([[11., 12.], [22., 24.]]),
+                                'derivatives': np.array([[22., 24.], [44., 48]]),
+                            },
+                            'pressure': {
+                                'values': np.array([[13.], [26.]]),
+                                'derivatives': np.array([[26.], [52.]]),
+                            },
                         },
-                        'permeate': {
+                        'permeate_tank': {
                             'c': {
-                                'values': np.array([[7., 8.], [14., 16.]]),
-                                'derivatives': np.array([[14., 16.], [28., 32.]]),
+                                'values': np.array([[14., 15.], [28., 30.]]),
+                                'derivatives': np.array([[28., 30.], [56., 60.]]),
                             },
-                            'Volume': {
-                                'values': np.array([[9.], [18.]]),
-                                'derivatives': np.array([[18.], [36.]]),
+                            'tankvolume': {
+                                'values': np.array([[16.], [32.]]),
+                                'derivatives': np.array([[32.], [64.]]),
                             }
                         }
                     },
                     'outlet': {
                         'inlet': {
                             'c': {
-                                'values': np.array([[10., 11.], [20., 22.]]),
-                                'derivatives': np.array([[20., 22.], [40., 44.]]),
+                                'values': np.array([[17., 18.], [34., 36.]]),
+                                'derivatives': np.array([[34., 36.], [68., 72]]),
                             },
                         },
                     },
@@ -159,9 +171,7 @@ viscosity_obj = \
                                 'rejection_model': rej_obj,
                                 'viscosity_model': viscosity_obj,
                                 'membrane_area': 1,
-                                'membrane_resistance': 1,
-                                'specific_cake_resistance': 1,
-                                'solution_viscosity': 1
+                                'membrane_resistance': 1
                             },
                             'outlet': {},
                         },
@@ -173,9 +183,7 @@ viscosity_obj = \
                                 'rejection_model': rej_obj,
                                 'viscosity_model': viscosity_obj,
                                 'membrane_area': 1,
-                                'membrane_resistance': 1,
-                                'specific_cake_resistance': 1,
-                                'solution_viscosity': 1
+                                'membrane_resistance': 1
                             },
                             'outlet': {},
                         },
@@ -190,8 +198,6 @@ viscosity_obj = \
                                 'viscosity_model': viscosity_obj,
                                 'membrane_area': 1,
                                 'membrane_resistance': 1,
-                                'specific_cake_resistance': 1,
-                                'solution_viscosity': 1
                             },
                             'outlet': {},
                         },
@@ -204,8 +210,6 @@ viscosity_obj = \
                                 'viscosity_model': viscosity_obj,
                                 'membrane_area': 1,
                                 'membrane_resistance': 1,
-                                'specific_cake_resistance': 1,
-                                'solution_viscosity': 1
                             },
                             'outlet': {},
                         },
