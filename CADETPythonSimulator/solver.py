@@ -158,8 +158,9 @@ class Solver(Structure):
         # self.initialize_system()
         self.initialize_solution_recorder()
 
-        for section in self.sections:
+        for section in self.sections[:-1]:
             self.solve_section(section)
+        self.solve_section(self.sections[-1], True)
 
     def initialize_system(self):
         """Initialize System."""
@@ -168,6 +169,7 @@ class Solver(Structure):
     def solve_section(
             self,
             section: Dict,
+            last_section=False,
             ) -> NoReturn:
         """
         Solve a time section of the differential-algebraic equation system.
@@ -179,6 +181,8 @@ class Solver(Structure):
         ----------
         section : Dict
             The time points at which the solution is sought.
+        last_section : Bool
+            Parameter to check if calculating the last section for consistent issues
         #TODO: Consider creating a section class instead of using Addict
 
         """
@@ -205,7 +209,10 @@ class Solver(Structure):
         self._system.y = y_history[-1]
         self._system.y_dot = y_dot_history[-1]
 
-        self.write_solution(times[:-1], y_history[:-1], y_dot_history[:-1])
+        if not last_section:
+            self.write_solution(times[:-1], y_history[:-1], y_dot_history[:-1])
+        else:
+            self.write_solution(times, y_history, y_dot_history)
 
     def get_section_solution_times(self, section: Dict) -> np.ndarray:
         """
