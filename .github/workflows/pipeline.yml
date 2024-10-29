@@ -1,15 +1,6 @@
 name: pipeline
 
-on:
-  push:
-    branches:
-      - master
-      - dev
-      - add-dead-end-filtration
-      - test_ci
-  pull_request:
-
-
+on: [push, pull_request]
 jobs:
   test-job:
     runs-on: ubuntu-latest
