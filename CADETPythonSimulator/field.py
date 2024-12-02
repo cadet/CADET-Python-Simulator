@@ -22,16 +22,17 @@ class Field:
         If None, the field is treated as a scalar field.
     data : Optional[npt.ArrayLike], optional
         Initial data for the field. If None, data is initialized as zeros.
+
     """
 
     def __init__(
-
             self,
             name: str,
             dimensions: dict[str, npt.ArrayLike],
             n_components: Optional[int] = None,
             data: Optional[npt.ArrayLike] = None,
             ):
+        """Construct the object."""
         self.name = name
         self.dimensions = {k: np.array(v) for k, v in dimensions.items()}
         self.n_components = n_components
@@ -140,6 +141,7 @@ class Field:
         ValueError
             If the field has more than 2 dimensions and `fixed_dims` is not provided.
             If an unknown plotting method is specified.
+
         """
         n_dims = len(self.dimensions)
 
@@ -203,6 +205,7 @@ class Field:
         -------
         Field
             A new Field object with the interpolated data and updated dimensions.
+
         """
         # Validate resample_dims keys
         invalid_keys = set(resample_dims.keys()) - set(self.dimensions.keys())
@@ -256,6 +259,7 @@ class Field:
         -----
         The normalization is performed using the formula:
             normalized_data = (data - min(data)) / (max(data) - min(data))
+
         """
         return NormalizedField(self)
 
@@ -272,6 +276,7 @@ class Field:
         -------
         Field
             A new Field representing the derivative.
+
         """
         if dimension not in self.dimensions:
             raise ValueError(f"Dimension '{dimension}' not found in field.")
@@ -295,6 +300,7 @@ class Field:
         -------
         Field
             A new Field representing the anti-derivative.
+
         """
         if dimension not in self.dimensions:
             raise ValueError(f"Dimension '{dimension}' not found in field.")
@@ -318,8 +324,10 @@ class Field:
         Returns
         -------
         Union[Field, np.ndarray]
-            A new Field object with reduced dimensions if some dimensions are unspecified.
+            A new Field object with reduced dimensions if some dimensions are
+            unspecified.
             A scalar or vector (np.ndarray) if all dimensions are specified.
+
         """
         # Ensure valid dimensions are being sliced
         for dim in slices.keys():
@@ -355,11 +363,13 @@ class Field:
             data=sliced_data,
         )
     def __repr__(self) -> str:
+        """Represantator."""
         components = (
             f", components={self.n_components}"
             if self.n_components else ", scalar=True"
         )
-        return f"Field(name='{self.name}', dimensions={list(self.dimensions.keys())}{components})"
+        return f"Field(name='{self.name}')"\
+            +f", dimensions={list(self.dimensions.keys())}{components}"
 
 
 class NormalizedField(Field):
@@ -370,10 +380,11 @@ class NormalizedField(Field):
     ----------
     field : Field
         The original field instance to normalize.
+
     """
 
     def __init__(self, field: Field):
-        # Initialize the base Field class with the same parameters
+        """Initialize the base Field class with the same parameters."""
         super().__init__(
             name=f"Normalized_{field.name}",
             dimensions=field.dimensions,
@@ -402,9 +413,11 @@ class FieldInterpolator:
     ----------
     field : Field
         The original field instance to wrap.
+
     """
 
     def __init__(self, field):
+        """Construct the object."""
         self.field = field
         self.data = np.array(field.data)  # Immutable snapshot of field data
         self._initialize_interpolators()
@@ -437,6 +450,7 @@ class FieldInterpolator:
         np.ndarray
             Interpolated values at the specified coordinates.
             If some dimensions are unspecified, their original structure is preserved.
+
         """
         # Separate provided and missing dimensions
         provided_dims = set(kwargs.keys())
@@ -486,6 +500,7 @@ class FieldInterpolator:
         -------
         tuple[int, ...]
             The shape of the interpolated result.
+
         """
         output_shape = []
         for dim, original_coords in self.field.dimensions.items():
@@ -496,7 +511,8 @@ class FieldInterpolator:
                 else:
                     output_shape.append(len(queried_value))  # Retain array length
             else:
-                output_shape.append(len(original_coords))  # Retain full original dimension
+                output_shape.append(len(original_coords))
+                # Retain full original dimension
 
         # Add n_components as the last dimension for vector fields
         if self.field.n_components:
@@ -517,6 +533,7 @@ class FieldInterpolator:
         -------
         Field
             A new field representing the derivative.
+
         """
         if dimension not in self.field.dimensions:
             raise ValueError(f"Dimension '{dimension}' not found in field.")
@@ -556,6 +573,7 @@ class FieldInterpolator:
         -------
         Field
             A new field representing the anti-derivative.
+
         """
         if dimension not in self.field.dimensions:
             raise ValueError(f"Dimension '{dimension}' not found in field.")
@@ -585,6 +603,7 @@ class FieldInterpolator:
         )
 
     def __repr__(self) -> str:
+        """Return represantation."""
         return f"FieldInterpolator({self.field})"
 
 
@@ -618,6 +637,7 @@ def plot_1D(
     -------
     tuple[matplotlib.figure.Figure, list[matplotlib.axes.Axes]]
         The figure and list containing the single axis used for the plot.
+
     """
     if fig is None or ax is None:
         fig, ax = plt.subplots()
@@ -666,6 +686,7 @@ def plot_2D_surface(
     -------
     tuple[matplotlib.figure.Figure, list[matplotlib.axes.Axes]]
         The figure and list of axes used for the plot.
+
     """
     n_components = z.shape[-1]
 
@@ -721,6 +742,7 @@ def plot_2D_heatmap(
     -------
     tuple[matplotlib.figure.Figure, list[matplotlib.axes.Axes]]
         The figure and list of axes used for the plot.
+
     """
     n_components = z.shape[-1]
 
