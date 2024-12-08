@@ -1,7 +1,9 @@
+import pytest
 import numpy as np
 from CADETPythonSimulator.field import Field, FieldInterpolator
 import matplotlib.pyplot as plt
 # %% Testing utilities
+
 
 def assert_equal(value, expected, message=""):
     message = f"Test failed: {message}. Expected {expected}, got {value}."
@@ -26,14 +28,21 @@ def test_field_initialization():
     assert_equal(viscosity.n_dof, 11 * 6, "Scalar field degrees of freedom")
 
     # Vector field
-    concentration = Field(name="concentration", dimensions=dimensions, n_components=3)
+    concentration = Field(name="concentration",
+                          dimensions=dimensions, n_components=3)
     assert_shape(concentration.shape, (11, 6, 3), "Vector field shape")
-    assert_equal(concentration.n_dof, 11 * 6 * 3, "Vector field degrees of freedom")
+    assert_equal(concentration.n_dof, 11 * 6 * 3,
+                 "Vector field degrees of freedom")
 
     # Custom data
     data = np.ones((11, 6, 3))
-    concentration_with_data = Field(name="concentration", dimensions=dimensions, n_components=3, data=data)
-    assert_shape(concentration_with_data.shape, (11, 6, 3), "Custom data field shape")
+    concentration_with_data = Field(
+        name="concentration", dimensions=dimensions, n_components=3, data=data)
+    assert_shape(concentration_with_data.shape,
+                 (11, 6, 3), "Custom data field shape")
+
+    with pytest.raises(ValueError):
+        viscosity.data = np.ones((1, 2, 3))
 
 
 # %% Plotting
@@ -41,13 +50,15 @@ def test_field_initialization():
 def test_plotting():
     # 1D Plot
     dimensions = {"x": np.linspace(0, 10, 11)}
-    field_1D = Field(name="1D Field", dimensions=dimensions, n_components=2, data=np.random.random((11, 2)))
+    field_1D = Field(name="1D Field", dimensions=dimensions,
+                     n_components=2, data=np.random.random((11, 2)))
     fig, ax = field_1D.plot()
     assert isinstance(ax, plt.Axes), "1D plot returns one axis"
 
     # 2D Plot
     dimensions = {"x": np.linspace(0, 10, 11), "y": np.linspace(0, 5, 6)}
-    field_2D = Field(name="2D Field", dimensions=dimensions, n_components=3, data=np.random.random((11, 6, 3)))
+    field_2D = Field(name="2D Field", dimensions=dimensions,
+                     n_components=3, data=np.random.random((11, 6, 3)))
     fig, axes = field_2D.plot()
     assert len(axes) == 3, "2D plot returns one axis per component"
 
@@ -55,18 +66,22 @@ def test_plotting():
 # %% Slicing
 
 def test_field_slicing():
-    dimensions = {"axial": np.linspace(0, 10, 11), "radial": np.linspace(0, 5, 6)}
+    dimensions = {"axial": np.linspace(
+        0, 10, 11), "radial": np.linspace(0, 5, 6)}
     field = Field(name="concentration", dimensions=dimensions, n_components=3)
 
     # Slice along one dimension
     field_sliced = field[{"axial": 0}]
-    assert_equal(len(field_sliced.dimensions), 1, "Field slicing reduces dimensionality")
+    assert_equal(len(field_sliced.dimensions), 1,
+                 "Field slicing reduces dimensionality")
     assert_shape(field_sliced.shape, (6, 3), "Field slicing shape")
 
     # Slice along all dimensions
     field_sliced_all = field[{"axial": 0, "radial": 0}]
-    assert_equal(len(field_sliced_all.dimensions), 0, "Full slicing removes all dimensions")
-    assert_shape(field_sliced_all.shape, (3,), "Full slicing results in vector")
+    assert_equal(len(field_sliced_all.dimensions), 0,
+                 "Full slicing removes all dimensions")
+    assert_shape(field_sliced_all.shape, (3,),
+                 "Full slicing results in vector")
 
 
 # %% Normalization
@@ -89,12 +104,13 @@ def test_field_normalization():
 
     # Test 2: Verify data normalization
     normalized_data = normalized_field.data
-    assert np.isclose(np.min(normalized_data), 0.0), "Normalized data minimum is not 0."
-    assert np.isclose(np.max(normalized_data), 1.0), "Normalized data maximum is not 1."
+    assert np.isclose(np.min(normalized_data),
+                      0.0), "Normalized data minimum is not 0."
+    assert np.isclose(np.max(normalized_data),
+                      1.0), "Normalized data maximum is not 1."
 
     # Test 3: Ensure original field is unchanged
     assert np.array_equal(field.data, z), "Original field data was modified."
-
 
 
 # %% Interpolation and Resampling
@@ -136,7 +152,8 @@ def test_interpolated_field():
         "radial": np.linspace(0, 5, 6)
     }
     data = np.random.random((11, 6, 3))
-    concentration = Field(name="concentration", dimensions=dimensions, n_components=3, data=data)
+    concentration = Field(name="concentration",
+                          dimensions=dimensions, n_components=3, data=data)
 
     # Interpolated field
     interp_field = FieldInterpolator(concentration)
@@ -146,7 +163,8 @@ def test_interpolated_field():
 
 def test_resampling():
     dimensions = {"x": np.linspace(0, 10, 11), "y": np.linspace(0, 5, 6)}
-    field = Field(name="concentration", dimensions=dimensions, n_components=2, data=np.random.random((11, 6, 2)))
+    field = Field(name="concentration", dimensions=dimensions,
+                  n_components=2, data=np.random.random((11, 6, 2)))
 
     # Resample one dimension
     resampled_field = field.resample({"x": 50})
@@ -154,7 +172,8 @@ def test_resampling():
 
     # Resample all dimensions
     resampled_field_all = field.resample({"x": 50, "y": 25})
-    assert_shape(resampled_field_all.shape, (50, 25, 2), "Resampling all dimensions")
+    assert_shape(resampled_field_all.shape, (50, 25, 2),
+                 "Resampling all dimensions")
 
 
 def test_field_interpolation_and_derivatives():
@@ -203,6 +222,5 @@ def test_field_interpolation_and_derivatives():
 
 # %% Run tests
 
-import pytest
 if __name__ == "__main__":
     pytest.main('test_field.py')
