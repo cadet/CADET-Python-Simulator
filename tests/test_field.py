@@ -41,7 +41,7 @@ def test_field_initialization():
     assert_shape(concentration_with_data.shape,
                  (11, 6, 3), "Custom data field shape")
 
-    assert_equal(viscosity.n_dimensions, 3)
+    assert_equal(viscosity.n_dimensions, 2)
     assert_equal(viscosity.n_cells, 11 * 6)
 
     with pytest.raises(ValueError):
