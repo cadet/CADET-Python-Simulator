@@ -2,6 +2,7 @@ import pytest
 import numpy as np
 from CADETPythonSimulator.field import Field, FieldInterpolator
 import matplotlib.pyplot as plt
+from numpy.testing import assert_array_equal
 # %% Testing utilities
 
 
@@ -39,13 +40,13 @@ def test_field_initialization():
         name="concentration", dimensions=dimensions, n_components=3, data=data
     )
     assert_shape(concentration_with_data.shape, (11, 6, 3), "Custom data field shape")
-    assert_equal(concentration_with_data.data_flat, np.ones(11 * 6 * 3))
+    assert_array_equal(concentration_with_data.data_flat, np.ones(11 * 6 * 3))
 
     assert_equal(viscosity.n_dimensions, 2)
     assert_equal(viscosity.n_cells, 11 * 6)
 
     viscosity.data_flat = np.ones(11 * 6)
-    assert_equal(viscosity.data, np.ones((11, 6)))
+    assert_array_equal(viscosity.data, np.ones((11, 6)))
 
     with pytest.raises(ValueError):
         viscosity.data_flat = np.ones(42)
