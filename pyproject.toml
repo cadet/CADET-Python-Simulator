@@ -44,6 +44,7 @@ testing = [
     "pre-commit", # system tests run pre-commit
     "flake8", # system tests run flake8
     "build",
+    "coverage"
 ]
 docs = [
     "sphinx>=5.3.0",
