@@ -26,12 +26,12 @@ class Field:
     """
 
     def __init__(
-            self,
-            name: str,
-            dimensions: dict[str, npt.ArrayLike],
-            n_components: Optional[int] = None,
-            data: Optional[npt.ArrayLike] = None,
-            ):
+        self,
+        name: str,
+        dimensions: dict[str, npt.ArrayLike],
+        n_components: Optional[int] = None,
+        data: Optional[npt.ArrayLike] = None,
+    ):
         """Construct the object."""
         self.name = name
         self.dimensions = {k: np.array(v) for k, v in dimensions.items()}
@@ -107,13 +107,13 @@ class Field:
         self.data = data_flat.reshape(self.shape)
 
     def plot(
-            self,
-            title: str = None,
-            fixed_dims: Optional[dict[str, Union[float, int]]] = None,
-            method: str = "surface",
-            fig: Optional[plt.Figure] = None,
-            axes: Optional[plt.Axes | list[plt.Axes]] = None,
-            ) -> tuple[plt.Figure, plt.Axes | list[plt.Axes]]:
+        self,
+        title: str = None,
+        fixed_dims: Optional[dict[str, Union[float, int]]] = None,
+        method: str = "surface",
+        fig: Optional[plt.Figure] = None,
+        axes: Optional[plt.Axes | list[plt.Axes]] = None,
+    ) -> tuple[plt.Figure, plt.Axes | list[plt.Axes]]:
         """
         Plot the field data, supporting 1D, 2D, and slicing for higher dimensions.
 
@@ -163,7 +163,8 @@ class Field:
             y = self.data
             component_names = (
                 [f"Component {i}" for i in range(self.n_components)]
-                if self.n_components else ["Value"]
+                if self.n_components
+                else ["Value"]
             )
             return plot_1D(x, y, component_names, title or self.name, fig, axes)
 
@@ -173,7 +174,8 @@ class Field:
             z = self.data
             component_names = (
                 [f"Component {i}" for i in range(self.n_components)]
-                if self.n_components else ["Value"]
+                if self.n_components
+                else ["Value"]
             )
             if method == "surface":
                 return plot_2D_surface(
@@ -186,10 +188,7 @@ class Field:
             else:
                 raise ValueError(f"Unknown plotting method: {method}")
 
-    def resample(
-            self,
-            resample_dims: dict[str, Union[int, npt.ArrayLike]]
-            ) -> "Field":
+    def resample(self, resample_dims: dict[str, Union[int, npt.ArrayLike]]) -> "Field":
         """
         Resample the field data to new dimensions using interpolation.
 
@@ -309,10 +308,7 @@ class Field:
         interpolated_field = FieldInterpolator(self)
         return interpolated_field.anti_derivative(dimension, initial_value)
 
-    def __getitem__(
-            self,
-            slices: dict[str, float | int]
-            ) -> Union["Field", np.ndarray]:
+    def __getitem__(self, slices: dict[str, float | int]) -> Union["Field", np.ndarray]:
         """
         Slice the field along specified dimensions.
 
@@ -362,14 +358,18 @@ class Field:
             n_components=self.n_components,
             data=sliced_data,
         )
+
     def __repr__(self) -> str:
         """Represantator."""
         components = (
             f", components={self.n_components}"
-            if self.n_components else ", scalar=True"
+            if self.n_components
+            else ", scalar=True"
         )
-        return f"Field(name='{self.name}')"\
-            +f", dimensions={list(self.dimensions.keys())}{components}"
+        return (
+            f"Field(name='{self.name}')"
+            + f", dimensions={list(self.dimensions.keys())}{components}"
+        )
 
 
 class NormalizedField(Field):
@@ -428,7 +428,7 @@ class FieldInterpolator:
         if self.field.n_components:
             self._interpolators = [
                 RegularGridInterpolator(
-                    grid_points, self.field.data[..., i], method='pchip'
+                    grid_points, self.field.data[..., i], method="pchip"
                 )
                 for i in range(self.field.n_components)
             ]
@@ -455,7 +455,7 @@ class FieldInterpolator:
         # Separate provided and missing dimensions
         provided_dims = set(kwargs.keys())
         all_dims = set(self.field.dimensions.keys())
-        missing_dims = all_dims - provided_dims
+        # missing_dims = all_dims - provided_dims
 
         # Validate dimensions
         if not provided_dims.issubset(all_dims):
@@ -485,8 +485,7 @@ class FieldInterpolator:
         return result.reshape(output_shape)
 
     def _determine_output_shape(
-        self,
-        query: dict[str, Union[float, npt.ArrayLike]]
+        self, query: dict[str, Union[float, npt.ArrayLike]]
     ) -> tuple[int, ...]:
         """
         Determine the shape of the interpolated result based on the query.
@@ -543,10 +542,13 @@ class FieldInterpolator:
 
         # Compute derivative for multi-component fields
         if self.field.n_components:
-            derivative_data = np.stack([
-                np.gradient(self.field.data[..., i], coords, axis=axis)
-                for i in range(self.field.n_components)
-            ], axis=-1)
+            derivative_data = np.stack(
+                [
+                    np.gradient(self.field.data[..., i], coords, axis=axis)
+                    for i in range(self.field.n_components)
+                ],
+                axis=-1,
+            )
         else:
             derivative_data = np.gradient(self.field.data, coords, axis=axis)
 
@@ -555,7 +557,7 @@ class FieldInterpolator:
             name=f"{self.field.name}_derivative_{dimension}",
             dimensions=self.field.dimensions,
             n_components=self.field.n_components,
-            data=derivative_data
+            data=derivative_data,
         )
 
     def anti_derivative(self, dimension: str, initial_value: float = 0):
@@ -583,23 +585,26 @@ class FieldInterpolator:
 
         # Compute anti-derivative for multi-component fields
         if self.field.n_components:
-            anti_derivative_data = np.stack([
-                np.cumsum(
-                    self.field.data[..., i] * np.gradient(coords), axis=axis
-                ) + initial_value
-                for i in range(self.field.n_components)
-            ], axis=-1)
+            anti_derivative_data = np.stack(
+                [
+                    np.cumsum(self.field.data[..., i] * np.gradient(coords), axis=axis)
+                    + initial_value
+                    for i in range(self.field.n_components)
+                ],
+                axis=-1,
+            )
         else:
-            anti_derivative_data = np.cumsum(
-                self.field.data * np.gradient(coords), axis=axis
-            ) + initial_value
+            anti_derivative_data = (
+                np.cumsum(self.field.data * np.gradient(coords), axis=axis)
+                + initial_value
+            )
 
         # Return new Field for the anti-derivative
         return Field(
             name=f"{self.field.name}_anti_derivative_{dimension}",
             dimensions=self.field.dimensions,
             n_components=self.field.n_components,
-            data=anti_derivative_data
+            data=anti_derivative_data,
         )
 
     def __repr__(self) -> str:
@@ -608,13 +613,13 @@ class FieldInterpolator:
 
 
 def plot_1D(
-        x: np.ndarray,
-        y: np.ndarray,
-        component_names: list[str],
-        title: str,
-        fig: Optional[plt.Figure] = None,
-        ax: Optional[plt.Axes] = None,
-        ) -> tuple[plt.Figure, plt.Axes]:
+    x: np.ndarray,
+    y: np.ndarray,
+    component_names: list[str],
+    title: str,
+    fig: Optional[plt.Figure] = None,
+    ax: Optional[plt.Axes] = None,
+) -> tuple[plt.Figure, plt.Axes]:
     """
     Plot a 1D field with a line for each component.
 
@@ -654,14 +659,14 @@ def plot_1D(
 
 
 def plot_2D_surface(
-        x: np.ndarray,
-        y: np.ndarray,
-        z: np.ndarray,
-        component_names: list[str],
-        title: str,
-        fig: Optional[plt.Figure] = None,
-        axes: Optional[list[plt.Axes]] = None,
-        ) -> tuple[plt.Figure, list[plt.Axes]]:
+    x: np.ndarray,
+    y: np.ndarray,
+    z: np.ndarray,
+    component_names: list[str],
+    title: str,
+    fig: Optional[plt.Figure] = None,
+    axes: Optional[list[plt.Axes]] = None,
+) -> tuple[plt.Figure, list[plt.Axes]]:
     """
     Plot a 2D field with a surface for each component.
 
@@ -692,9 +697,10 @@ def plot_2D_surface(
 
     if axes is None:
         fig, axes = plt.subplots(
-            1, n_components,
+            1,
+            n_components,
             figsize=(5 * n_components, 5),
-            subplot_kw={'projection': '3d'}
+            subplot_kw={"projection": "3d"},
         )
         axes = [axes] if n_components == 1 else axes
 
@@ -710,14 +716,14 @@ def plot_2D_surface(
 
 
 def plot_2D_heatmap(
-        x: np.ndarray,
-        y: np.ndarray,
-        z: np.ndarray,
-        component_names: list[str],
-        title: str,
-        fig: Optional[plt.Figure] = None,
-        axes: Optional[list[plt.Axes]] = None,
-        ) -> tuple[plt.Figure, list[plt.Axes]]:
+    x: np.ndarray,
+    y: np.ndarray,
+    z: np.ndarray,
+    component_names: list[str],
+    title: str,
+    fig: Optional[plt.Figure] = None,
+    axes: Optional[list[plt.Axes]] = None,
+) -> tuple[plt.Figure, list[plt.Axes]]:
     """
     Plot a 2D field with a heatmap for each component.
 
@@ -748,9 +754,7 @@ def plot_2D_heatmap(
 
     if axes is None:
         fig, axes = plt.subplots(
-            1, n_components,
-            figsize=(5 * n_components, 5),
-            constrained_layout=True
+            1, n_components, figsize=(5 * n_components, 5), constrained_layout=True
         )
         axes = [axes] if n_components == 1 else axes
 
@@ -763,4 +767,3 @@ def plot_2D_heatmap(
         ax.set_ylabel("Y-axis")
 
     return fig, axes
-
