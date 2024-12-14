@@ -82,6 +82,24 @@ def test_plotting():
     fig, axes = field_2D.plot()
     assert len(axes) == 3, "2D plot returns one axis per component"
 
+    # plot 3D field
+    dimensions = {
+        "x": np.linspace(0, 10, 11),
+        "y": np.linspace(0, 5, 6),
+        "z": np.linspace(0, 2, 3),
+    }
+    field_3D = Field(
+        name="3D Field",
+        dimensions=dimensions,
+        n_components=4,
+        data=np.random.random((11, 6, 3, 4)),
+    )
+    with pytest.raises(ValueError):
+        field_3D.plot()
+
+    fig, axis = field_3D.plot(fixed_dims={"x": 1, "y": 1})
+    assert isinstance(axis, plt.Axes), "3D plot with two fixed dimensions has one axis"
+
 
 # %% Slicing
 
