@@ -260,6 +260,19 @@ def test_field_interpolation_and_derivatives():
     )
 
 
+def test_field_from_csv():
+    """Test reading field from csv."""
+    data = np.genfromtxt("test_temp.csv", delimiter=",", names=True)
+    dim_time = np.unique(data["time"])
+    dim_axial = np.unique(data["axial"])
+    values = data["Temperature"].reshape(len(dim_time), len(dim_axial))
+    field = Field(
+        name="temp_field",
+        dimensions={"time": dim_time, "axial": dim_axial},
+        data=values,
+    )
+
+
 # %% Run tests
 
 if __name__ == "__main__":
