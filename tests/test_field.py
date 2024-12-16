@@ -262,7 +262,7 @@ def test_field_interpolation_and_derivatives():
 
 def test_field_from_csv():
     """Test reading field from csv."""
-    data = np.genfromtxt("test_temp.csv", delimiter=",", names=True)
+    data = np.genfromtxt("tests/test_temp.csv", delimiter=",", names=True)
     dim_time = np.unique(data["time"])
     dim_axial = np.unique(data["axial"])
     values = data["Temperature"].reshape(len(dim_time), len(dim_axial))
