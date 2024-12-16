@@ -263,13 +263,27 @@ def test_field_interpolation_and_derivatives():
 def test_field_from_csv():
     """Test reading field from csv."""
     data = np.genfromtxt("tests/test_temp.csv", delimiter=",", names=True)
-    dim_time = np.unique(data["time"])
-    dim_axial = np.unique(data["axial"])
-    values = data["Temperature"].reshape(len(dim_time), len(dim_axial))
+
+    # Initialize dimensions
+    dim_time, idx_time = np.unique(data["time"], return_inverse=True)
+    dim_axial, idx_axial = np.unique(data["axial"], return_inverse=True)
+
+    # Initialize values
+    values = np.zeros((len(dim_time), len(dim_axial)))
+    for idx in range(len(data)):
+        values[idx_time[idx]][idx_axial[idx]] = data[idx]["Temperature"]
+
     field = Field(
         name="temp_field",
         dimensions={"time": dim_time, "axial": dim_axial},
         data=values,
+    )
+    assert_shape(field.shape, (4, 3), "Field shape mismatch")
+
+    interp_field = FieldInterpolator(field)
+    assert_equal(interp_field(time=1700, axial=0), 24, "Wrong interpolated temperature")
+    assert_equal(
+        interp_field(time=300, axial=0.3), 17.34, "Wrong interpolated temperature"
     )
 
 
