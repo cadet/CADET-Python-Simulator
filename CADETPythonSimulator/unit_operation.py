@@ -849,7 +849,6 @@ class DeadEndFiltration(UnitOperationBase):
     permeate_tank = {
         'dimensions': (),
         'entries': {
-#            'n_permeate_tank': 'n_comp',
             'c': 'n_comp',
             'tankvolume': 1
         },
@@ -879,30 +878,22 @@ class DeadEndFiltration(UnitOperationBase):
         Q_out = self.Q_out[0]
 
         c_feed = self.states['cake']['c']
-        #c_feed_dot = self.state_derivatives['cake']['c']
 
-        #n_feed = self.states['cake']['n_feed']
         n_feed_dot = self.state_derivatives['cake']['n_feed']
 
-        #n_cake = self.states['cake']['n_cake']
         n_cake_dot = self.state_derivatives['cake']['n_cake']
 
         cake_vol = self.states['cake']['cakevolume']
         cake_vol_dot = self.state_derivatives['cake']['cakevolume']
 
-        #n_permeate = self.states['cake']['n_permeate']
         n_permeate_dot = self.state_derivatives['cake']['n_permeate']
 
-        #permeate_vol = self.states['cake']['permeatevolume']
         permeate_vol_dot = self.state_derivatives['cake']['permeatevolume']
 
         deltap = self.states['cake']['pressure']
 
         c_tank = self.states['permeate_tank']['c']
         c_tank_dot = self.state_derivatives['permeate_tank']['c']
-
-#        n_tank = self.states['permeate_tank']['n_permeate_tank']
-#        n_tank_dot = self.state_derivatives['permeate_tank']['n_permeate_tank']
 
         tankvolume = self.states['permeate_tank']['tankvolume']
         tankvolume_dot = self.state_derivatives['permeate_tank']['tankvolume']
