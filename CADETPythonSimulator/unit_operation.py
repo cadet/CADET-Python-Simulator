@@ -833,29 +833,34 @@ class DeadEndFiltration(UnitOperationBase):
 
     """
 
-    cake = {
-        'dimensions': (),
+    inlet = {
+        'dimensions': {},
         'entries': {
             'c': 'n_comp',
             'n_feed': 'n_comp',
-            'cakevolume': 'n_comp',
-            'n_cake': 'n_comp',
-            'permeatevolume': 1,
-            'n_permeate': 'n_comp',
-            'pressure': 1
         },
         'n_inlet_ports': 1,
+    }
+    cake = {
+        'dimensions': (),
+        'entries': {
+            'cakevolume': 'n_comp',
+            'n_cake': 'n_comp',
+            'pressure': 1
+        },
     }
     permeate_tank = {
         'dimensions': (),
         'entries': {
             'c': 'n_comp',
-            'tankvolume': 1
+            'tankvolume': 1,
+            'permeatevolume': 1,
+            'n_permeate': 'n_comp',
         },
         'n_outlet_ports': 1,
     }
 
-    _state_structures = ['cake', 'permeate_tank']
+    _state_structures = ['inlet', 'cake', 'permeate_tank']
 
     membrane_area = UnsignedFloat()
     membrane_resistance = UnsignedFloat()
@@ -877,18 +882,18 @@ class DeadEndFiltration(UnitOperationBase):
         Q_in = self.Q_in[0]
         Q_out = self.Q_out[0]
 
-        c_feed = self.states['cake']['c']
+        c_feed = self.states['inlet']['c']
 
-        n_feed_dot = self.state_derivatives['cake']['n_feed']
+        n_feed_dot = self.state_derivatives['inlet']['n_feed']
 
         n_cake_dot = self.state_derivatives['cake']['n_cake']
 
         cake_vol = self.states['cake']['cakevolume']
         cake_vol_dot = self.state_derivatives['cake']['cakevolume']
 
-        n_permeate_dot = self.state_derivatives['cake']['n_permeate']
+        n_permeate_dot = self.state_derivatives['permeate_tank']['n_permeate']
 
-        permeate_vol_dot = self.state_derivatives['cake']['permeatevolume']
+        permeate_vol_dot = self.state_derivatives['permeate_tank']['permeatevolume']
 
         deltap = self.states['cake']['pressure']
 
@@ -915,11 +920,11 @@ class DeadEndFiltration(UnitOperationBase):
                     )
 
         # Coupling residual equation
-        self.residuals['cake']['c'] -= c_feed
+        self.residuals['inlet']['c'] -= c_feed
 
         # Number of Feed
 
-        self.residuals['cake']['n_feed'] = n_feed_dot - Q_in * c_feed
+        self.residuals['inlet']['n_feed'] = n_feed_dot - Q_in * c_feed
 
         # Number of cake
 
@@ -927,7 +932,7 @@ class DeadEndFiltration(UnitOperationBase):
 
         # Number of Permeate
 
-        self.residuals['cake']['n_permeate'] =\
+        self.residuals['permeate_tank']['n_permeate'] =\
             n_permeate_dot - (1 - rejection) * n_feed_dot
 
         # Cakevolume
@@ -937,7 +942,7 @@ class DeadEndFiltration(UnitOperationBase):
 
         # Permeate flow
 
-        self.residuals['cake']['permeatevolume'] =\
+        self.residuals['permeate_tank']['permeatevolume'] =\
             permeate_vol_dot - np.sum(n_permeate_dot * molecular_weights / densities)
 
         # Pressure equation
@@ -1015,10 +1020,10 @@ class DeadEndFiltration(UnitOperationBase):
 
         Q_in = self.Q_in[0]
         Q_out = self.Q_out[0]
-        c_feed = self.states['cake']['c']
+        c_feed = self.states['inlet']['c']
 
         n_feed_dot = Q_in * c_feed
-        self.state_derivatives['cake']['n_feed'] = n_feed_dot
+        self.state_derivatives['inlet']['n_feed'] = n_feed_dot
 
         rejection = np.array(
                 [
@@ -1038,11 +1043,11 @@ class DeadEndFiltration(UnitOperationBase):
 
 
         n_permeate_dot = (1 - rejection) * n_feed_dot
-        self.state_derivatives['cake']['n_permeate'] = n_permeate_dot
+        self.state_derivatives['permeate_tank']['n_permeate'] = n_permeate_dot
 
 
         permeate_vol_dot = np.sum(n_permeate_dot * molecular_weights / densities)
-        self.state_derivatives['cake']['permeatevolume'] = permeate_vol_dot
+        self.state_derivatives['permeate_tank']['permeatevolume'] = permeate_vol_dot
 
         cakresistance = \
             np.sum(specific_cake_resistance * densities * cake_vol/membrane_area)
