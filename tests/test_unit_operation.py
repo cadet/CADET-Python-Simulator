@@ -228,19 +228,22 @@ class _2DGRMFixture(UnitOperationFixture, _2DGRM):
                 'n_outlet_ports': 1,
                 'n_dof': 15,
                 'states': {
-                    'cake': [0., 1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11],
-                    'permeate_tank': [12., 13., 14.],
+                    'inlet': [0., 1., 2., 3.],
+                    'cake': [4., 5., 6., 7., 8.],
+                    'permeate_tank': [9., 10., 11., 12., 13., 14.],
                 },
                 'inlet_state': {
                     0: {
-                        'slice': np.s_[0:12],
-                        'value': [.1, .2, 2., 3., 4., 5., 6., 7., 8., 9., 10., 11],
+                        'slice': np.s_[0:3],
+                        'value': [.1, .2, 2.],
                     },
                 },
                 'outlet_state': {
                     0: {
-                        'c': [12., 13.],
-                        'tankvolume': [14.],
+                        'c': [9., 10.],
+                        'tankvolume': [11.],
+                        'permeatevolume': [12.],
+                        'n_permeate': [13., 14.],
                     },
                 },
             },

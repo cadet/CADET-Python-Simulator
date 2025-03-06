@@ -111,7 +111,7 @@ viscosity_obj = \
                         }
                     },
                     'dead_end_filtration': {
-                        'cake': {
+                        'inlet':{
                             'c': {
                                 'values': np.array([[2., 3.], [4., 6.]]),
                                 'derivatives': np.array([[4., 6.], [8., 12.]]),
@@ -120,6 +120,8 @@ viscosity_obj = \
                                 'values': np.array([[4., 5.], [8., 10.]]),
                                 'derivatives': np.array([[8., 10.], [16., 20.]]),
                             },
+                        },
+                        'cake': {
                             'cakevolume': {
                                 'values': np.array([[6., 7.], [12., 14.]]),
                                 'derivatives': np.array([[12., 14. ], [24., 28.]]),
@@ -128,28 +130,29 @@ viscosity_obj = \
                                 'values': np.array([[8., 9.], [16., 18.]]),
                                 'derivatives': np.array([[16., 18.], [32., 36]]),
                             },
-                            'permeatevolume': {
+                            'pressure': {
                                 'values': np.array([[10.], [20.]]),
                                 'derivatives': np.array([[20.], [40.]]),
-                            },
-                            'n_permeate': {
-                                'values': np.array([[11., 12.], [22., 24.]]),
-                                'derivatives': np.array([[22., 24.], [44., 48]]),
-                            },
-                            'pressure': {
-                                'values': np.array([[13.], [26.]]),
-                                'derivatives': np.array([[26.], [52.]]),
+
                             },
                         },
                         'permeate_tank': {
                             'c': {
-                                'values': np.array([[14., 15.], [28., 30.]]),
-                                'derivatives': np.array([[28., 30.], [56., 60.]]),
+                                'values': np.array([[11., 12.], [22., 24.]]),
+                                'derivatives': np.array([[22., 24.], [44., 48.]]),
                             },
                             'tankvolume': {
-                                'values': np.array([[16.], [32.]]),
-                                'derivatives': np.array([[32.], [64.]]),
-                            }
+                                'values': np.array([[13.], [26.]]),
+                                'derivatives': np.array([[26.], [52.]]),
+                            },
+                            'permeatevolume': {
+                                'values': np.array([[14.], [28.]]),
+                                'derivatives': np.array([[28.], [56.]]),
+                            },
+                            'n_permeate': {
+                                'values': np.array([[15., 16.], [30., 32.]]),
+                                'derivatives': np.array([[30., 32.], [60., 64]]),
+                            },
                         }
                     },
                     'outlet': {
