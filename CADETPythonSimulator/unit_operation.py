@@ -596,7 +596,7 @@ class DistributionInlet(UnitOperationBase):
     Attributes
     ----------
     distribution_function : DistributionBase
-        Function to describe concentration profile.
+        Function to describe a Volume profile.
 
     """
 
@@ -611,6 +611,7 @@ class DistributionInlet(UnitOperationBase):
     _state_structures = ['outlet']
     _parameters = ['section_number']
     _section_dependent_parameters = ['section_number']
+
     def compute_residual(
             self,
             t: float
@@ -653,6 +654,63 @@ class DistributionInlet(UnitOperationBase):
 
         self.states['outlet']['c'] = ci
 
+
+class ConcentrationDistributionInlet(UnitOperationBase):
+    """
+    System inlet.
+
+    Attributes
+    ----------
+    distribution_function : DistributionBase
+        Function to describe concentration profile.
+
+    """
+
+    distribution_function = Typed(ty=DistributionBase)
+    section_number = Typed(ty=int)
+
+    outlet = {
+        'dimensions': (),
+        'entries': {'c': 'n_comp'},
+        'n_outlet_ports': 1,
+    }
+    _state_structures = ['outlet']
+    _parameters = ['section_number']
+    _section_dependent_parameters = ['section_number']
+
+    def compute_residual(
+            self,
+            t: float
+            ) -> NoReturn:
+        """
+        Calculate the residual of the unit operation at time `t`.
+
+        Parameters
+        ----------
+        t : float
+            Time at which to evaluate the residual.
+
+        """
+        c = self.states['outlet']['c']
+        nr = self.section_number
+        ci = self.distribution_function.get_distribution(t, nr)
+
+        self.residuals['outlet']['c'] = ci - c
+
+    def initialize_initial_values(self, t_zero: float):
+        """
+        Initialize initial values for Inlet Unit Operation.
+
+        Parameters
+        ----------
+        t_zero : float
+            Time to initialize the values
+
+        """
+        nr = self.parameters['section_number']
+        ci = self.distribution_function.get_distribution(t_zero, nr)
+
+        self.states['outlet']['c'] = ci
 
 
 class Outlet(UnitOperationBase):
