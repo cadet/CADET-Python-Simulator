@@ -45,6 +45,21 @@ class ViscosityBase(Structure):
                 "Sum of volume fractions must be 1."
             )
 
+    def _remove_nan_viscosities(
+            self,
+            viscosities: np.ndarray,
+            fractions: np.ndarray,
+            ) -> tuple[np.ndarray, np.ndarray]:
+        non_nan_indices = ~np.isnan(viscosities)
+
+        viscosities = viscosities[non_nan_indices]
+
+        # Rescale fractions
+        fractions = fractions[non_nan_indices]
+        fractions_rescaled = fractions / sum(fractions)
+
+        return viscosities, fractions_rescaled
+
 
 class AverageViscosity(ViscosityBase):
     """Calculate mixed viscosity using the average mean."""
@@ -69,6 +84,7 @@ class AverageViscosity(ViscosityBase):
 
         """
         self._validate_viscosities_input(viscosities, fractions)
+        viscosities, fractions = self._remove_nan_viscosities(viscosities, fractions)
 
         mixed_viscosity = sum(v * f for v, f in zip(viscosities, fractions))
         return mixed_viscosity
@@ -97,6 +113,7 @@ class LogarithmicMixingViscosity(ViscosityBase):
 
         """
         self._validate_viscosities_input(viscosities, fractions)
+        viscosities, fractions = self._remove_nan_viscosities(viscosities, fractions)
 
         mixed_viscosity = np.exp(
             np.sum(f * np.log(v) for v, f in zip(viscosities, fractions))
