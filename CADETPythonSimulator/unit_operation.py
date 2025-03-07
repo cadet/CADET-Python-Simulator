@@ -946,9 +946,11 @@ class DeadEndFiltration(UnitOperationBase):
             np.sum(specific_cake_resistance * densities * cake_vol/membrane_area)
 
         if not np.sum(n_permeate_dot) < 1e-16:
-            viscositiy = \
-                np.exp(np.sum(n_permeate_dot* np.log(viscosities)) \
-                    / np.sum(n_permeate_dot))
+
+            fractions = n_permeate_dot/sum(n_permeate_dot)
+
+            viscosity =\
+                self.viscosity_model.get_mixture_viscosity(viscosities, fractions)
 
             self.residuals['cake']['pressure'] = \
                 delta_p - viscosity * permeate_vol_dot\
