@@ -823,7 +823,7 @@ class DeadEndFiltration(UnitOperationBase):
     membrane_resistance : float
         Membrane resistance.
     solution_viscosity : float
-        viscosity of the solution
+        Dynamic viscosity of the solution
     rejection_model : RejectionBase
         Model for size dependent rejection.
     cake_compressibility_model : CakeCompressibilityBase
@@ -890,7 +890,7 @@ class DeadEndFiltration(UnitOperationBase):
 
         permeate_vol_dot = self.state_derivatives['cake']['permeatevolume']
 
-        deltap = self.states['cake']['pressure']
+        delta_p = self.states['cake']['pressure']
 
         c_tank = self.states['permeate_tank']['c']
         c_tank_dot = self.state_derivatives['permeate_tank']['c']
@@ -942,7 +942,7 @@ class DeadEndFiltration(UnitOperationBase):
 
         # Pressure equation
 
-        cakresistance = \
+        cake_resistance = \
             np.sum(specific_cake_resistance * densities * cake_vol/membrane_area)
 
         if not np.sum(n_permeate_dot) < 1e-16:
@@ -951,10 +951,10 @@ class DeadEndFiltration(UnitOperationBase):
                     / np.sum(n_permeate_dot))
 
             self.residuals['cake']['pressure'] = \
-                viscositiy * permeate_vol_dot * (membrane_resistance + cakresistance)\
-                - deltap*membrane_area
+                delta_p - viscosity * permeate_vol_dot\
+                *(membrane_resistance + cake_resistance) /membrane_area
         else:
-            self.residuals['cake']['pressure'] = deltap
+            self.residuals['cake']['pressure'] = delta_p
 
         # Tank equations
 
@@ -1044,19 +1044,19 @@ class DeadEndFiltration(UnitOperationBase):
         permeate_vol_dot = np.sum(n_permeate_dot * molecular_weights / densities)
         self.state_derivatives['cake']['permeatevolume'] = permeate_vol_dot
 
-        cakresistance = \
+        cake_resistance = \
             np.sum(specific_cake_resistance * densities * cake_vol/membrane_area)
 
         is_viscos =  viscosities > 0
         if not np.sum(n_permeate_dot[is_viscos]) < 1e-13:
-            viscositiy = \
+            viscosity = \
                 np.exp(
                     np.sum(n_permeate_dot[is_viscos]* np.log(viscosities[is_viscos]))\
                     / np.sum(n_permeate_dot[is_viscos])
                 )
 
             self.states['cake']['pressure'] = \
-                viscositiy * permeate_vol_dot * (membrane_resistance + cakresistance)\
+                viscosity * permeate_vol_dot * (membrane_resistance + cake_resistance)\
                 / membrane_area
         else:
             self.states['cake']['pressure'] = 0
