@@ -890,7 +890,7 @@ class DeadEndFiltration(UnitOperationBase):
 
         permeate_vol_dot = self.state_derivatives['cake']['permeatevolume']
 
-        deltap = self.states['cake']['pressure']
+        delta_p = self.states['cake']['pressure']
 
         c_tank = self.states['permeate_tank']['c']
         c_tank_dot = self.state_derivatives['permeate_tank']['c']
@@ -953,10 +953,10 @@ class DeadEndFiltration(UnitOperationBase):
                 self.viscosity_model.get_mixture_viscosity(viscosities, fractions)
 
             self.residuals['cake']['pressure'] = \
-                deltap - viscosity * permeate_vol_dot\
+                delta_p - viscosity * permeate_vol_dot\
                 *(membrane_resistance + cake_resistance) /membrane_area
         else:
-            self.residuals['cake']['pressure'] = deltap
+            self.residuals['cake']['pressure'] = delta_p
 
         # Tank equations
 
