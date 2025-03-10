@@ -819,15 +819,11 @@ class DeadEndFiltration(UnitOperationBase):
     Attributes
     ----------
     membrane_area : float
-        Area of the membrane.
+        Area of the membrane. [m^2]
     membrane_resistance : float
-        Membrane resistance.
-    solution_viscosity : float
-        Dynamic viscosity of the solution
+        Membrane resistance. [m^{-1}]
     rejection_model : RejectionBase
         Model for size dependent rejection.
-    cake_compressibility_model : CakeCompressibilityBase
-        Model for cake compressibility.
     viscosity_model : ViscosityBase
         Model for viscosities
 
