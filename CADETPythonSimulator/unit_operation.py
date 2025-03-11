@@ -1045,19 +1045,22 @@ class DeadEndFiltration(UnitOperationBase):
         cake_resistance = \
             np.sum(specific_cake_resistance * densities * cake_vol/membrane_area)
 
-        is_viscos =  viscosities > 0
-        if not np.sum(n_permeate_dot[is_viscos]) < 1e-13:
-            viscosity = \
-                np.exp(
-                    np.sum(n_permeate_dot[is_viscos]* np.log(viscosities[is_viscos]))\
-                    / np.sum(n_permeate_dot[is_viscos])
-                )
+
+        cake_resistance = \
+            np.sum(specific_cake_resistance * densities * cake_vol/membrane_area)
+
+        if not np.sum(n_permeate_dot) < 1e-16:
+
+            fractions = n_permeate_dot/sum(n_permeate_dot)
+
+            viscosity =\
+                self.viscosity_model.get_mixture_viscosity(viscosities, fractions)
 
             self.states['cake']['pressure'] = \
-                viscosity * permeate_vol_dot * (membrane_resistance + cake_resistance)\
-                / membrane_area
+                viscosity * permeate_vol_dot\
+                *(membrane_resistance + cake_resistance) /membrane_area
         else:
-            self.states['cake']['pressure'] = 0
+            self.residuals['cake']['pressure'] = 0.0
 
         c_tank = self.states['permeate_tank']['c']
         tankvolume = self.states['permeate_tank']['tankvolume']
