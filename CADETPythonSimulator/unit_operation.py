@@ -841,9 +841,10 @@ class DeadEndFiltration(UnitOperationBase):
         'dimensions': (),
         'entries': {
             'c_in': 'n_comp',
-#            'c_cake': 'n_comp',
+            'c': 'n_comp',
             'volume': 'n_comp',
             'n_in': 'n_comp',
+            'n': 'n_comp',
             'pressure': 1
         },
     }
@@ -884,12 +885,17 @@ class DeadEndFiltration(UnitOperationBase):
 
         n_feed_dot = self.state_derivatives['inlet']['n_feed']
 
-        n_cake_dot = self.state_derivatives['cake']['n_in']
+        n_cake_in_dot = self.state_derivatives['cake']['n_in']
+
+        n_cake_dot = self.state_derivatives['cake']['n']
+        n_cake = self.state_derivatives['cake']['n']
 
         c_cake_in = self.states['cake']['c_in']
 
         cake_vol = self.states['cake']['volume']
         cake_vol_dot = self.state_derivatives['cake']['volume']
+
+        c_cake = self.states['cake']['c']
 
         n_permeate_dot = self.state_derivatives['permeate_tank']['n_in']
 
@@ -910,7 +916,7 @@ class DeadEndFiltration(UnitOperationBase):
         membrane_area = self.parameters['membrane_area']
         membrane_resistance = self.parameters['membrane_resistance']
         specific_cake_resistance =\
-            np.array(self.component_system.specific_cake_resistances)
+        np.array(self.component_system.specific_cake_resistances)
 
         rejection = np.array(
                         [
@@ -928,64 +934,79 @@ class DeadEndFiltration(UnitOperationBase):
 
         # Number of cake
 
-        self.residuals['cake']['n_in'] = n_cake_dot - rejection * n_feed_dot
+        self.residuals['cake']['n_in'] = n_cake_in_dot - rejection * n_feed_dot
 
         # Number of Permeate
 
         self.residuals['permeate_tank']['n_in'] =\
-            n_permeate_dot - (1 - rejection) * n_feed_dot
+        n_permeate_dot - (1 - rejection) * n_feed_dot
 
         # Incoming Cake Concentration
         for i, cake_vol_dots in enumerate(cake_vol_dot):
             if cake_vol_dots > 1e-16:
                 self.residuals['cake']['c_in'][i] =\
-                    c_cake_in[i] - n_cake_dot[i]/cake_vol_dots
+                c_cake_in[i] - n_cake_in_dot[i]/cake_vol_dots
             else:
                 self.residuals['cake']['c_in'][i] = c_cake_in[i]
 
         # Cakevolume
 
         self.residuals['cake']['volume'] =\
-            cake_vol_dot - n_cake_dot * molecular_weights / densities
+        cake_vol_dot - n_cake_in_dot * molecular_weights / densities
+
+        # Cake_n
+
+        self.residuals['cake']['n'] =\
+        n_cake_dot - n_cake_in_dot
+
+        # Cake_c
+
+        cakevol = np.sum(cake_vol)
+        if cakevol > 1e-16:
+            self.residuals['cake']['c'] = c_cake - n_cake / np.sum(cake_vol)
+        else:
+            self.residuals['cake']['c'] = c_cake - c_cake_in
 
         # Permeate flow
 
         permeate_vol_dot = np.sum(n_permeate_dot * molecular_weights / densities)
 
         # Incoming Cake Concentration
+
         if permeate_vol_dot > 1e-16:
             self.residuals['permeate_tank']['c_in'] =\
-                c_tank_in - n_permeate_dot/permeate_vol_dot
+            c_tank_in - n_permeate_dot / permeate_vol_dot
         else:
             self.residuals['permeate_tank']['c_in'] = c_tank_in
 
         # Pressure equation
 
-        cake_resistance = \
-            np.sum(specific_cake_resistance * densities * cake_vol/membrane_area)
+        cake_resistance =\
+        np.sum(specific_cake_resistance * densities * cake_vol / membrane_area)
 
-        if not np.sum(n_permeate_dot) < 1e-16:
+        sum_n_permeate_dot = np.sum(n_permeate_dot)
+        if not sum_n_permeate_dot < 1e-16:
 
-            fractions = n_permeate_dot/sum(n_permeate_dot)
+            fractions = n_permeate_dot / sum_n_permeate_dot
 
             viscosity =\
-                self.viscosity_model.get_mixture_viscosity(viscosities, fractions)
+            self.viscosity_model.get_mixture_viscosity(viscosities, fractions)
 
-            self.residuals['cake']['pressure'] = \
-                delta_p - viscosity * permeate_vol_dot\
-                *(membrane_resistance + cake_resistance) /membrane_area
+            self.residuals['cake']['pressure'] =\
+            delta_p - viscosity * permeate_vol_dot\
+            * (membrane_resistance + cake_resistance) / membrane_area
         else:
             self.residuals['cake']['pressure'] = delta_p
 
         # Tank equations
 
         c_tank_dot_new =\
-            (n_permeate_dot - Q_out * c_tank - tank_volume_dot * c_tank) / tank_volume
+        (n_permeate_dot - Q_out * c_tank - tank_volume_dot * c_tank) / tank_volume
 
         self.residuals['permeate_tank']['c'] = c_tank_dot - c_tank_dot_new
 
         self.residuals['permeate_tank']['volume'] =\
-            tank_volume_dot - permeate_vol_dot + Q_out
+        tank_volume_dot - permeate_vol_dot + Q_out
 
 
 
@@ -1032,7 +1053,7 @@ class DeadEndFiltration(UnitOperationBase):
         membrane_area = self.parameters['membrane_area']
         membrane_resistance = self.parameters['membrane_resistance']
         specific_cake_resistance =\
-            np.array(self.component_system.specific_cake_resistances)
+        np.array(self.component_system.specific_cake_resistances)
 
         Q_in = self.Q_in[0]
         Q_out = self.Q_out[0]
@@ -1048,20 +1069,30 @@ class DeadEndFiltration(UnitOperationBase):
                 ]
             )
 
-        n_cake_dot = rejection * n_feed_dot
-        self.state_derivatives['cake']['n_in'] = n_cake_dot
+        n_cake_in_dot = rejection * n_feed_dot
+        self.state_derivatives['cake']['n_in'] = n_cake_in_dot
 
         cake_vol = self.states['cake']['volume']
 
-        cake_vol_dot = molecular_weights * n_cake_dot / densities
+        cake_vol_dot = molecular_weights * n_cake_in_dot / densities
 
         self.state_derivatives['cake']['volume'] = cake_vol_dot
 
         for i, cake_vol_dots in enumerate(cake_vol_dot):
             if cake_vol_dots > 1e-16:
-                self.states['cake']['c_in'][i] = n_cake_dot[i]/cake_vol_dots
+                self.states['cake']['c_in'][i] = n_cake_in_dot[i]/cake_vol_dots
             else:
                 self.states['cake']['c_in'][i] = 0.0
+
+        self.state_derivatives['cake']['n'] = n_cake_in_dot
+
+
+        n_cake = self.states['cake']['n']
+
+        if np.sum(cake_vol) > 1e-16:
+            self.states['cake']['c'] = n_cake / np.sum(cake_vol)
+        else:
+            self.states['cake']['c'] = self.states['cake']['c_in']
 
         n_permeate_dot = (1 - rejection) * n_feed_dot
         self.state_derivatives['permeate_tank']['n_in'] = n_permeate_dot
@@ -1074,23 +1105,23 @@ class DeadEndFiltration(UnitOperationBase):
         else:
             self.states['permeate_tank']['c_in'][:] = 0.0
 
-        cake_resistance = \
-            np.sum(specific_cake_resistance * densities * cake_vol/membrane_area)
+        cake_resistance =\
+        np.sum(specific_cake_resistance * densities * cake_vol/membrane_area)
 
 
-        cake_resistance = \
-            np.sum(specific_cake_resistance * densities * cake_vol/membrane_area)
+        cake_resistance =\
+        np.sum(specific_cake_resistance * densities * cake_vol/membrane_area)
 
         if not np.sum(n_permeate_dot) < 1e-16:
 
             fractions = n_permeate_dot/sum(n_permeate_dot)
 
             viscosity =\
-                self.viscosity_model.get_mixture_viscosity(viscosities, fractions)
+            self.viscosity_model.get_mixture_viscosity(viscosities, fractions)
 
-            self.states['cake']['pressure'] = \
-                viscosity * permeate_vol_dot\
-                *(membrane_resistance + cake_resistance) /membrane_area
+            self.states['cake']['pressure'] =\
+            viscosity * permeate_vol_dot\
+            * (membrane_resistance + cake_resistance) / membrane_area
         else:
             self.residuals['cake']['pressure'] = 0.0
 
@@ -1099,7 +1130,7 @@ class DeadEndFiltration(UnitOperationBase):
         tank_volume_dot = permeate_vol_dot - Q_out
 
         c_tank_dot =\
-            (n_permeate_dot - Q_out * c_tank - tank_volume_dot * c_tank) / tank_volume
+        (n_permeate_dot - Q_out * c_tank - tank_volume_dot * c_tank) / tank_volume
 
         self.state_derivatives['permeate_tank']['c'] = c_tank_dot
 
