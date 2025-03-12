@@ -110,10 +110,8 @@ class DeadEndFiltrationFixture(UnitOperationFixture, DeadEndFiltration):
     def __init__(self,
                  component_system=None,
                  name='dead_end_filtration',
-                 membrane_area=1,
                  membrane_resistance=1,
-                 specific_cake_resistance=1,
-                 solution_viscosity=1,
+                 membrane_area= 1,
                  rejection_model=StepCutOff(cutoff_weight=0),
                  viscosity_model=LogarithmicMixingViscosity(),
                  *args,
@@ -122,12 +120,10 @@ class DeadEndFiltrationFixture(UnitOperationFixture, DeadEndFiltration):
         """Initialize DEF fixture with default parameter and default rejection."""
         super().__init__(component_system, name, *args, **kwargs)
 
-        self.membrane_area = membrane_area
         self.membrane_resistance = membrane_resistance
-        self.specific_cake_resistance = specific_cake_resistance
         self.rejection_model = rejection_model
-        self.solution_viscosity = solution_viscosity
         self.viscosity_model = viscosity_model
+        self.membrane_area = membrane_area
 
 
 class CrossFlowFiltrationFixture(UnitOperationFixture, CrossFlowFiltration):

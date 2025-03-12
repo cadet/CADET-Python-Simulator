@@ -75,12 +75,12 @@ class SolverFixture(Solver):
 class SystemFixture(FlowSystem):
     """System Fixture Class for Testing purposes."""
 
-    def __init__(self, unit_operations=None, *args, **kwargs):
+    def __init__(self, unit_operations=None, component_system=None, *args, **kwargs):
         """Init System Fixture with set untitoperations when not given."""
         if unit_operations is None:
             unit_operations = [
                 InletFixture(),
-                DeadEndFiltrationFixture(),
+                DeadEndFiltrationFixture(component_system=component_system),
                 OutletFixture()
             ]
 
