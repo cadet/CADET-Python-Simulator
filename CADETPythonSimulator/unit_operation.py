@@ -961,17 +961,21 @@ class DeadEndFiltration(UnitOperationBase):
 
         # Cake_c
 
-        self.residuals['cake']['c'] =\
-        c_cake - n_cake / np.sum(cake_vol)
+        cakevol = np.sum(cake_vol)
+        if cakevol > 1e-16:
+            self.residuals['cake']['c'] = c_cake - n_cake / np.sum(cake_vol)
+        else:
+            self.residuals['cake']['c'] = c_cake - c_cake_in
 
         # Permeate flow
 
         permeate_vol_dot = np.sum(n_permeate_dot * molecular_weights / densities)
 
         # Incoming Cake Concentration
+
         if permeate_vol_dot > 1e-16:
             self.residuals['permeate_tank']['c_in'] =\
-            c_tank_in - n_permeate_dot/permeate_vol_dot
+            c_tank_in - n_permeate_dot / permeate_vol_dot
         else:
             self.residuals['permeate_tank']['c_in'] = c_tank_in
 
@@ -980,9 +984,10 @@ class DeadEndFiltration(UnitOperationBase):
         cake_resistance =\
         np.sum(specific_cake_resistance * densities * cake_vol / membrane_area)
 
-        if not np.sum(n_permeate_dot) < 1e-16:
+        sum_n_permeate_dot = np.sum(n_permeate_dot)
+        if not sum_n_permeate_dot < 1e-16:
 
-            fractions = n_permeate_dot/sum(n_permeate_dot)
+            fractions = n_permeate_dot / sum_n_permeate_dot
 
             viscosity =\
             self.viscosity_model.get_mixture_viscosity(viscosities, fractions)
@@ -1081,9 +1086,13 @@ class DeadEndFiltration(UnitOperationBase):
 
         self.state_derivatives['cake']['n'] = n_cake_in_dot
 
+
         n_cake = self.states['cake']['n']
 
-        self.states['cake']['c'] = n_cake / np.sum(cake_vol)
+        if np.sum(cake_vol) > 1e-16:
+            self.states['cake']['c'] = n_cake / np.sum(cake_vol)
+        else:
+            self.states['cake']['c'] = self.states['cake']['c_in']
 
         n_permeate_dot = (1 - rejection) * n_feed_dot
         self.state_derivatives['permeate_tank']['n_in'] = n_permeate_dot
