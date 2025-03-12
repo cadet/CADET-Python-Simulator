@@ -3,7 +3,7 @@ import pytest
 
 from test_solver import SystemFixture
 from CADETPythonSimulator.system import SystemBase
-
+from CADETPythonSimulator.componentsystem import CPSComponentSystem
 
 @pytest.mark.parametrize(
     "system, expected",
@@ -141,7 +141,7 @@ class TestSystemConnectivity():
     "system, connections, initial_values, expected_state",
     [
         (
-            SystemFixture(),
+            SystemFixture(component_system=CPSComponentSystem()),
             [[0, 1, 0, 0, 1e-3], [1, 2, 0, 0, 1e-3]],
             [ 0,  1,  0,  1,  4,  5,  6,  7,  8,  9, 10,\
              11, 12, 13, 14, 15, 16, 17, 18, 19, 15, 16],
@@ -153,7 +153,7 @@ class TestSystemConnectivity():
 class TestSystemInitializeInitialValue():
     """Class to test the Initialization of Initial Values."""
 
-    def test_initialize(
+    def test_initialize_initial_value(
             self,
             system: SystemBase,
             connections,
@@ -163,7 +163,7 @@ class TestSystemInitializeInitialValue():
         """Test to check calculation of Initial Values."""
         system.y = initial_values
         system.update_system_connectivity(connections)
-        #system.initialize_initial_values(0)
+        system.initialize_initial_values(0)
 
 
 # %% TODO: System Residual
