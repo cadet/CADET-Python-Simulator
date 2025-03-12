@@ -841,9 +841,10 @@ class DeadEndFiltration(UnitOperationBase):
         'dimensions': (),
         'entries': {
             'c_in': 'n_comp',
-#            'c_cake': 'n_comp',
+            'c': 'n_comp',
             'volume': 'n_comp',
             'n_in': 'n_comp',
+            'n': 'n_comp',
             'pressure': 1
         },
     }
@@ -884,12 +885,17 @@ class DeadEndFiltration(UnitOperationBase):
 
         n_feed_dot = self.state_derivatives['inlet']['n_feed']
 
-        n_cake_dot = self.state_derivatives['cake']['n_in']
+        n_cake_in_dot = self.state_derivatives['cake']['n_in']
+
+        n_cake_dot = self.state_derivatives['cake']['n']
+        n_cake = self.state_derivatives['cake']['n']
 
         c_cake_in = self.states['cake']['c_in']
 
         cake_vol = self.states['cake']['volume']
         cake_vol_dot = self.state_derivatives['cake']['volume']
+
+        c_cake = self.states['cake']['c']
 
         n_permeate_dot = self.state_derivatives['permeate_tank']['n_in']
 
@@ -928,7 +934,7 @@ class DeadEndFiltration(UnitOperationBase):
 
         # Number of cake
 
-        self.residuals['cake']['n_in'] = n_cake_dot - rejection * n_feed_dot
+        self.residuals['cake']['n_in'] = n_cake_in_dot - rejection * n_feed_dot
 
         # Number of Permeate
 
@@ -939,14 +945,24 @@ class DeadEndFiltration(UnitOperationBase):
         for i, cake_vol_dots in enumerate(cake_vol_dot):
             if cake_vol_dots > 1e-16:
                 self.residuals['cake']['c_in'][i] =\
-                    c_cake_in[i] - n_cake_dot[i]/cake_vol_dots
+                c_cake_in[i] - n_cake_in_dot[i]/cake_vol_dots
             else:
                 self.residuals['cake']['c_in'][i] = c_cake_in[i]
 
         # Cakevolume
 
         self.residuals['cake']['volume'] =\
-            cake_vol_dot - n_cake_dot * molecular_weights / densities
+        cake_vol_dot - n_cake_in_dot * molecular_weights / densities
+
+        # Cake_n
+
+        self.residuals['cake']['n'] =\
+        n_cake_dot - n_cake_in_dot
+
+        # Cake_c
+
+        self.residuals['cake']['c'] =\
+        c_cake - n_cake / np.sum(cake_vol)
 
         # Permeate flow
 
@@ -1048,20 +1064,26 @@ class DeadEndFiltration(UnitOperationBase):
                 ]
             )
 
-        n_cake_dot = rejection * n_feed_dot
-        self.state_derivatives['cake']['n_in'] = n_cake_dot
+        n_cake_in_dot = rejection * n_feed_dot
+        self.state_derivatives['cake']['n_in'] = n_cake_in_dot
 
         cake_vol = self.states['cake']['volume']
 
-        cake_vol_dot = molecular_weights * n_cake_dot / densities
+        cake_vol_dot = molecular_weights * n_cake_in_dot / densities
 
         self.state_derivatives['cake']['volume'] = cake_vol_dot
 
         for i, cake_vol_dots in enumerate(cake_vol_dot):
             if cake_vol_dots > 1e-16:
-                self.states['cake']['c_in'][i] = n_cake_dot[i]/cake_vol_dots
+                self.states['cake']['c_in'][i] = n_cake_in_dot[i]/cake_vol_dots
             else:
                 self.states['cake']['c_in'][i] = 0.0
+
+        self.state_derivatives['cake']['n'] = n_cake_in_dot
+
+        n_cake = self.states['cake']['n']
+
+        self.states['cake']['c'] = n_cake / np.sum(cake_vol)
 
         n_permeate_dot = (1 - rejection) * n_feed_dot
         self.state_derivatives['permeate_tank']['n_in'] = n_permeate_dot
