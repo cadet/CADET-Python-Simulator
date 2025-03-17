@@ -629,7 +629,7 @@ class DistributionInlet(UnitOperationBase):
         nr = self.section_number
         xi = self.distribution_function.get_distribution(t, nr)
         molecular_weights = np.array(self.component_system.molecular_weights)
-        densities = np.array(self.component_system.pure_densities)
+        densities = np.array(self.component_system.densities)
 
         ci =  xi*densities / molecular_weights
 
@@ -648,7 +648,7 @@ class DistributionInlet(UnitOperationBase):
         nr = self.parameters['section_number']
         xi = self.distribution_function.get_distribution(t_zero, nr)
         molecular_weights = np.array(self.component_system.molecular_weights)
-        densities = np.array(self.component_system.pure_densities)
+        densities = np.array(self.component_system.densities)
 
         ci =  xi*densities / molecular_weights
 
@@ -905,7 +905,7 @@ class DeadEndFiltration(UnitOperationBase):
 
         # parameters
         molecular_weights = np.array(self.component_system.molecular_weights)
-        densities = np.array(self.component_system.pure_densities)
+        densities = np.array(self.component_system.densities)
         viscosities = np.array(self.component_system.viscosities)
         membrane_area = self.parameters['membrane_area']
         membrane_resistance = self.parameters['membrane_resistance']
@@ -1027,7 +1027,7 @@ class DeadEndFiltration(UnitOperationBase):
     def initialize_initial_values(self, t_zero: float):
         """Initialize the values."""
         molecular_weights = np.array(self.component_system.molecular_weights)
-        densities = np.array(self.component_system.pure_densities)
+        densities = np.array(self.component_system.densities)
         viscosities = np.array(self.component_system.viscosities)
         membrane_area = self.parameters['membrane_area']
         membrane_resistance = self.parameters['membrane_resistance']

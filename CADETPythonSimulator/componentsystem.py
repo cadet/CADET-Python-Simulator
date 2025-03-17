@@ -236,7 +236,6 @@ class CPSComponentSystem(ComponentSystem):
             densities=None,
             molecular_volume=None,
             viscosities=None,
-            pure_densities=None,
             specific_cake_resistances=None
         ):
         """
@@ -259,8 +258,6 @@ class CPSComponentSystem(ComponentSystem):
             The molecular volume of each component.
         viscosities : list, None
             viscosity of each component.
-        pure_densities : list, None
-            pure densities of each component.
         specific_cake_resistances : list, None.
             specific cake resistance of each component
 
@@ -295,8 +292,6 @@ class CPSComponentSystem(ComponentSystem):
             molecular_volume = n_comp * [None]
         if viscosities is None:
             viscosities = n_comp * [None]
-        if pure_densities is None:
-            pure_densities = n_comp * [None]
         if specific_cake_resistances is None:
             specific_cake_resistances = n_comp * [None]
 
@@ -309,7 +304,6 @@ class CPSComponentSystem(ComponentSystem):
                 density=densities[i],
                 molecular_volume=molecular_volume[i],
                 viscosity=viscosities[i],
-                pure_density=pure_densities[i],
                 specific_cake_resistance=specific_cake_resistances[i]
             )
 
@@ -365,15 +359,6 @@ class CPSComponentSystem(ComponentSystem):
             viscosities +=comp.viscosity
 
         return viscosities
-
-    @property
-    def pure_densities(self):
-        """list: List of species density if pure."""
-        pure_densities = []
-        for comp in self.components:
-            pure_densities += comp.pure_density
-
-        return pure_densities
 
     @property
     def specific_cake_resistances(self):

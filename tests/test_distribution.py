@@ -10,7 +10,7 @@ from CADETPythonSimulator.exception import CADETPythonSimError
 component_system = CPSComponentSystem(
     name="test_comp",
     components=2,
-    pure_densities=[1, 1],
+    densities=[1, 1],
     molecular_weights=[1, 2],
     viscosities=[1, 1],
     specific_cake_resistances=[1,1]

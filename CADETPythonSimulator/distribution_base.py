@@ -33,7 +33,7 @@ class ConstantVolumeDistribution(DistributionBase):
             for i, n_i in enumerate(n)
         ]
         V = [
-            m_i / self.component_system.pure_densities[i]
+            m_i / self.component_system.densities[i]
             for i, m_i in enumerate(m)
         ]
         V_solvent = 1 - sum(V)
@@ -77,7 +77,7 @@ class ConstantConcentrationDistribution(DistributionBase):
             for i, n_i in enumerate(n)
         ]
         V = [
-            m_i / component_system.pure_densities[i]
+            m_i / component_system.densities[i]
             for i, m_i in enumerate(m)
         ]
         V_solvent = 1 - sum(V)
@@ -87,7 +87,7 @@ class ConstantConcentrationDistribution(DistributionBase):
                 "Last species Volume is negative. Misconfigured Simulation"
                 )
 
-        m_solvent = component_system.pure_densities[-1] * V_solvent
+        m_solvent = component_system.densities[-1] * V_solvent
         n_solvent = m_solvent / component_system.molecular_weights[-1]
 
         self.c = [*c, n_solvent]
