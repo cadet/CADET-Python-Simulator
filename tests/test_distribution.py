@@ -37,7 +37,7 @@ class TestDistribution:
     """Test Class for Distribution."""
 
     def test_getter(self, distribution, component_system, concentration, expected):
-        """Test retunr Function."""
+        """Test return Function."""
         dist = distribution(component_system, concentration)
         assert dist.get_distribution(0, 0) == expected
 
