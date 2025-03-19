@@ -833,32 +833,46 @@ class DeadEndFiltration(UnitOperationBase):
         'dimensions': {},
         'entries': {
             'c': 'n_comp',
-            'n_feed': 'n_comp',
+            'n': 'n_comp'
         },
         'n_inlet_ports': 1,
+    }
+    permeate = {
+        'dimensions': (),
+        'entries': {
+            'c': 'n_comp',
+            'n': 'n_comp',
+            'V': 1,
+        },
+    }
+    retentate = {
+        'dimensions': (),
+        'entries': {
+            'c': 'n_comp',
+            'n': 'n_comp',
+            'V': 1,
+        }
     }
     cake = {
         'dimensions': (),
         'entries': {
-            'c_in': 'n_comp',
-#            'c_cake': 'n_comp',
-            'volume': 'n_comp',
-            'n_in': 'n_comp',
+            'c': 'n_comp',
+            'n': 'n_comp',
+            'V': 1,
             'pressure': 1
         },
     }
     permeate_tank = {
         'dimensions': (),
         'entries': {
-            'c_in': 'n_comp',
             'c': 'n_comp',
-            'volume': 1,
-            'n_in': 'n_comp',
+            'n': 'n_comp',
+            'V': 1,
         },
         'n_outlet_ports': 1,
     }
 
-    _state_structures = ['inlet', 'cake', 'permeate_tank']
+    _state_structures = ['inlet', 'permeate', 'retentate', 'cake', 'permeate_tank']
 
     membrane_area = UnsignedFloat()
     membrane_resistance = UnsignedFloat()
