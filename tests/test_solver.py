@@ -100,7 +100,7 @@ viscosity_obj = \
         (
             solver_fixture_obj,
             {
-                'n_dof': 22,
+                'n_dof': 29,
                 'unit_solution': {
                     'inlet': {
                         'outlet': {
@@ -116,54 +116,77 @@ viscosity_obj = \
                                 'values': np.array([[2., 3.], [4., 6.]]),
                                 'derivatives': np.array([[4., 6.], [8., 12.]]),
                             },
-                            'n_feed': {
+                            'n': {
                                 'values': np.array([[4., 5.], [8., 10.]]),
                                 'derivatives': np.array([[8., 10.], [16., 20.]]),
                             },
                         },
-                        'cake': {
-                            'c_in': {
+                        'permeate': {
+                            'c': {
                                 'values': np.array([[6., 7.], [12., 14.]]),
                                 'derivatives': np.array([[12., 14. ], [24., 28.]]),
                             },
-                            'volume': {
+                            'n': {
                                 'values': np.array([[8., 9.], [16., 18.]]),
                                 'derivatives': np.array([[16., 18.], [32., 36]]),
                             },
-                            'n_in': {
-                                'values': np.array([[10., 11.], [20., 22.]]),
-                                'derivatives': np.array([[20., 22.], [40., 44]]),
+                            'V': {
+                                'values': np.array([[10.], [20.]]),
+                                'derivatives': np.array([[20.], [40.]]),
+                            },
+                        },
+                        'retentate': {
+                            'c': {
+                                'values': np.array([[11., 12.], [22., 24.]]),
+                                'derivatives': np.array([[22., 24.], [44., 48.]]),
+                            },
+                            'n': {
+                                'values': np.array([[13., 14.], [26., 28.]]),
+                                'derivatives': np.array([[26., 28.], [52., 56]]),
+                            },
+                            'V': {
+                                'values': np.array([[15.], [30.]]),
+                                'derivatives': np.array([[30.], [60.]]),
+                            },
+                        },
+                        'cake': {
+                            'c': {
+                                'values': np.array([[16., 17.], [32., 34.]]),
+                                'derivatives': np.array([[32., 34.], [64., 68.]]),
+                            },
+                            'n':{
+                                'values': np.array([[18., 19.], [36., 38.]]),
+                                'derivatives': np.array([[36., 38.], [72., 76.]]),
+                            },
+                            'V': {
+                                'values': np.array([[20.], [40.]]),
+                                'derivatives': np.array([[40.], [80.]]),
                             },
                             'pressure': {
-                                'values': np.array([[12.], [24.]]),
-                                'derivatives': np.array([[24.], [48.]]),
-
+                                'values': np.array([[21.], [42.]]),
+                                'derivatives': np.array([[42.], [84.]]),
                             },
                         },
                         'permeate_tank': {
-                            'c_in': {
-                                'values': np.array([[13., 14.], [26., 28.]]),
-                                'derivatives': np.array([[26., 28.], [52., 56.]]),
-                            },
                             'c': {
-                                'values': np.array([[15., 16.], [30., 32.]]),
-                                'derivatives': np.array([[30., 32.], [60., 64]]),
+                                'values': np.array([[22., 23.], [44., 46.]]),
+                                'derivatives': np.array([[44., 46.], [88., 92.]]),
                             },
-                            'volume': {
-                                'values': np.array([[17.], [34.]]),
-                                'derivatives': np.array([[34.], [68.]]),
+                            'n':{
+                                'values': np.array([[24., 25.], [48., 50.]]),
+                                'derivatives': np.array([[48., 50.], [96., 100.]]),
                             },
-                            'n_in': {
-                                'values': np.array([[18., 19.], [36., 38.]]),
-                                'derivatives': np.array([[36., 38.], [72., 76]]),
+                            'V': {
+                                'values': np.array([[26.], [52.]]),
+                                'derivatives': np.array([[52.], [104.]]),
                             },
                         }
                     },
                     'outlet': {
                         'inlet': {
                             'c': {
-                                'values': np.array([[20., 21.], [40., 42.]]),
-                                'derivatives': np.array([[40., 42.], [80., 84]]),
+                                'values': np.array([[27., 28.], [54., 56.]]),
+                                'derivatives': np.array([[54., 56.], [108., 112]]),
                             },
                         },
                     },

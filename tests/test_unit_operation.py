@@ -226,11 +226,13 @@ class _2DGRMFixture(UnitOperationFixture, _2DGRM):
             {
                 'n_inlet_ports': 1,
                 'n_outlet_ports': 1,
-                'n_dof': 18,
+                'n_dof': 25,
                 'states': {
                     'inlet': [0., 1., 2., 3.],
-                    'cake': [4., 5., 6., 7., 8., 9., 10.],
-                    'permeate_tank': [11., 12., 13., 14., 15., 16., 17.],
+                    'permeate': [4., 5., 6., 7., 8.],
+                    'retentate': [9., 10., 11., 12., 13.],
+                    'cake': [14., 15., 16., 17., 18., 19.],
+                    'permeate_tank': [20., 21., 22., 23., 24.],
                 },
                 'inlet_state': {
                     0: {
@@ -240,10 +242,9 @@ class _2DGRMFixture(UnitOperationFixture, _2DGRM):
                 },
                 'outlet_state': {
                     0: {
-                        'c_in': [11., 12.],
-                        'c': [13., 14],
-                        'volume': [15.],
-                        'n_in': [16., 17.],
+                        'c': [20., 21],
+                        'n': [22., 23.],
+                        'V': [24],
                     },
                 },
             },
