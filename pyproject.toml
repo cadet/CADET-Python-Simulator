@@ -74,4 +74,4 @@ indent-width = 4
 [tool.ruff.lint]
 preview = true
 select = ["E", "F", "W", "D"]
-ignore = ["F401", "D212", "D100"]
+ignore = ["F401", "D212", "D203", "D100"]
