@@ -40,7 +40,7 @@ class Solver(Structure):
             previous_end = section.end
         self.sections = sections
 
-    def initialize_solver(self, solver: str = 'ida') -> NoReturn:
+    def initialize_solver(self, solver: str = "ida") -> NoReturn:
         """
         Initialize solver.
 
@@ -50,7 +50,7 @@ class Solver(Structure):
             Solver to use for integration. The default is `ida`.
 
         """
-        if solver not in ['ida']:
+        if solver not in ["ida"]:
             raise ValueError(f"{solver} is not a supported solver.")
 
         self.solver = dae(solver, self._compute_residual)
@@ -66,12 +66,8 @@ class Solver(Structure):
         self._system = system
 
     def _compute_residual(
-            self,
-            t: float,
-            y: np.ndarray,
-            y_dot: np.ndarray,
-            r: np.ndarray
-            ) -> NoReturn:
+        self, t: float, y: np.ndarray, y_dot: np.ndarray, r: np.ndarray
+    ) -> NoReturn:
         """
         Compute residual of the system.
 
@@ -106,19 +102,19 @@ class Solver(Structure):
             for state_name, state in unit.states.items():
                 self.unit_solutions[unit.name][state_name]: dict[str, dict] = {}
                 for entry, dim in state.entries.items():
-                    self.unit_solutions[unit.name][state_name][entry]:\
-                        dict[str, np.ndarray] = {}
-                    self.unit_solutions[unit.name][state_name][entry]['values'] =\
+                    self.unit_solutions[unit.name][state_name][entry]: dict[
+                        str, np.ndarray
+                    ] = {}
+                    self.unit_solutions[unit.name][state_name][entry]["values"] = (
                         np.empty((0, dim))
-                    self.unit_solutions[unit.name][state_name][entry]['derivatives'] =\
+                    )
+                    self.unit_solutions[unit.name][state_name][entry]["derivatives"] = (
                         np.empty((0, dim))
+                    )
 
     def write_solution(
-            self,
-            times: np.ndarray,
-            y_history: np.ndarray,
-            y_dot_history: np.ndarray
-        ) -> NoReturn:
+        self, times: np.ndarray, y_history: np.ndarray, y_dot_history: np.ndarray
+    ) -> NoReturn:
         """
         Update the solution recorder for each unit with the current state.
 
@@ -146,9 +142,9 @@ class Solver(Structure):
                     ydot = y_dot_history[:, it:itp]
 
                     sol_tuple["values"] = np.concatenate((sol_tuple["values"], y))
-                    sol_tuple["derivatives"] = np.concatenate((
-                        sol_tuple["derivatives"], ydot
-                    ))
+                    sol_tuple["derivatives"] = np.concatenate(
+                        (sol_tuple["derivatives"], ydot)
+                    )
                     it = itp
 
         self.time_solutions = np.concatenate((self.time_solutions, times))
@@ -166,11 +162,7 @@ class Solver(Structure):
         """Initialize System."""
         self.system.initialize_initial_values()
 
-    def solve_section(
-            self,
-            section: Dict,
-            last_section=False,
-            ) -> NoReturn:
+    def solve_section(self, section: Dict, last_section=False) -> NoReturn:
         """
         Solve a time section of the differential-algebraic equation system.
 
@@ -187,9 +179,7 @@ class Solver(Structure):
 
         """
         self._update_unit_operation_parameters(
-            section.start,
-            section.end,
-            section.section_states,
+            section.start, section.end, section.section_states
         )
         self._system.update_system_connectivity(section.connections)
         self._system.initialize_initial_values(section.start)
@@ -198,9 +188,7 @@ class Solver(Structure):
 
         y_initial = self._system.y
         y_initial_dot = self._system.y_dot
-        output = self.solver.solve(
-            section_solution_times, y_initial, y_initial_dot
-        )
+        output = self.solver.solve(section_solution_times, y_initial, y_initial_dot)
 
         y_history = output.values.y
         y_dot_history = output.values.ydot
@@ -236,14 +224,13 @@ class Solver(Structure):
         return np.arange(start, end, time_resolution)
 
     def _update_unit_operation_parameters(
-            self,
-            start: float,
-            end: float,
-            unit_operation_parameters: dict[
-                UnitOperationBase | str,
-                dict[str, npt.ArrayLike]
-            ]
-        ) -> np.ndarray:
+        self,
+        start: float,
+        end: float,
+        unit_operation_parameters: dict[
+            UnitOperationBase | str, dict[str, npt.ArrayLike]
+        ],
+    ) -> np.ndarray:
         """
         Update time dependent unit operation parameters.
 
@@ -268,4 +255,3 @@ class Solver(Structure):
                     raise CADETPythonSimError(f"Unit {unit} is not Part of the System.")
 
             unit.update_parameters(start, end, parameters)
-
