@@ -7,6 +7,7 @@ from numpy.testing import assert_array_equal
 
 # %% Testing utilities
 
+
 def assert_equal(value, expected, message=""):
     """Assert equality."""
     message = f"Test failed: {message}. Expected {expected}, got {value}."
@@ -20,6 +21,7 @@ def assert_shape(shape, expected_shape, message=""):
 
 
 # %% Initialization
+
 
 def test_field_initialization():
     """Test initialization of Field class."""
@@ -56,6 +58,7 @@ def test_field_initialization():
 
 
 # %% Plotting
+
 
 def test_plotting():
     """Test Field plotting results."""
@@ -102,6 +105,7 @@ def test_plotting():
 
 # %% Slicing
 
+
 def test_field_slicing():
     """Test Field slicing."""
     dimensions = {"axial": np.linspace(0, 10, 11), "radial": np.linspace(0, 5, 6)}
@@ -123,6 +127,7 @@ def test_field_slicing():
 
 
 # %% Normalization
+
 
 def test_field_normalization():
     """Test Field normalization."""
@@ -151,6 +156,7 @@ def test_field_normalization():
 
 
 # %% Interpolation and Resampling
+
 
 def test_temperature_use_case():
     """Test examplary use case of interpolating temperature from a Field."""

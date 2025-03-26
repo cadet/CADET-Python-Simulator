@@ -31,16 +31,16 @@ class State(Structure):
     """
 
     name = String()
-    s = SizedNdArray(size='shape')
+    s = SizedNdArray(size="shape")
 
     def __init__(
-            self,
-            name: str,
-            dimensions: dict[str, int],
-            entries: dict[str, int],
-            n_inlet_ports: int = 0,
-            n_outlet_ports: int = 0,
-            ) -> NoReturn:
+        self,
+        name: str,
+        dimensions: dict[str, int],
+        entries: dict[str, int],
+        n_inlet_ports: int = 0,
+        n_outlet_ports: int = 0,
+    ) -> NoReturn:
         """Init a state."""
         self.name = name
         self.dimensions = dimensions
@@ -89,7 +89,7 @@ class State(Structure):
         """Tuple of int: Return the complete shape of the state array."""
         shape = self.dimension_shape + (self.n_entries,)
         if isinstance(shape, int):
-            shape = (shape, )
+            shape = (shape,)
         return shape
 
     @property
@@ -166,10 +166,8 @@ class State(Structure):
         return flag
 
     def set_inlet_port_state(
-            self,
-            inlet_port_state: dict[str, np.ndarray],
-            port_index: int
-            ) -> NoReturn:
+        self, inlet_port_state: dict[str, np.ndarray], port_index: int
+    ) -> NoReturn:
         """
         Set the state for a specified inlet port.
 
@@ -211,10 +209,7 @@ class State(Structure):
         for component, entry in inlet_port_state.items():
             s_split[component][slice_tuple] = entry
 
-    def get_outlet_port_state(
-            self,
-            port_index: int
-            ) -> dict[str, np.ndarray]:
+    def get_outlet_port_state(self, port_index: int) -> dict[str, np.ndarray]:
         """
         Retrieve the state for a specified outlet port.
 
@@ -287,7 +282,7 @@ class State(Structure):
         try:
             return self.s_split[entry]
         except KeyError:
-            raise KeyError('Not a valid state.')
+            raise KeyError("Not a valid state.")
 
     def __setitem__(self, entry, value: np.ndarray) -> None:
         """
@@ -309,7 +304,7 @@ class State(Structure):
 
         """
         if entry not in self.entries:
-            raise KeyError('Not a valid state.')
+            raise KeyError("Not a valid state.")
 
         self.s_split[entry][:] = value
 
@@ -341,14 +336,15 @@ class State(Structure):
 
 # %%
 
+
 def state_factory(
-        instance: Any,
-        name: str,
-        dimensions: tuple[int],
-        entries: dict[str, int | str],
-        n_inlet_ports: int | str = 0,
-        n_outlet_ports: int | str = 0,
-        ) -> State:
+    instance: Any,
+    name: str,
+    dimensions: tuple[int],
+    entries: dict[str, int | str],
+    n_inlet_ports: int | str = 0,
+    n_outlet_ports: int | str = 0,
+) -> State:
     """
     Initialize a State instance.
 
@@ -370,9 +366,7 @@ def state_factory(
         Number of outlet Ports
 
     """
-    dimensions = {
-        dim: getattr(instance, dim) for dim in dimensions
-    }
+    dimensions = {dim: getattr(instance, dim) for dim in dimensions}
     entries = {
         entry: (
             n_entries if isinstance(n_entries, int) else getattr(instance, n_entries)
