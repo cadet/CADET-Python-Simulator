@@ -81,16 +81,18 @@ class CPSComponent(Component):
 
     """
 
-    def __init__(self,
-                 name=None,
-                 species=None,
-                 charge=None,
-                 molecular_weight=None,
-                 density=None,
-                 molecular_volume=None,
-                 viscosity=None,
-                 pure_density=None,
-                 specific_cake_resistance=None):
+    def __init__(
+        self,
+        name=None,
+        species=None,
+        charge=None,
+        molecular_weight=None,
+        density=None,
+        molecular_volume=None,
+        viscosity=None,
+        pure_density=None,
+        specific_cake_resistance=None,
+    ):
         """Construct CPSComponent."""
         self.name = name
         self._species = []
@@ -104,7 +106,7 @@ class CPSComponent(Component):
                 molecular_volume,
                 viscosity,
                 pure_density,
-                specific_cake_resistance
+                specific_cake_resistance,
             )
         elif isinstance(species, str):
             self.add_species(
@@ -115,7 +117,7 @@ class CPSComponent(Component):
                 molecular_volume,
                 viscosity,
                 pure_density,
-                specific_cake_resistance
+                specific_cake_resistance,
             )
         elif isinstance(species, list):
             if charge is None:
@@ -141,7 +143,7 @@ class CPSComponent(Component):
                     molecular_volume[i],
                     viscosity[i],
                     pure_density[i],
-                    specific_cake_resistance[i]
+                    specific_cake_resistance[i],
                 )
         else:
             raise CADETPythonSimError("Could not determine number of species")
@@ -181,6 +183,7 @@ class CPSComponent(Component):
     def specific_cake_resistance(self):
         """List of float or None: specific cake resistance of the subspecies."""
         return [spec.specific_cake_resistance for spec in self.species]
+
 
 class CPSComponentSystem(ComponentSystem):
     """
@@ -228,16 +231,16 @@ class CPSComponentSystem(ComponentSystem):
     """
 
     def __init__(
-            self,
-            components=None,
-            name=None,
-            charges=None,
-            molecular_weights=None,
-            densities=None,
-            molecular_volume=None,
-            viscosities=None,
-            specific_cake_resistances=None
-        ):
+        self,
+        components=None,
+        name=None,
+        charges=None,
+        molecular_weights=None,
+        densities=None,
+        molecular_volume=None,
+        viscosities=None,
+        specific_cake_resistances=None,
+    ):
         """
         Initialize the ComponentSystem object.
 
@@ -295,7 +298,6 @@ class CPSComponentSystem(ComponentSystem):
         if specific_cake_resistances is None:
             specific_cake_resistances = n_comp * [None]
 
-
         for i, comp in enumerate(components):
             self.add_component(
                 comp,
@@ -304,7 +306,7 @@ class CPSComponentSystem(ComponentSystem):
                 density=densities[i],
                 molecular_volume=molecular_volume[i],
                 viscosity=viscosities[i],
-                specific_cake_resistance=specific_cake_resistances[i]
+                specific_cake_resistance=specific_cake_resistances[i],
             )
 
     @wraps(CPSComponent.__init__)
@@ -327,8 +329,7 @@ class CPSComponentSystem(ComponentSystem):
 
         if component.name in self.names:
             raise CADETPythonSimError(
-                f"Component '{component.name}' "
-                "already exists in ComponentSystem."
+                f"Component '{component.name}' already exists in ComponentSystem."
             )
 
         self._components.append(component)
@@ -356,7 +357,7 @@ class CPSComponentSystem(ComponentSystem):
         """list: List of species viscosity."""
         viscosities = []
         for comp in self.components:
-            viscosities +=comp.viscosity
+            viscosities += comp.viscosity
 
         return viscosities
 

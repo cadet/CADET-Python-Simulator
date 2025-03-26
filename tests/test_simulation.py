@@ -3,11 +3,14 @@ import pytest
 
 
 from CADETPythonSimulator.distribution_base import (
-    ConstantVolumeDistribution, ConstantConcentrationDistribution
+    ConstantVolumeDistribution,
+    ConstantConcentrationDistribution,
 )
 
 from CADETPythonSimulator.unit_operation import (
-    DistributionInlet, Outlet, DeadEndFiltration
+    DistributionInlet,
+    Outlet,
+    DeadEndFiltration,
 )
 from CADETPythonSimulator.system import FlowSystem
 from CADETPythonSimulator.solver import Solver
@@ -24,7 +27,7 @@ def setup_filter_sim():
         densities=[1100, 1100, 1000],
         molecular_weights=[1e6, 8e4, 18],
         viscosities=[np.nan, np.nan, 0.001],
-        specific_cake_resistances=[1e6, 1e6, 0]
+        specific_cake_resistances=[1e6, 1e6, 0],
     )
 
     # Concidering c3 is unknown.
@@ -34,7 +37,7 @@ def setup_filter_sim():
     inlet = DistributionInlet(component_system=component_system, name="inlet")
     inlet.distribution_function = concentration_distribution
 
-    rejectionmodell = StepCutOff(cutoff_weight=2*8e4)
+    rejectionmodell = StepCutOff(cutoff_weight=2 * 8e4)
     viscositymodell = LogarithmicMixingViscosity()
     filter_obj = DeadEndFiltration(
         component_system=component_system,
@@ -43,22 +46,14 @@ def setup_filter_sim():
         viscosity_model=viscositymodell,
         membrane_area=1,
         membrane_resistance=1,
-        )
+    )
 
-    #outlet = Outlet(component_system=component_system, name="outlet")
+    # outlet = Outlet(component_system=component_system, name="outlet")
 
     unit_operation_list = [inlet, filter_obj]
 
     system = FlowSystem(unit_operations=unit_operation_list)
-    section = [
-                    {
-                        'start': 0,
-                        'end': 11,
-                        'connections': [
-                            [0, 1, 0, 0, 1],
-                        ],
-                    }
-                ]
+    section = [{"start": 0, "end": 11, "connections": [[0, 1, 0, 0, 1]]}]
 
     system.initialize_state()
 
@@ -71,18 +66,14 @@ def setup_filter_sim():
     Setting startingvolume and accoding Concentrations are necessary.
     Permeate Tank must not be empty.
     """
-    system.states['deadendfilter']['permeate_tank']['V'] = 1e-9
-    system.states['deadendfilter']['permeate_tank']['c'] = c_init
+    system.states["deadendfilter"]["permeate_tank"]["V"] = 1e-9
+    system.states["deadendfilter"]["permeate_tank"]["c"] = c_init
 
     solver = Solver(system, section)
     return solver
 
-@pytest.mark.parametrize(
-    "setup_func, expected",
-    [
-        (setup_filter_sim, 3),
-    ]
-)
+
+@pytest.mark.parametrize("setup_func, expected", [(setup_filter_sim, 3)])
 class Testsimulation:
     """Class tries to run an actual Simulation."""
 
