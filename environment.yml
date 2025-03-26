@@ -3,7 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - pip
-  - sundials
+  - sundials<=6.7.0
   - scikits.odes
   - pip:
       - git+https://github.com/fau-advanced-separations/CADET-Process.git@dev
