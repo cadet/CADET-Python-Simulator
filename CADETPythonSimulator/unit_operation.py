@@ -8,7 +8,12 @@ import numpy.typing as npt
 from CADETProcess.processModel import ComponentSystem
 from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
-    Typed, String, UnsignedInteger, UnsignedFloat, SizedUnsignedNdArray, NdPolynomial
+    Typed,
+    String,
+    UnsignedInteger,
+    UnsignedFloat,
+    SizedUnsignedNdArray,
+    NdPolynomial,
 )
 from CADETProcess.dynamicEvents import Section
 
@@ -21,13 +26,14 @@ from CADETPythonSimulator.residual import (
     calculate_residual_visc_cstr,
     calculate_residual_press_easy_def,
     calculate_residual_cake_vol_def,
-    calculate_residual_visc_def
-    )
+    calculate_residual_visc_def,
+)
 from CADETPythonSimulator.rejection import RejectionBase
 from CADETPythonSimulator.cake_compressibility import CakeCompressibilityBase
 from CADETPythonSimulator.viscosity import LogarithmicMixingViscosity, ViscosityBase
 
 from CADETPythonSimulator.distribution_base import DistributionBase
+
 
 class UnitOperationBase(Structure):
     """
@@ -64,9 +70,7 @@ class UnitOperationBase(Structure):
 
         self._Q_in: Optional[np.ndarray] = None
         self._Q_out: Optional[np.ndarray] = None
-        self._coupling_state_structure = {
-            'c': component_system.n_comp
-        }
+        self._coupling_state_structure = {"c": component_system.n_comp}
 
     @property
     def n_dof(self) -> int:
@@ -130,10 +134,12 @@ class UnitOperationBase(Structure):
     @property
     def y_dot(self) -> np.ndarray:
         """np.ndarray: State derivative array flattened into one dimension."""
-        return np.concatenate([
+        return np.concatenate(
+            [
                 state_derivative.s_flat
                 for state_derivative in self.state_derivatives.values()
-        ])
+            ]
+        )
 
     @y_dot.setter
     def y_dot(self, y_dot: np.ndarray) -> NoReturn:
@@ -146,10 +152,12 @@ class UnitOperationBase(Structure):
     @property
     def y_init(self) -> np.ndarray:
         """np.ndarray: State derivative array flattened into one dimension."""
-        return np.concatenate([
+        return np.concatenate(
+            [
                 state_derivative.s_flat
                 for state_derivative in self.state_derivatives.values()
-        ])
+            ]
+        )
 
     @y_init.setter
     def y_init(self, y_init: np.ndarray) -> NoReturn:
@@ -170,9 +178,7 @@ class UnitOperationBase(Structure):
     @property
     def r(self) -> np.ndarray:
         """np.ndarray: Residual array flattened into one dimension."""
-        return np.concatenate([
-            residual.s_flat for residual in self.residuals.values()
-        ])
+        return np.concatenate([residual.s_flat for residual in self.residuals.values()])
 
     @r.setter
     def r(self, r: np.ndarray) -> NoReturn:
@@ -270,9 +276,7 @@ class UnitOperationBase(Structure):
     @property
     def inlet_ports(self) -> dict[str, int]:
         """dict: Number of inlet ports per state."""
-        return {
-            state.name: state.n_inlet_ports for state in self.states.values()
-        }
+        return {state.name: state.n_inlet_ports for state in self.states.values()}
 
     @property
     def n_inlet_ports(self) -> int:
@@ -282,9 +286,7 @@ class UnitOperationBase(Structure):
     @property
     def outlet_ports(self) -> dict[str, int]:
         """dict: Number of outlet ports per state."""
-        return {
-            state.name: state.n_outlet_ports for state in self.states.values()
-        }
+        return {state.name: state.n_outlet_ports for state in self.states.values()}
 
     @property
     def n_outlet_ports(self) -> int:
@@ -300,27 +302,24 @@ class UnitOperationBase(Structure):
         counter = 0
         for mapped_state, n_ports in self.inlet_ports.items():
             for port in range(n_ports):
-                port_mapping['inlet'][counter] = {}
-                port_mapping['inlet'][counter]['mapped_state'] = mapped_state
-                port_mapping['inlet'][counter]['port_index'] = port
+                port_mapping["inlet"][counter] = {}
+                port_mapping["inlet"][counter]["mapped_state"] = mapped_state
+                port_mapping["inlet"][counter]["port_index"] = port
                 counter += 1
 
         counter = 0
         for mapped_state, n_ports in self.outlet_ports.items():
             for port in range(n_ports):
-                port_mapping['outlet'][counter] = {}
-                port_mapping['outlet'][counter]['mapped_state'] = mapped_state
-                port_mapping['outlet'][counter]['port_index'] = port
+                port_mapping["outlet"][counter] = {}
+                port_mapping["outlet"][counter]["mapped_state"] = mapped_state
+                port_mapping["outlet"][counter]["port_index"] = port
                 counter += 1
 
         return dict(port_mapping)
 
     def set_inlet_state(
-            self,
-            inlet_state: dict[str, np.ndarray],
-            state: str,
-            state_port_index: int
-            ) -> NoReturn:
+        self, inlet_state: dict[str, np.ndarray], state: str, state_port_index: int
+    ) -> NoReturn:
         """
         Set the state of the unit operation inlet for a given port.
 
@@ -347,10 +346,8 @@ class UnitOperationBase(Structure):
         state.set_inlet_port_state(inlet_state, state_port_index)
 
     def set_inlet_state_flat(
-            self,
-            inlet_state: dict[str, np.ndarray],
-            unit_port_index: int
-            ) -> NoReturn:
+        self, inlet_state: dict[str, np.ndarray], unit_port_index: int
+    ) -> NoReturn:
         """
         Set the state of the unit operation inlet for a given port.
 
@@ -362,17 +359,15 @@ class UnitOperationBase(Structure):
             The index of the unit operation inlet port.
 
         """
-        port_info = self.port_mapping['inlet'][unit_port_index]
+        port_info = self.port_mapping["inlet"][unit_port_index]
 
         self.set_inlet_state(
-            inlet_state, port_info['mapped_state'], port_info['port_index']
+            inlet_state, port_info["mapped_state"], port_info["port_index"]
         )
 
     def get_outlet_state(
-            self,
-            state: str,
-            state_port_index: int
-            ) -> dict[str, np.ndarray]:
+        self, state: str, state_port_index: int
+    ) -> dict[str, np.ndarray]:
         """
         Get the state of the unit operation outlet for a given port.
 
@@ -401,10 +396,7 @@ class UnitOperationBase(Structure):
 
         return state.get_outlet_port_state(state_port_index)
 
-    def get_outlet_state_flat(
-            self,
-            unit_port_index: int
-            ) -> dict[str, np.ndarray]:
+    def get_outlet_state_flat(self, unit_port_index: int) -> dict[str, np.ndarray]:
         """
         Get the state of the unit operation outlet for a given port.
 
@@ -419,15 +411,12 @@ class UnitOperationBase(Structure):
             A dictionary mapping each state entry to the values at the outlet port.
 
         """
-        port_info = self.port_mapping['outlet'][unit_port_index]
+        port_info = self.port_mapping["outlet"][unit_port_index]
 
-        return self.get_outlet_state(port_info['mapped_state'], port_info['port_index'])
+        return self.get_outlet_state(port_info["mapped_state"], port_info["port_index"])
 
     @abstractmethod
-    def compute_residual(
-            self,
-            t: float,
-            ) -> NoReturn:
+    def compute_residual(self, t: float) -> NoReturn:
         """
         Calculate the residual of the unit operation at time `t`.
 
@@ -445,11 +434,8 @@ class UnitOperationBase(Structure):
         return self._section_dependent_parameters
 
     def update_parameters(
-            self,
-            start: float,
-            end: float,
-            parameters: dict[str, float | np.ndarray]
-            ) -> NoReturn:
+        self, start: float, end: float, parameters: dict[str, float | np.ndarray]
+    ) -> NoReturn:
         """
         Update parameters.
 
@@ -473,13 +459,11 @@ class UnitOperationBase(Structure):
             setattr(self, param, value)
             if param in self.section_dependent_parameters:
                 coeffs = getattr(self, param)
-                self.parameter_sections[param] =\
-                    Section(start, end, coeffs, is_polynomial)
+                self.parameter_sections[param] = Section(
+                    start, end, coeffs, is_polynomial
+                )
 
-    def get_parameter_values_at_time(
-            self,
-            t: float,
-            ) -> dict[str, np.typing.ArrayLike]:
+    def get_parameter_values_at_time(self, t: float) -> dict[str, np.typing.ArrayLike]:
         """
         Get parameter values at t.
 
@@ -541,24 +525,17 @@ class Inlet(UnitOperationBase):
 
     """
 
-    c_poly = NdPolynomial(size=('n_comp', 4), default=0)
+    c_poly = NdPolynomial(size=("n_comp", 4), default=0)
     viscosity = UnsignedFloat()
 
-    _parameters = ['c_poly']
-    _polynomial_parameters = ['c_poly']
-    _section_dependent_parameters = ['c_poly']
+    _parameters = ["c_poly"]
+    _polynomial_parameters = ["c_poly"]
+    _section_dependent_parameters = ["c_poly"]
 
-    outlet = {
-        'dimensions': (),
-        'entries': {'c': 'n_comp'},
-        'n_outlet_ports': 1,
-    }
-    _state_structures = ['outlet']
+    outlet = {"dimensions": (), "entries": {"c": "n_comp"}, "n_outlet_ports": 1}
+    _state_structures = ["outlet"]
 
-    def compute_residual(
-            self,
-            t: float
-            ) -> NoReturn:
+    def compute_residual(self, t: float) -> NoReturn:
         """
         Calculate the residual of the unit operation at time `t`.
 
@@ -569,9 +546,9 @@ class Inlet(UnitOperationBase):
 
         """
         t_K = t
-        c = self.states['outlet']['c']
+        c = self.states["outlet"]["c"]
         t_poly = np.array([1, t_K, t_K**2, t_K**3])
-        self.residuals['outlet']['c'] = self.c_poly @ t_poly - c
+        self.residuals["outlet"]["c"] = self.c_poly @ t_poly - c
 
     def initialize_initial_values(self, t_zero: float):
         """
@@ -585,9 +562,10 @@ class Inlet(UnitOperationBase):
         """
         t_zero = 0
         t_poly = np.array([1, t_zero, t_zero**2, t_zero**3])
-        self.states['outlet']['c'] = self.c_poly @ t_poly
-        t_poly = np.array([0, 1, 2*t_zero, 3*t_zero**2])
-        self.state_derivatives['outlet']['c'] = self.c_poly @ t_poly
+        self.states["outlet"]["c"] = self.c_poly @ t_poly
+        t_poly = np.array([0, 1, 2 * t_zero, 3 * t_zero**2])
+        self.state_derivatives["outlet"]["c"] = self.c_poly @ t_poly
+
 
 class DistributionInlet(UnitOperationBase):
     """
@@ -603,19 +581,12 @@ class DistributionInlet(UnitOperationBase):
     distribution_function = Typed(ty=DistributionBase)
     section_number = Typed(ty=int)
 
-    outlet = {
-        'dimensions': (),
-        'entries': {'c': 'n_comp'},
-        'n_outlet_ports': 1,
-    }
-    _state_structures = ['outlet']
-    _parameters = ['section_number']
-    _section_dependent_parameters = ['section_number']
+    outlet = {"dimensions": (), "entries": {"c": "n_comp"}, "n_outlet_ports": 1}
+    _state_structures = ["outlet"]
+    _parameters = ["section_number"]
+    _section_dependent_parameters = ["section_number"]
 
-    def compute_residual(
-            self,
-            t: float
-            ) -> NoReturn:
+    def compute_residual(self, t: float) -> NoReturn:
         """
         Calculate the residual of the unit operation at time `t`.
 
@@ -625,15 +596,15 @@ class DistributionInlet(UnitOperationBase):
             Time at which to evaluate the residual.
 
         """
-        c = self.states['outlet']['c']
+        c = self.states["outlet"]["c"]
         nr = self.section_number
         xi = self.distribution_function.get_distribution(t, nr)
         molecular_weights = np.array(self.component_system.molecular_weights)
         densities = np.array(self.component_system.densities)
 
-        ci =  xi*densities / molecular_weights
+        ci = xi * densities / molecular_weights
 
-        self.residuals['outlet']['c'] = ci - c
+        self.residuals["outlet"]["c"] = ci - c
 
     def initialize_initial_values(self, t_zero: float):
         """
@@ -645,14 +616,14 @@ class DistributionInlet(UnitOperationBase):
             Time to initialize the values
 
         """
-        nr = self.parameters['section_number']
+        nr = self.parameters["section_number"]
         xi = self.distribution_function.get_distribution(t_zero, nr)
         molecular_weights = np.array(self.component_system.molecular_weights)
         densities = np.array(self.component_system.densities)
 
-        ci =  xi*densities / molecular_weights
+        ci = xi * densities / molecular_weights
 
-        self.states['outlet']['c'] = ci
+        self.states["outlet"]["c"] = ci
 
 
 class ConcentrationDistributionInlet(UnitOperationBase):
@@ -669,19 +640,12 @@ class ConcentrationDistributionInlet(UnitOperationBase):
     distribution_function = Typed(ty=DistributionBase)
     section_number = Typed(ty=int)
 
-    outlet = {
-        'dimensions': (),
-        'entries': {'c': 'n_comp'},
-        'n_outlet_ports': 1,
-    }
-    _state_structures = ['outlet']
-    _parameters = ['section_number']
-    _section_dependent_parameters = ['section_number']
+    outlet = {"dimensions": (), "entries": {"c": "n_comp"}, "n_outlet_ports": 1}
+    _state_structures = ["outlet"]
+    _parameters = ["section_number"]
+    _section_dependent_parameters = ["section_number"]
 
-    def compute_residual(
-            self,
-            t: float
-            ) -> NoReturn:
+    def compute_residual(self, t: float) -> NoReturn:
         """
         Calculate the residual of the unit operation at time `t`.
 
@@ -691,11 +655,11 @@ class ConcentrationDistributionInlet(UnitOperationBase):
             Time at which to evaluate the residual.
 
         """
-        c = self.states['outlet']['c']
+        c = self.states["outlet"]["c"]
         nr = self.section_number
         ci = self.distribution_function.get_distribution(t, nr)
 
-        self.residuals['outlet']['c'] = ci - c
+        self.residuals["outlet"]["c"] = ci - c
 
     def initialize_initial_values(self, t_zero: float):
         """
@@ -707,26 +671,19 @@ class ConcentrationDistributionInlet(UnitOperationBase):
             Time to initialize the values
 
         """
-        nr = self.parameters['section_number']
+        nr = self.parameters["section_number"]
         ci = self.distribution_function.get_distribution(t_zero, nr)
 
-        self.states['outlet']['c'] = ci
+        self.states["outlet"]["c"] = ci
 
 
 class Outlet(UnitOperationBase):
     """System outlet."""
 
-    inlet = {
-        'dimensions': (),
-        'entries': {'c': 'n_comp'},
-        'n_inlet_ports': 1,
-    }
-    _state_structures = ['inlet']
+    inlet = {"dimensions": (), "entries": {"c": "n_comp"}, "n_inlet_ports": 1}
+    _state_structures = ["inlet"]
 
-    def compute_residual(
-            self,
-            t: float
-            ) -> NoReturn:
+    def compute_residual(self, t: float) -> NoReturn:
         """
         Calculate the residual of the unit operation at time `t`.
 
@@ -736,28 +693,21 @@ class Outlet(UnitOperationBase):
             Time at which to evaluate the residual.
 
         """
-        self.residuals['inlet']['c'] -= self.states['inlet']['c']
+        self.residuals["inlet"]["c"] -= self.states["inlet"]["c"]
 
 
 class Cstr(UnitOperationBase):
     """Continuous stirred tank reactor."""
 
-    inlet = {
-        'dimensions': (),
-        'entries': {'c': 'n_comp'},
-        'n_inlet_ports': 1,
-    }
+    inlet = {"dimensions": (), "entries": {"c": "n_comp"}, "n_inlet_ports": 1}
     bulk = {
-        'dimensions': (),
-        'entries': {'c': 'n_comp', 'Volume': 1},
-        'n_outlet_ports': 1,
+        "dimensions": (),
+        "entries": {"c": "n_comp", "Volume": 1},
+        "n_outlet_ports": 1,
     }
-    _state_structures = ['inlet', 'bulk']
+    _state_structures = ["inlet", "bulk"]
 
-    def compute_residual(
-            self,
-            t: float,
-            ) -> NoReturn:
+    def compute_residual(self, t: float) -> NoReturn:
         """
         Calculate the residual of the unit operation at time `t`.
 
@@ -767,27 +717,27 @@ class Cstr(UnitOperationBase):
             Time at which to evaluate the residual.
 
         """
-        c_in = self.states['inlet']['c']
+        c_in = self.states["inlet"]["c"]
         # c_in_dot = self.state_derivatives['inlet']['c']
 
-        c = self.states['bulk']['c']
-        c_dot = self.state_derivatives['bulk']['c']
+        c = self.states["bulk"]["c"]
+        c_dot = self.state_derivatives["bulk"]["c"]
 
-        V = self.states['bulk']['Volume']
-        V_dot = self.state_derivatives['bulk']['Volume']
+        V = self.states["bulk"]["Volume"]
+        V_dot = self.state_derivatives["bulk"]["Volume"]
 
         # Handle inlet DOFs, which are simply copied to the residual
-        self.residuals['inlet']['c'] -= c_in
+        self.residuals["inlet"]["c"] -= c_in
 
         # Handle bulk/outlet DOFs
         Q_in = self.Q_in[0]
         Q_out = self.Q_out[0]
 
-        self.residuals['bulk']['c'] = calculate_residual_concentration_cstr(
+        self.residuals["bulk"]["c"] = calculate_residual_concentration_cstr(
             c, c_dot, V, V_dot, Q_in, Q_out, c_in
         )
 
-        self.residuals['bulk']['Volume'] = calculate_residual_volume_cstr(
+        self.residuals["bulk"]["Volume"] = calculate_residual_volume_cstr(
             V, V_dot, Q_in, Q_out
         )
 
@@ -803,14 +753,17 @@ class Cstr(UnitOperationBase):
         """
         Q_in = self.Q_in[0]
         Q_out = self.Q_out[0]
-        V = self.states['bulk']['Volume']
+        V = self.states["bulk"]["Volume"]
         V_dot = Q_in - Q_out
-        c_in = self.states['inlet']['c']
-        c = self.states['bulk']['c']
+        c_in = self.states["inlet"]["c"]
+        c = self.states["bulk"]["c"]
 
-        self.state_derivatives['bulk']['c'] = - V_dot/V*c + Q_in/V*c_in - Q_out/V*c
-        self.state_derivatives['bulk']['volume'] = V_dot
-        self.state_derivatives['inlet']['c'] = np.zeros(self.n_comp)
+        self.state_derivatives["bulk"]["c"] = (
+            -V_dot / V * c + Q_in / V * c_in - Q_out / V * c
+        )
+        self.state_derivatives["bulk"]["volume"] = V_dot
+        self.state_derivatives["inlet"]["c"] = np.zeros(self.n_comp)
+
 
 class DeadEndFiltration(UnitOperationBase):
     """
@@ -830,49 +783,23 @@ class DeadEndFiltration(UnitOperationBase):
     """
 
     inlet = {
-        'dimensions': {},
-        'entries': {
-            'c': 'n_comp',
-            'n': 'n_comp'
-        },
-        'n_inlet_ports': 1,
+        "dimensions": {},
+        "entries": {"c": "n_comp", "n": "n_comp"},
+        "n_inlet_ports": 1,
     }
-    permeate = {
-        'dimensions': (),
-        'entries': {
-            'c': 'n_comp',
-            'n': 'n_comp',
-            'V': 1,
-        },
-    }
-    retentate = {
-        'dimensions': (),
-        'entries': {
-            'c': 'n_comp',
-            'n': 'n_comp',
-            'V': 1,
-        }
-    }
+    permeate = {"dimensions": (), "entries": {"c": "n_comp", "n": "n_comp", "V": 1}}
+    retentate = {"dimensions": (), "entries": {"c": "n_comp", "n": "n_comp", "V": 1}}
     cake = {
-        'dimensions': (),
-        'entries': {
-            'c': 'n_comp',
-            'n': 'n_comp',
-            'V': 1,
-            'pressure': 1
-        },
+        "dimensions": (),
+        "entries": {"c": "n_comp", "n": "n_comp", "V": 1, "pressure": 1},
     }
     permeate_tank = {
-        'dimensions': (),
-        'entries': {
-            'c': 'n_comp',
-            'n': 'n_comp',
-            'V': 1,
-        },
-        'n_outlet_ports': 1,
+        "dimensions": (),
+        "entries": {"c": "n_comp", "n": "n_comp", "V": 1},
+        "n_outlet_ports": 1,
     }
 
-    _state_structures = ['inlet', 'permeate', 'retentate', 'cake', 'permeate_tank']
+    _state_structures = ["inlet", "permeate", "retentate", "cake", "permeate_tank"]
 
     membrane_area = UnsignedFloat()
     membrane_resistance = UnsignedFloat()
@@ -880,136 +807,129 @@ class DeadEndFiltration(UnitOperationBase):
     viscosity_model = Typed(ty=ViscosityBase)
 
     _parameters = [
-        'membrane_area',
-        'membrane_resistance',
-        'rejection_model',
-        'viscosity_model'
+        "membrane_area",
+        "membrane_resistance",
+        "rejection_model",
+        "viscosity_model",
     ]
 
-    def compute_residual(
-            self,
-            t: float,
-        ) -> NoReturn:
+    def compute_residual(self, t: float) -> NoReturn:
         """Calculate the Residuum for DEF."""
         Q_in = self.Q_in[0]
         Q_out = self.Q_out[0]
 
-        c_in = self.states['inlet']['c']
-        n_in_dot = self.state_derivatives['inlet']['n']
+        c_in = self.states["inlet"]["c"]
+        n_in_dot = self.state_derivatives["inlet"]["n"]
 
-        c_R = self.states['retentate']['c']
-        n_R_dot = self.state_derivatives['retentate']['n']
-        Q_R = self.state_derivatives['retentate']['V']
+        c_R = self.states["retentate"]["c"]
+        n_R_dot = self.state_derivatives["retentate"]["n"]
+        Q_R = self.state_derivatives["retentate"]["V"]
 
-        c_P = self.states['permeate']['c']
-        n_P_dot = self.state_derivatives['permeate']['n']
-        Q_P = self.state_derivatives['permeate']['V']
+        c_P = self.states["permeate"]["c"]
+        n_P_dot = self.state_derivatives["permeate"]["n"]
+        Q_P = self.state_derivatives["permeate"]["V"]
 
+        vol_cake = self.states["cake"]["V"]
+        vol_cake_dot = self.state_derivatives["cake"]["V"]
+        n_C_dot = self.state_derivatives["cake"]["n"]
+        n_C = self.states["cake"]["n"]
+        c_C = self.states["cake"]["c"]
+        c_C_dot = self.state_derivatives["cake"]["c"]
+        delta_p = self.states["cake"]["pressure"]
 
-
-        vol_cake = self.states['cake']['V']
-        vol_cake_dot = self.state_derivatives['cake']['V']
-        n_C_dot = self.state_derivatives['cake']['n']
-        n_C = self.states['cake']['n']
-        c_C = self.states['cake']['c']
-        c_C_dot = self.state_derivatives['cake']['c']
-        delta_p = self.states['cake']['pressure']
-
-        c_PT = self.states['permeate_tank']['c']
-        c_PT_dot = self.state_derivatives['permeate_tank']['c']
-        n_PT = self.states['permeate_tank']['n']
-        vol_PT = self.states['permeate_tank']['V']
-        vol_PT_dot = self.state_derivatives['permeate_tank']['V']
+        c_PT = self.states["permeate_tank"]["c"]
+        c_PT_dot = self.state_derivatives["permeate_tank"]["c"]
+        n_PT = self.states["permeate_tank"]["n"]
+        vol_PT = self.states["permeate_tank"]["V"]
+        vol_PT_dot = self.state_derivatives["permeate_tank"]["V"]
 
         # parameters
         molecular_weights = np.array(self.component_system.molecular_weights)
         densities = np.array(self.component_system.densities)
         viscosities = np.array(self.component_system.viscosities)
-        membrane_area = self.parameters['membrane_area']
-        membrane_resistance = self.parameters['membrane_resistance']
-        specific_cake_resistance =\
-            np.array(self.component_system.specific_cake_resistances)
+        membrane_area = self.parameters["membrane_area"]
+        membrane_resistance = self.parameters["membrane_resistance"]
+        specific_cake_resistance = np.array(
+            self.component_system.specific_cake_resistances
+        )
 
         rejection = np.array(
-                        [
-                            self.rejection_model.get_rejection(mw)\
-                            for mw in molecular_weights
-                        ]
-                    )
+            [self.rejection_model.get_rejection(mw) for mw in molecular_weights]
+        )
 
         # Inlet Equations
-        self.residuals['inlet']['c'] -= c_in
-        self.residuals['inlet']['n'] = n_in_dot - Q_in * c_in
+        self.residuals["inlet"]["c"] -= c_in
+        self.residuals["inlet"]["n"] = n_in_dot - Q_in * c_in
 
         # Equations for permeate and retentate
 
-        self.residuals['retentate']['n'] = n_R_dot - rejection * n_in_dot
-        self.residuals['permeate']['n'] = n_P_dot - (1 - rejection) * n_in_dot
+        self.residuals["retentate"]["n"] = n_R_dot - rejection * n_in_dot
+        self.residuals["permeate"]["n"] = n_P_dot - (1 - rejection) * n_in_dot
 
-        self.residuals['retentate']['V'] = \
-            Q_R - np.sum(n_R_dot * molecular_weights / densities)
-        self.residuals['permeate']['V'] = \
-            Q_P - np.sum(n_P_dot * molecular_weights / densities)
+        self.residuals["retentate"]["V"] = Q_R - np.sum(
+            n_R_dot * molecular_weights / densities
+        )
+        self.residuals["permeate"]["V"] = Q_P - np.sum(
+            n_P_dot * molecular_weights / densities
+        )
 
         if Q_R > 1e-16:
-            self.residuals['retentate']['c'] = \
-                c_R - n_R_dot / Q_R
+            self.residuals["retentate"]["c"] = c_R - n_R_dot / Q_R
         else:
-            self.residuals['retentate']['c'] = c_R
+            self.residuals["retentate"]["c"] = c_R
 
         if Q_P > 1e-16:
-            self.residuals['permeate']['c'] = \
-                c_P - n_P_dot / Q_P
+            self.residuals["permeate"]["c"] = c_P - n_P_dot / Q_P
         else:
-            self.residuals['permeate']['c'] = c_P
-
+            self.residuals["permeate"]["c"] = c_P
 
         # Cake equations
 
-        self.residuals['cake']['V'] = \
-            vol_cake - np.sum(n_C * molecular_weights / densities)
-        self.residuals['cake']['n'] = n_C_dot - n_R_dot
+        self.residuals["cake"]["V"] = vol_cake - np.sum(
+            n_C * molecular_weights / densities
+        )
+        self.residuals["cake"]["n"] = n_C_dot - n_R_dot
 
         if vol_cake > 1e-16:
-            self.residuals['cake']['c'] = \
+            self.residuals["cake"]["c"] = (
                 c_C_dot - (n_C_dot - c_C * vol_cake_dot) / vol_cake
+            )
         else:
-            self.residuals['cake']['c'] = c_C_dot
+            self.residuals["cake"]["c"] = c_C_dot
 
         # Permeate tank equations
 
-        c_tank_dot_new =\
-            (n_P_dot - Q_out * c_PT - vol_PT_dot * c_PT) / vol_PT
+        c_tank_dot_new = (n_P_dot - Q_out * c_PT - vol_PT_dot * c_PT) / vol_PT
 
-        self.residuals['permeate_tank']['c'] = c_PT_dot - c_tank_dot_new
+        self.residuals["permeate_tank"]["c"] = c_PT_dot - c_tank_dot_new
 
-        self.residuals['permeate_tank']['V'] =\
-            vol_PT_dot - Q_P + Q_out
+        self.residuals["permeate_tank"]["V"] = vol_PT_dot - Q_P + Q_out
 
-        self.residuals['permeate_tank']['n'] = n_PT - c_PT * vol_PT
+        self.residuals["permeate_tank"]["n"] = n_PT - c_PT * vol_PT
 
-        #Pressure equation
+        # Pressure equation
 
         if not np.sum(n_P_dot) < 1e-16:
+            fractions = n_P_dot / sum(n_P_dot)
 
-            fractions = n_P_dot/sum(n_P_dot)
-
-            viscosity =\
-                self.viscosity_model.get_mixture_viscosity(viscosities, fractions)
+            viscosity = self.viscosity_model.get_mixture_viscosity(
+                viscosities, fractions
+            )
 
             component_volume = n_C * molecular_weights / densities
             cake_resistance = np.sum(
                 specific_cake_resistance * densities * component_volume / membrane_area
             )
 
-            self.residuals['cake']['pressure'] = \
-                delta_p - viscosity * Q_P\
-                *(membrane_resistance + cake_resistance) / membrane_area
+            self.residuals["cake"]["pressure"] = (
+                delta_p
+                - viscosity
+                * Q_P
+                * (membrane_resistance + cake_resistance)
+                / membrane_area
+            )
         else:
-            self.residuals['cake']['pressure'] = delta_p
-
-
-
+            self.residuals["cake"]["pressure"] = delta_p
 
     @property
     def y_init(self) -> np.ndarray:
@@ -1038,11 +958,13 @@ class DeadEndFiltration(UnitOperationBase):
                 for entry, dim in state_derivative.entries.items():
                     sub_end_index = sub_start_index + dim
                     if state != "pressure":
-                        self.state_derivatives[state][entry] =\
-                            y_init[sub_start_index:sub_end_index]
+                        self.state_derivatives[state][entry] = y_init[
+                            sub_start_index:sub_end_index
+                        ]
                     else:
-                        self.states[state][entry] =\
-                            y_init[sub_start_index:sub_end_index]
+                        self.states[state][entry] = y_init[
+                            sub_start_index:sub_end_index
+                        ]
                     sub_start_index = sub_end_index
             start_index = end_index
 
@@ -1051,93 +973,89 @@ class DeadEndFiltration(UnitOperationBase):
         molecular_weights = np.array(self.component_system.molecular_weights)
         densities = np.array(self.component_system.densities)
         viscosities = np.array(self.component_system.viscosities)
-        membrane_area = self.parameters['membrane_area']
-        membrane_resistance = self.parameters['membrane_resistance']
-        specific_cake_resistance =\
-            np.array(self.component_system.specific_cake_resistances)
+        membrane_area = self.parameters["membrane_area"]
+        membrane_resistance = self.parameters["membrane_resistance"]
+        specific_cake_resistance = np.array(
+            self.component_system.specific_cake_resistances
+        )
 
         Q_in = self.Q_in[0]
         Q_out = self.Q_out[0]
-        c_in = self.states['inlet']['c']
+        c_in = self.states["inlet"]["c"]
 
         n_in_dot = Q_in * c_in
-        self.state_derivatives['inlet']['n'] = n_in_dot
+        self.state_derivatives["inlet"]["n"] = n_in_dot
 
         rejection = np.array(
-                [
-                    self.rejection_model.get_rejection(mw)\
-                    for mw in molecular_weights
-                ]
-            )
+            [self.rejection_model.get_rejection(mw) for mw in molecular_weights]
+        )
 
         n_cake_dot = rejection * n_in_dot
-        self.state_derivatives['retentate']['n'] = n_cake_dot
-        self.state_derivatives['cake']['n'] = n_cake_dot
+        self.state_derivatives["retentate"]["n"] = n_cake_dot
+        self.state_derivatives["cake"]["n"] = n_cake_dot
 
         vol_cake_dot = np.sum(molecular_weights * n_cake_dot / densities)
-        self.state_derivatives['cake']['V'] = vol_cake_dot
-        self.state_derivatives['retentate']['V'] = vol_cake_dot
+        self.state_derivatives["cake"]["V"] = vol_cake_dot
+        self.state_derivatives["retentate"]["V"] = vol_cake_dot
 
         if vol_cake_dot > 1e-16:
-            self.states['retentate']['c'] = n_cake_dot/vol_cake_dot
+            self.states["retentate"]["c"] = n_cake_dot / vol_cake_dot
         else:
-            self.states['retentate']['c'][:] = 0.0
+            self.states["retentate"]["c"][:] = 0.0
 
-        vol_cake = self.states['cake']['V']
-        n_cake = self.states['cake']['n']
+        vol_cake = self.states["cake"]["V"]
+        n_cake = self.states["cake"]["n"]
 
         if vol_cake > 1e-16:
-            self.states['cake']['c'] = n_cake
+            self.states["cake"]["c"] = n_cake
         else:
-            self.states['cake']['c'][:] = 0
+            self.states["cake"]["c"][:] = 0
 
         n_P_dot = (1 - rejection) * n_in_dot
-        self.state_derivatives['permeate']['n'] = n_P_dot
+        self.state_derivatives["permeate"]["n"] = n_P_dot
         Q_P = np.sum(n_P_dot * molecular_weights / densities)
 
-        self.state_derivatives['permeate']['V'] = Q_P
+        self.state_derivatives["permeate"]["V"] = Q_P
 
         if Q_P > 1e-16:
-            self.states['permeate']['c'] = n_P_dot / Q_P
+            self.states["permeate"]["c"] = n_P_dot / Q_P
         else:
-            self.states['permeate']['c'][:] = 0.0
+            self.states["permeate"]["c"][:] = 0.0
 
-        c_PT = self.states['permeate_tank']['c']
-        V_PT = self.states['permeate_tank']['V']
+        c_PT = self.states["permeate_tank"]["c"]
+        V_PT = self.states["permeate_tank"]["V"]
 
-        self.states['permeate_tank']['n'] = c_PT * V_PT
+        self.states["permeate_tank"]["n"] = c_PT * V_PT
 
         V_PT_dot = Q_P - Q_out
 
-        c_PT_dot =\
-            (n_P_dot - Q_out * c_PT - V_PT_dot * c_PT) / V_PT
+        c_PT_dot = (n_P_dot - Q_out * c_PT - V_PT_dot * c_PT) / V_PT
 
-        self.state_derivatives['permeate_tank']['c'] = c_PT_dot
+        self.state_derivatives["permeate_tank"]["c"] = c_PT_dot
 
-        self.state_derivatives['permeate_tank']['V'] = V_PT_dot
+        self.state_derivatives["permeate_tank"]["V"] = V_PT_dot
 
         if not np.sum(n_P_dot) < 1e-16:
+            fractions = n_P_dot / sum(n_P_dot)
 
-            fractions = n_P_dot/sum(n_P_dot)
+            viscosity = self.viscosity_model.get_mixture_viscosity(
+                viscosities, fractions
+            )
 
-            viscosity =\
-                self.viscosity_model.get_mixture_viscosity(viscosities, fractions)
-
-            n_C = self.states['cake']['n']
+            n_C = self.states["cake"]["n"]
             component_volume = n_C * molecular_weights / densities
             cake_resistance = np.sum(
                 specific_cake_resistance * densities * component_volume / membrane_area
             )
 
-            self.states['cake']['pressure'] = \
-                viscosity * Q_P * (membrane_resistance + cake_resistance)\
+            self.states["cake"]["pressure"] = (
+                viscosity
+                * Q_P
+                * (membrane_resistance + cake_resistance)
                 / membrane_area
+            )
         else:
-            self.states['cake']['pressure'] = 0
-
-
-
-
+            self.states["cake"]["pressure"] = 0
 
 
 class CrossFlowFiltration(UnitOperationBase):
@@ -1160,40 +1078,33 @@ class CrossFlowFiltration(UnitOperationBase):
     n_axial = UnsignedInteger(default=10)
 
     retentate = {
-        'dimensions': ('n_axial', ),
-        'entries': {'c': 'n_comp', 'viscosity': 1, 'Volume': 1},
-        'n_inlet_ports': 1,
-        'n_outlet_ports': 1,
+        "dimensions": ("n_axial",),
+        "entries": {"c": "n_comp", "viscosity": 1, "Volume": 1},
+        "n_inlet_ports": 1,
+        "n_outlet_ports": 1,
     }
     permeate = {
-        'dimensions': ('n_axial', ),
-        'entries': {'c': 'n_comp', 'viscosity': 1, 'Volume': 1},
-        'n_outlet_ports': 1,
+        "dimensions": ("n_axial",),
+        "entries": {"c": "n_comp", "viscosity": 1, "Volume": 1},
+        "n_outlet_ports": 1,
     }
-    _state_structures = ['retentate', 'permeate']
+    _state_structures = ["retentate", "permeate"]
 
     rejection_model = Typed(ty=RejectionBase)
 
     membrane_area = UnsignedFloat()
     membrane_resistance = UnsignedFloat()
 
-    _parameters = [
-        'membrane_area',
-        'membrane_resistance',
-    ]
+    _parameters = ["membrane_area", "membrane_resistance"]
 
     def __init__(self, component_system, name, *args, **kwargs):
         """Construct CFF."""
         super().__init__(component_system, name, *args, **kwargs)
-        self.coupling_state_structure['viscosity'] = 1
+        self.coupling_state_structure["viscosity"] = 1
 
     def compute_residual(
-            self,
-            t: float,
-            y: np.ndarray,
-            y_dot: np.ndarray,
-            residual: np.ndarray
-            ) -> NoReturn:
+        self, t: float, y: np.ndarray, y_dot: np.ndarray, residual: np.ndarray
+    ) -> NoReturn:
         """
         Calculate the residual of the unit operation at time `t`.
 
@@ -1232,30 +1143,26 @@ class _2DGRM(UnitOperationBase):
     n_particle = UnsignedInteger(default=5)
 
     bulk = {
-        'dimensions': ('n_radial', 'n_axial'),
-        'entries': {'c': 'n_comp', 'viscosity': 1},
-        'n_inlet_ports': 'n_radial',
-        'n_outlet_ports': 'n_radial',
+        "dimensions": ("n_radial", "n_axial"),
+        "entries": {"c": "n_comp", "viscosity": 1},
+        "n_inlet_ports": "n_radial",
+        "n_outlet_ports": "n_radial",
     }
     particle = {
-        'dimensions': ('n_radial', 'n_axial', 'n_particle'),
-        'entries': {'c': 'n_comp', 'viscosity': 1, 'q': 'n_comp'},
-        'n_outlet_ports': 1,
+        "dimensions": ("n_radial", "n_axial", "n_particle"),
+        "entries": {"c": "n_comp", "viscosity": 1, "q": "n_comp"},
+        "n_outlet_ports": 1,
     }
     flux = {
-        'dimensions': ('n_radial', 'n_axial', ),
-        'entries': {'c': 'n_comp'},
-        'n_outlet_ports': 1,
+        "dimensions": ("n_radial", "n_axial"),
+        "entries": {"c": "n_comp"},
+        "n_outlet_ports": 1,
     }
-    _state_structures = ['bulk', 'particle', 'flux']
+    _state_structures = ["bulk", "particle", "flux"]
 
     def compute_residual(
-            self,
-            t: float,
-            y: np.ndarray,
-            y_dot: np.ndarray,
-            residual: np.ndarray
-            ) -> NoReturn:
+        self, t: float, y: np.ndarray, y_dot: np.ndarray, residual: np.ndarray
+    ) -> NoReturn:
         """
         Calculate the residual of the unit operation at time `t`.
 

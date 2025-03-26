@@ -9,13 +9,14 @@ import scipy.optimize as scipyopt
 from CADETPythonSimulator.state import State, state_factory
 from CADETPythonSimulator.coupling_interface import (
     CouplingInterface,
-    WeightedAverageCoupling
+    WeightedAverageCoupling,
 )
 
 from CADETProcess.dataStructure import Structure
 from CADETPythonSimulator.exception import NotInitializedError, CADETPythonSimError
 from CADETPythonSimulator.unit_operation import UnitOperationBase
 from CADETPythonSimulator.componentsystem import CPSComponentSystem
+
 
 class SystemBase(Structure):
     """Base Class Structure for a System."""
@@ -31,8 +32,9 @@ class SystemBase(Structure):
         self._t_zero: Optional[float] = None
 
         if not self._coupling_state_structure:
-            self._coupling_state_structure: Optional[dict[str, CouplingInterface]]\
-                = None
+            self._coupling_state_structure: Optional[dict[str, CouplingInterface]] = (
+                None
+            )
         self._setup_unit_operations(unit_operations)
 
     @property
@@ -43,9 +45,9 @@ class SystemBase(Structure):
     @property
     def n_dof(self) -> int:
         """int: Total number of degrees of freedom."""
-        return sum([
-            unit_operation.n_dof for unit_operation in self.unit_operations.values()
-        ])
+        return sum(
+            [unit_operation.n_dof for unit_operation in self.unit_operations.values()]
+        )
 
     @property
     def n_comp(self) -> int:
@@ -76,9 +78,9 @@ class SystemBase(Structure):
             for port in range(unit[1].n_outlet_ports):
                 origin_unit_ports[i_unit][port] = origin_counter
                 origin_index_unit_operations[origin_counter] = {
-                    'unit': i_unit,
-                    'port': port,
-                    'name': unit[0],
+                    "unit": i_unit,
+                    "port": port,
+                    "name": unit[0],
                 }
                 origin_counter += 1
         self.origin_unit_ports = origin_unit_ports
@@ -94,16 +96,16 @@ class SystemBase(Structure):
             for port in range(unit[1].n_inlet_ports):
                 destination_unit_ports[i_unit][port] = destination_counter
                 destination_index_unit_operations[destination_counter] = {
-                    'unit': i_unit,
-                    'port': port,
-                    'name': unit[0],
+                    "unit": i_unit,
+                    "port": port,
+                    "name": unit[0],
                 }
                 destination_counter += 1
         self.destination_unit_ports = destination_unit_ports
         self.destination_index_unit_operations = destination_index_unit_operations
         self.n_destination_ports = destination_counter
 
-    def _setup_unit_operations(self, unit_operations : list[UnitOperationBase]):
+    def _setup_unit_operations(self, unit_operations: list[UnitOperationBase]):
         """
         Set up unit operations.
 
@@ -116,7 +118,7 @@ class SystemBase(Structure):
             list of UnitOperation that are part of the System
 
         """
-        #TODO: check if all unit_operation satisfy the system
+        # TODO: check if all unit_operation satisfy the system
         self._component_system = unit_operations[0].component_system
 
         for unit in unit_operations:
@@ -139,9 +141,9 @@ class SystemBase(Structure):
     @property
     def y(self) -> np.ndarray:
         """np.ndarray: State array flattened into one dimension."""
-        return np.concatenate([
-            unit_operation.y for unit_operation in self.unit_operations.values()
-        ])
+        return np.concatenate(
+            [unit_operation.y for unit_operation in self.unit_operations.values()]
+        )
 
     @y.setter
     def y(self, y: np.ndarray) -> NoReturn:
@@ -155,9 +157,9 @@ class SystemBase(Structure):
     @property
     def y_init(self) -> np.ndarray:
         """np.ndarray: State array flattened into one dimension."""
-        return np.concatenate([
-            unit_operation.y_init for unit_operation in self.unit_operations.values()
-        ])
+        return np.concatenate(
+            [unit_operation.y_init for unit_operation in self.unit_operations.values()]
+        )
 
     @y_init.setter
     def y_init(self, y_init: np.ndarray) -> NoReturn:
@@ -179,9 +181,9 @@ class SystemBase(Structure):
     @property
     def y_dot(self) -> np.ndarray:
         """np.ndarray: State derivative array flattened into one dimension."""
-        return np.concatenate([
-            unit_operation.y_dot for unit_operation in self.unit_operations.values()
-        ])
+        return np.concatenate(
+            [unit_operation.y_dot for unit_operation in self.unit_operations.values()]
+        )
 
     @y_dot.setter
     def y_dot(self, y_dot: np.ndarray) -> NoReturn:
@@ -203,9 +205,9 @@ class SystemBase(Structure):
     @property
     def r(self) -> np.ndarray:
         """np.ndarray: Residual array flattened into one dimension."""
-        return np.concatenate([
-            unit_operation.r for unit_operation in self.unit_operations.values()
-        ])
+        return np.concatenate(
+            [unit_operation.r for unit_operation in self.unit_operations.values()]
+        )
 
     @r.setter
     def r(self, r: np.ndarray) -> NoReturn:
@@ -263,12 +265,7 @@ class SystemBase(Structure):
         """
         raise NotImplementedError("SystemBase is abstract.")
 
-    def compute_residual(
-            self,
-            t: float,
-            y: np.ndarray,
-            y_dot: np.ndarray
-            ) -> NoReturn:
+    def compute_residual(self, t: float, y: np.ndarray, y_dot: np.ndarray) -> NoReturn:
         """
         Compute the residual for the differential-algebraic equations system.
 
@@ -289,9 +286,7 @@ class SystemBase(Structure):
         for unit_operation in self.unit_operations.values():
             unit_operation.compute_residual(t)
 
-    def couple_unit_operations(
-            self,
-            ) -> NoReturn:
+    def couple_unit_operations(self) -> NoReturn:
         """
         Couple unit operations for set parameters.
 
@@ -309,26 +304,25 @@ class SystemBase(Structure):
             if Q_destination_total == 0:
                 continue
 
-            destination_info = \
-                self.destination_index_unit_operations[destination_port_index]
-            destination_unit = self.unit_operations[destination_info['name']]
-            destination_port = destination_info['port']
+            destination_info = self.destination_index_unit_operations[
+                destination_port_index
+            ]
+            destination_unit = self.unit_operations[destination_info["name"]]
+            destination_port = destination_info["port"]
             unit_Q_list = []
             for origin_port_index, Q_destination in enumerate(Q_destinations):
                 if Q_destination == 0:
                     continue
 
                 origin_info = self.origin_index_unit_operations[origin_port_index]
-                origin_unit = self.unit_operations[origin_info['name']]
-                origin_port = origin_info['port']
+                origin_unit = self.unit_operations[origin_info["name"]]
+                origin_port = origin_info["port"]
                 unit_Q_list.append(
                     (origin_unit.get_outlet_state_flat(origin_port), Q_destination)
                 )
 
             s_new = self.coupled_state_func(unit_Q_list)
-            destination_unit.set_inlet_state_flat(
-                s_new, destination_port
-            )
+            destination_unit.set_inlet_state_flat(s_new, destination_port)
 
     def coupled_state_func(self, unit_Q_list: list[dict, float]) -> dict:
         """
@@ -397,8 +391,9 @@ class SystemBase(Structure):
 
             destination_unit = connection[1]
             destination_port = connection[3]
-            destination_index =\
-                self.destination_unit_ports[destination_unit][destination_port]
+            destination_index = self.destination_unit_ports[destination_unit][
+                destination_port
+            ]
 
             rate = connection[4]
 
@@ -432,9 +427,7 @@ class FlowSystem(SystemBase):
 
     def __init__(self, unit_operations: list[UnitOperationBase]):
         """Construct FlowSystem Object."""
-        self.coupling_state_structure={
-            'c': WeightedAverageCoupling()
-            }
+        self.coupling_state_structure = {"c": WeightedAverageCoupling()}
         super().__init__(unit_operations)
 
     def set_rates(self) -> NoReturn:
@@ -448,11 +441,11 @@ class FlowSystem(SystemBase):
 
         """
         for dest_i, Q_n in enumerate(self.connectivity):
-            unit_operation = self.destination_index_unit_operations[dest_i]['name']
-            unit_port = self.destination_index_unit_operations[dest_i]['port']
+            unit_operation = self.destination_index_unit_operations[dest_i]["name"]
+            unit_port = self.destination_index_unit_operations[dest_i]["port"]
             self.unit_operations[unit_operation].set_Q_in_port(unit_port, np.sum(Q_n))
 
         for origin_i, Q_n in enumerate(self.connectivity.T):
-            unit_operation = self.origin_index_unit_operations[origin_i]['name']
-            unit_port = self.origin_index_unit_operations[origin_i]['port']
+            unit_operation = self.origin_index_unit_operations[origin_i]["name"]
+            unit_port = self.origin_index_unit_operations[origin_i]["port"]
             self.unit_operations[unit_operation].set_Q_out_port(unit_port, np.sum(Q_n))

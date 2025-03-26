@@ -10,8 +10,8 @@ class ViscosityBase(Structure):
 
     @abstractmethod
     def get_mixture_viscosity(
-            self, viscosities: np.ndarray, fractions: np.ndarray
-            ) -> float:
+        self, viscosities: np.ndarray, fractions: np.ndarray
+    ) -> float:
         """
         Calculate mixed viscosity with given viscosities and volume fractions.
 
@@ -31,25 +31,22 @@ class ViscosityBase(Structure):
         pass
 
     def _validate_viscosities_input(
-            self,
-            viscosities: np.ndarray,
-            fractions: np.ndarray
-            ) -> None:
-        if not np.all(viscosities, where=[0]) or not np.all(fractions, where=[0])\
-            or len(viscosities) != len(fractions):
+        self, viscosities: np.ndarray, fractions: np.ndarray
+    ) -> None:
+        if (
+            not np.all(viscosities, where=[0])
+            or not np.all(fractions, where=[0])
+            or len(viscosities) != len(fractions)
+        ):
             raise ValueError(
                 "Viscosities and fractions lists must be of the same length."
             )
         if not np.isclose(np.sum(fractions), 1):
-            raise ValueError(
-                "Sum of volume fractions must be 1."
-            )
+            raise ValueError("Sum of volume fractions must be 1.")
 
     def _remove_nan_viscosities(
-            self,
-            viscosities: np.ndarray,
-            fractions: np.ndarray,
-            ) -> tuple[np.ndarray, np.ndarray]:
+        self, viscosities: np.ndarray, fractions: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
         non_nan_indices = ~np.isnan(viscosities)
 
         viscosities = viscosities[non_nan_indices]
@@ -65,8 +62,8 @@ class AverageViscosity(ViscosityBase):
     """Calculate mixed viscosity using the average mean."""
 
     def get_mixture_viscosity(
-            self, viscosities: np.ndarray, fractions: np.ndarray
-            ) -> float:
+        self, viscosities: np.ndarray, fractions: np.ndarray
+    ) -> float:
         """
         Calculate mixed viscosity using the arithmetic mean.
 
@@ -94,8 +91,8 @@ class LogarithmicMixingViscosity(ViscosityBase):
     """Calculate mixed viscosity using the logarithmic mixing rule."""
 
     def get_mixture_viscosity(
-            self, viscosities: np.ndarray, fractions: np.ndarray
-            ) -> float:
+        self, viscosities: np.ndarray, fractions: np.ndarray
+    ) -> float:
         """
         Calculate mixed viscosity using the logarithmic mixing rule.
 

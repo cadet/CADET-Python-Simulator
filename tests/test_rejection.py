@@ -1,27 +1,19 @@
 import numpy as np
 import pytest
 
-from CADETPythonSimulator.rejection import (
-    RejectionBase, StepCutOff
-)
+from CADETPythonSimulator.rejection import StepCutOff
 
 
 TestCaseCutof = {
-            "model": StepCutOff,
-            "model_param": {
-                "cutoff_weight": 0.5
-            },
-            "weights": [0, 0.5, 1],
-            "expected": [0, 1, 1]
-        }
+    "model": StepCutOff,
+    "model_param": {"cutoff_weight": 0.5},
+    "weights": [0, 0.5, 1],
+    "expected": [0, 1, 1],
+}
 
-@pytest.mark.parametrize(
-    "parameters",
-    [
-        TestCaseCutof
-    ]
-)
-class TestRejection():
+
+@pytest.mark.parametrize("parameters", [TestCaseCutof])
+class TestRejection:
     """Test Class to test all rejection Models."""
 
     def test_get_rejection(self, parameters):

@@ -2,7 +2,9 @@ import numpy as np
 import pytest
 
 from CADETPythonSimulator.viscosity import (
-    AverageViscosity, LogarithmicMixingViscosity, ViscosityBase
+    AverageViscosity,
+    LogarithmicMixingViscosity,
+    ViscosityBase,
 )
 
 
@@ -21,7 +23,8 @@ class ViscosityDummy(ViscosityBase):
         """Access to private Method."""
         return self._validate_viscosities_input(viscosities, fractions)
 
-@pytest.mark.parametrize('Modul', [ViscosityDummy()])
+
+@pytest.mark.parametrize("Modul", [ViscosityDummy()])
 class TestViscosityBase:
     """Class to test methods of Base Class."""
 
@@ -30,13 +33,9 @@ class TestViscosityBase:
         viscosity_obj = Modul
         np.testing.assert_equal(
             viscosity_obj.remove_nan_viscosities(
-                np.array([np.nan, 1, np.nan, 2]),
-                np.array([0.25, 0.25, 0.25, 0.25])
+                np.array([np.nan, 1, np.nan, 2]), np.array([0.25, 0.25, 0.25, 0.25])
             ),
-            (
-                np.array([1 ,2]),
-                np.array([0.5, 0.5])
-            )
+            (np.array([1, 2]), np.array([0.5, 0.5])),
         )
 
     def test_validate_input(self, Modul):
@@ -57,30 +56,29 @@ class TestViscosityBase:
     [
         (
             AverageViscosity(),
-            np.array([0., 1., 2., 3.]),
+            np.array([0.0, 1.0, 2.0, 3.0]),
             np.array([0.25, 0.25, 0.25, 0.25]),
-            1.5
+            1.5,
         ),
         (
             LogarithmicMixingViscosity(),
-            np.array([1., 1., 2., 3.]),
+            np.array([1.0, 1.0, 2.0, 3.0]),
             np.array([0.25, 0.25, 0.25, 0.25]),
-            np.exp(0.25 * np.log(2) + 0.25 * np.log(3))
-        )
-    ]
+            np.exp(0.25 * np.log(2) + 0.25 * np.log(3)),
+        ),
+    ],
 )
 class TestViscosityCalculation:
     """Testclass for viscosity calculation."""
 
     def test_viscosity_calculation(
-            self,
-            model: ViscosityBase,
-            viscosities: np.ndarray,
-            fractions: np.ndarray,
-            expected: float
-            ):
+        self,
+        model: ViscosityBase,
+        viscosities: np.ndarray,
+        fractions: np.ndarray,
+        expected: float,
+    ):
         """Test Calculation."""
         np.testing.assert_allclose(
-            model.get_mixture_viscosity(viscosities, fractions),
-            expected
+            model.get_mixture_viscosity(viscosities, fractions), expected
         )

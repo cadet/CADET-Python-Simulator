@@ -3,8 +3,9 @@ import pytest
 
 from CADETPythonSimulator.componentsystem import CPSComponentSystem
 from CADETPythonSimulator.distribution_base import (
-    ConstantVolumeDistribution, ConstantConcentrationDistribution
-    )
+    ConstantVolumeDistribution,
+    ConstantConcentrationDistribution,
+)
 from CADETPythonSimulator.exception import CADETPythonSimError
 
 component_system = CPSComponentSystem(
@@ -13,25 +14,16 @@ component_system = CPSComponentSystem(
     densities=[1, 1],
     molecular_weights=[1, 2],
     viscosities=[1, 1],
-    specific_cake_resistances=[1,1]
-    )
+    specific_cake_resistances=[1, 1],
+)
+
 
 @pytest.mark.parametrize(
     "distribution, component_system, concentration, expected",
     [
-        (
-            ConstantVolumeDistribution,
-            component_system,
-            [1],
-            [1, 0]
-        ),
-        (
-            ConstantConcentrationDistribution,
-            component_system,
-            [1],
-            [1, 0]
-        )
-    ]
+        (ConstantVolumeDistribution, component_system, [1], [1, 0]),
+        (ConstantConcentrationDistribution, component_system, [1], [1, 0]),
+    ],
 )
 class TestDistribution:
     """Test Class for Distribution."""
@@ -44,6 +36,6 @@ class TestDistribution:
     def test_error(self, distribution, component_system, concentration, expected):
         """Test Error Throwing."""
         with pytest.raises(ValueError):
-            distribution(component_system, [1,1])
+            distribution(component_system, [1, 1])
         with pytest.raises(CADETPythonSimError):
             distribution(component_system, [10000])
