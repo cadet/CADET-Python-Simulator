@@ -75,3 +75,6 @@ indent-width = 4
 preview = true
 select = ["E", "F", "W", "D"]
 ignore = ["F401", "D212", "D203", "D100"]
+
+[tool.ruff.format]
+skip-magic-trailing-comma = true
