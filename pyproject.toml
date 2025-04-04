@@ -72,6 +72,9 @@ line-length = 88
 indent-width = 4
 
 [tool.ruff.lint]
-# preview = true
+preview = true
 select = ["E", "F", "W", "D"]
-ignore = ["F401", "D212", "D100"]
+ignore = ["F401", "D212", "D203", "D100"]
+
+[tool.ruff.format]
+skip-magic-trailing-comma = true

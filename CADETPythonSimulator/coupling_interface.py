@@ -8,20 +8,17 @@ class CouplingInterface(abc.ABC):
 
     @abc.abstractmethod
     def get_coupled_state(
-        self,
-        origin_list: list[(dict, float)],
-        state: str
-        ) -> np.ndarray:
+        self, origin_list: list[(dict, float)], state: str
+    ) -> np.ndarray:
         """Calculate new state for destination_unit."""
 
 
 class WeightedAverageCoupling(CouplingInterface):
     """Implements the Coupling Interface for average Coupling."""
 
-    def get_coupled_state(self,
-                          origin_list: list[(dict, float)],
-                          state: str
-                          ) -> np.ndarray:
+    def get_coupled_state(
+        self, origin_list: list[(dict, float)], state: str
+    ) -> np.ndarray:
         """Calculate new state for destination_unit with average Coupling."""
         ret = np.zeros(origin_list[0][0][state].shape)
         rate_tot = 0
