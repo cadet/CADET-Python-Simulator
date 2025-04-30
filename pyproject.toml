@@ -68,6 +68,7 @@ version = { attr = "CADETPythonSimulator.__version__" }
 
 [tool.ruff]
 # Same as Black.
+src = ["CADETPythonSimulator"]
 line-length = 88
 indent-width = 4
 
