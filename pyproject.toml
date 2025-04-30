@@ -55,6 +55,11 @@ docs = [
     "numpydoc>=1.5.0",
     "myst-nb>=0.17.1",
 ]
+dev = [
+    "CADET-Python-Simulator.testing",
+    "CADET-Python-Simulator.docs",
+    "ruff",
+]
 
 
 [tool.pytest.ini_options]
