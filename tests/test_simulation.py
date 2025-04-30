@@ -9,7 +9,6 @@ from CADETPythonSimulator.distribution_base import (
 
 from CADETPythonSimulator.unit_operation import (
     DistributionInlet,
-    Outlet,
     DeadEndFiltration,
 )
 from CADETPythonSimulator.system import FlowSystem

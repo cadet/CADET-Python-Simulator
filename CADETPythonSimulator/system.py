@@ -1,12 +1,9 @@
 from typing import NoReturn, Optional
 
-import abc
 from addict import Dict
 import numpy as np
-import numpy.typing as npt
-import scipy.optimize as scipyopt
 
-from CADETPythonSimulator.state import State, state_factory
+from CADETPythonSimulator.state import State
 from CADETPythonSimulator.coupling_interface import (
     CouplingInterface,
     WeightedAverageCoupling,

@@ -6,7 +6,7 @@ import numpy.typing as npt
 from scikits.odes.dae import dae
 
 from CADETProcess.dataStructure import Structure
-from CADETPythonSimulator.exception import NotInitializedError, CADETPythonSimError
+from CADETPythonSimulator.exception import CADETPythonSimError
 from CADETPythonSimulator.unit_operation import UnitOperationBase
 from CADETPythonSimulator.system import SystemBase
 

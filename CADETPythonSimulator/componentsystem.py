@@ -1,4 +1,4 @@
-from CADETProcess.processModel import ComponentSystem, Component, Species
+from CADETProcess.processModel import ComponentSystem, Component
 from CADETProcess.dataStructure import UnsignedFloat, String, Integer
 from CADETProcess.dataStructure import Structure
 

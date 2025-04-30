@@ -1,36 +1,29 @@
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Any, NoReturn, Optional
+from typing import NoReturn, Optional
 
 import numpy as np
 import numpy.typing as npt
 
-from CADETProcess.processModel import ComponentSystem
 from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
     Typed,
     String,
     UnsignedInteger,
     UnsignedFloat,
-    SizedUnsignedNdArray,
     NdPolynomial,
 )
 from CADETProcess.dynamicEvents import Section
 
 from CADETPythonSimulator.componentsystem import CPSComponentSystem
-from CADETPythonSimulator.exception import NotInitializedError, CADETPythonSimError
+from CADETPythonSimulator.exception import NotInitializedError
 from CADETPythonSimulator.state import State, state_factory
 from CADETPythonSimulator.residual import (
     calculate_residual_volume_cstr,
     calculate_residual_concentration_cstr,
-    calculate_residual_visc_cstr,
-    calculate_residual_press_easy_def,
-    calculate_residual_cake_vol_def,
-    calculate_residual_visc_def,
 )
 from CADETPythonSimulator.rejection import RejectionBase
-from CADETPythonSimulator.cake_compressibility import CakeCompressibilityBase
-from CADETPythonSimulator.viscosity import LogarithmicMixingViscosity, ViscosityBase
+from CADETPythonSimulator.viscosity import ViscosityBase
 
 from CADETPythonSimulator.distribution_base import DistributionBase
 

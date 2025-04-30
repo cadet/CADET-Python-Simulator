@@ -1,9 +1,8 @@
-from typing import NoReturn, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 import numpy.typing as npt
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 from scipy.interpolate import RegularGridInterpolator
 
 
