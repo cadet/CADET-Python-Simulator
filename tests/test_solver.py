@@ -1,16 +1,15 @@
 import numpy as np
 import pytest
 from addict import Dict
-from typing import NoReturn, Optional
+from typing import Optional
 
 from test_unit_operation import (
     InletFixture,
     OutletFixture,
-    CstrFixture,
     DeadEndFiltrationFixture,
 )
 from CADETProcess.dataStructure import Structure
-from CADETPythonSimulator.system import SystemBase, FlowSystem
+from CADETPythonSimulator.system import FlowSystem
 from CADETPythonSimulator.solver import Solver
 
 

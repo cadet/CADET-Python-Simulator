@@ -1,6 +1,5 @@
 import abc
 import numpy as np
-from CADETPythonSimulator.unit_operation import UnitOperationBase
 
 
 class CouplingInterface(abc.ABC):

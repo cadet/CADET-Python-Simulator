@@ -1,4 +1,3 @@
-import numpy as np
 import pytest
 
 from CADETPythonSimulator.componentsystem import CPSComponentSystem
