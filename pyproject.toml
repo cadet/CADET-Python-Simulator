@@ -36,7 +36,7 @@ homepage = "https://jugit.fz-juelich.de/IBG-1/ModSim/cadet/CADET-Python-Simulato
 "Bug Tracker" = "https://jugit.fz-juelich.de/IBG-1/ModSim/cadet/CADET-Python-Simulator/Issues"
 
 
-[project.optional-dependencies]
+[dependency-groups]
 testing = [
     "setuptools",
     "pytest",
@@ -56,8 +56,8 @@ docs = [
     "myst-nb>=0.17.1",
 ]
 dev = [
-    "CADET-Python-Simulator.testing",
-    "CADET-Python-Simulator.docs",
+    {include-group = "testing"},
+    {include-group = "docs"},
     "ruff",
 ]
 
