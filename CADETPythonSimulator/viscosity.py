@@ -113,6 +113,6 @@ class LogarithmicMixingViscosity(ViscosityBase):
         viscosities, fractions = self._remove_nan_viscosities(viscosities, fractions)
 
         mixed_viscosity = np.exp(
-            np.sum(f * np.log(v) for v, f in zip(viscosities, fractions))
+            sum(f * np.log(v) for v, f in zip(viscosities, fractions))
         )
         return mixed_viscosity
