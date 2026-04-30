@@ -3,6 +3,8 @@ __pycache__/
 .pytest_cache/
 .ipynb_checkpoints
 debug*
+development/
+docs/_build/
 *.h5
 *.egg-info
 .vscode

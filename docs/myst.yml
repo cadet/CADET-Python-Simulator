@@ -1,0 +1,20 @@
+version: 1
+project:
+  title: CADET-Python-Simulator
+  authors:
+    - name: Johannes Schmölder
+  github: https://github.com/daklauss/CADET-Python-Simulator
+  toc:
+    - file: intro.md
+    - title: Concepts
+      children:
+        - file: concepts/geometry.md
+    - title: API Reference
+      children:
+        - file: api/geometry.md
+    - title: Examples
+      children:
+        - file: examples/index.md
+
+site:
+  template: book-theme
