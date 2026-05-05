@@ -1,385 +1,389 @@
-from typing import Any, NoReturn
-import warnings
+from __future__ import annotations
+
+from typing import Any
 
 import numpy as np
+import xarray as xr
 
-from CADETProcess.dataStructure import Structure, String, SizedNdArray
+from CADETPythonSimulator.geometry import DiscretizedGeometry
 
 
-class State(Structure):
+class State:
     """
-    Manages the state of a system with configurable dimensions and entries.
+    Manages the state of a unit operation domain.
+
+    The underlying array ``s`` is the single source of truth. It is always
+    mutated in-place — never replaced — so all derived views (entry slices,
+    xarray DataArrays) remain valid across solver steps.
 
     Parameters
     ----------
-    dimensions : Dict[str, int]
-        Mapping of dimension names to their sizes.
-    entries : Dict[str, int]
-        Mapping of entry names to their counts.
-    n_inlet_ports : int | str, optional
-        Number of inlet ports or the dimension name for the outlet port, if applicable.
-    n_outlet_ports : int | str, optional
-        Number of outlet ports or the dimension name for the outlet port, if applicable.
-
-    Attributes
-    ----------
-    name: str
-        The name of the state
-    s : np.ndarray
-        The state array, initialized as zeros based on the computed shape.
-
+    name : str
+        Identifier for this state block (e.g. ``"bulk"``, ``"cake"``).
+    entries : dict[str, int]
+        Mapping of entry name to number of values per cell.
+        E.g. ``{"c": 3, "V": 1}`` for 3 components + volume.
+    geometry : DiscretizedGeometry, optional
+        Spatial structure. If omitted, a 0-D anonymous geometry is used
+        (backward-compatible with the old ``dimensions`` dict interface).
     """
-
-    name = String()
-    s = SizedNdArray(size="shape")
 
     def __init__(
         self,
         name: str,
-        dimensions: dict[str, int],
         entries: dict[str, int],
+        geometry: DiscretizedGeometry | None = None,
+        # ── legacy params kept for backward compatibility ──────────────────
+        dimensions: dict[str, int] | None = None,
         n_inlet_ports: int = 0,
         n_outlet_ports: int = 0,
-    ) -> NoReturn:
-        """Init a state."""
+    ) -> None:
         self.name = name
-        self.dimensions = dimensions
         self.entries = entries
 
-        if isinstance(n_inlet_ports, str):
-            inlet_port_mapping = n_inlet_ports
-            n_inlet_ports = self.dimensions[n_inlet_ports]
+        if geometry is not None:
+            self._geometry = geometry
+            self._legacy_ports = None
         else:
-            inlet_port_mapping = None
-        self.n_inlet_ports = n_inlet_ports
-        self.inlet_port_mapping = inlet_port_mapping
+            dims = dimensions or {}
+            # resolve string port counts (e.g. n_inlet_ports="radial" → dims["radial"])
+            inlet_mapping = n_inlet_ports if isinstance(n_inlet_ports, str) else None
+            outlet_mapping = n_outlet_ports if isinstance(n_outlet_ports, str) else None
+            n_inlet = dims[n_inlet_ports] if isinstance(n_inlet_ports, str) else n_inlet_ports
+            n_outlet = dims[n_outlet_ports] if isinstance(n_outlet_ports, str) else n_outlet_ports
 
-        if isinstance(n_outlet_ports, str):
-            outlet_port_mapping = n_outlet_ports
-            n_outlet_ports = self.dimensions[n_outlet_ports]
-        else:
-            outlet_port_mapping = None
-        self.n_outlet_ports = n_outlet_ports
-        self.outlet_port_mapping = outlet_port_mapping
+            self._geometry = _geometry_from_legacy(dims, n_inlet_ports, n_outlet_ports)
+            self._legacy_ports = {
+                "dimensions": dims,
+                "n_inlet_ports": n_inlet,
+                "n_outlet_ports": n_outlet,
+                "inlet_mapping": inlet_mapping,
+                "outlet_mapping": outlet_mapping,
+            }
 
-        self.s = np.zeros(self.shape)
+        # ── allocate s (never replaced after this point) ───────────────────
+        n_entries_total = sum(entries.values())
+        self._s = np.zeros((*self._geometry.shape, n_entries_total))
+
+        # pre-compute entry slices into the last axis
+        self._entry_slices: dict[str, slice] = {}
+        i = 0
+        for entry, n in entries.items():
+            self._entry_slices[entry] = slice(i, i + n)
+            i += n
+
+        # xarray views — created once, always current via shared memory
+        self._field: dict[str, xr.DataArray] = self._build_field()
+
+    # ── geometry access ────────────────────────────────────────────────────
 
     @property
-    def n_dimensions(self) -> int:
-        """int: Return the number of dimensions."""
-        return len(self.dimensions)
+    def geometry(self) -> DiscretizedGeometry:
+        return self._geometry
+
+    # ── shape / dof ───────────────────────────────────────────────────────
 
     @property
     def dimension_shape(self) -> tuple[int, ...]:
-        """Tuple of int: Return the shape derived from dimensions."""
-        return tuple(self.dimensions.values())
+        return self._geometry.shape
+
+    @property
+    def n_dimensions(self) -> int:
+        return len(self._geometry.shape)
 
     @property
     def n_cells(self) -> int:
-        """int: Return the total number of cells from the product of dimensions."""
-        return int(np.prod(self.dimension_shape))
+        return self._geometry.n_dof
 
     @property
     def n_entries(self) -> int:
-        """int: Return the total number of entries from the sum of entries."""
         return sum(self.entries.values())
 
     @property
     def shape(self) -> tuple[int, ...]:
-        """Tuple of int: Return the complete shape of the state array."""
-        shape = self.dimension_shape + (self.n_entries,)
-        if isinstance(shape, int):
-            shape = (shape,)
-        return shape
+        return self._s.shape
 
     @property
     def n_dof(self) -> int:
-        """int: Return the total number of degrees of freedom."""
-        return np.prod(self.shape)
+        return int(np.prod(self._s.shape))
+
+    # ── s access (in-place invariant) ─────────────────────────────────────
+
+    @property
+    def s(self) -> np.ndarray:
+        return self._s
+
+    @s.setter
+    def s(self, value: np.ndarray) -> None:
+        self._s[...] = value
 
     @property
     def s_flat(self) -> np.ndarray:
-        """np.ndarray: Return the state array flattened into one dimension."""
-        return self.s.reshape(-1)
+        return self._s.reshape(-1)
 
     @s_flat.setter
-    def s_flat(self, s_flat: np.ndarray) -> NoReturn:
-        s = np.array(s_flat).reshape(self.shape)
-        self.s = s
+    def s_flat(self, value: np.ndarray) -> None:
+        self._s[...] = np.asarray(value).reshape(self._s.shape)
 
     @property
     def s_split(self) -> dict[str, np.ndarray]:
-        """
-        Dict where each key is an entry name and the value is the corresponding value.
-
-        Returns
-        -------
-        Dict[str, np.ndarray]
-            A dictionary where each key is an entry name and the value is the
-            corresponding segment of the state array.
-
-        """
-        s_split = {}
-        start_index = 0
-        for entry, n_entries in self.entries.items():
-            end_index = start_index + n_entries
-            s_split[entry] = self.s[..., start_index:end_index]
-            start_index = end_index
-
-        return s_split
+        return {entry: self[entry] for entry in self.entries}
 
     @s_split.setter
-    def s_split(self, s_split: dict[str, np.ndarray]):
-        _s_split = self.s_split
-
+    def s_split(self, s_split: dict[str, np.ndarray]) -> None:
         for key, value in s_split.items():
-            _s_split[key][:] = value[:]
+            self[key][:] = value
 
-    def validate_coupling_structure(self, coupling_structure: dict[str, int]) -> bool:
-        """
-        Validate coupling structure is correct.
+    # ── entry access ──────────────────────────────────────────────────────
 
-        This method validates that all entries of the coupling structure are present
-        in the state entries.
+    def __getitem__(self, entry: str) -> np.ndarray:
+        try:
+            return self._s[..., self._entry_slices[entry]]
+        except KeyError:
+            raise KeyError(f"'{entry}' is not a valid state entry.")
 
-        Parameters
-        ----------
-        coupling_structure : dict[str, int]
-            Dict containing the keys and number of entries of the coupling structure.
+    def __setitem__(self, entry: str, value: np.ndarray) -> None:
+        if entry not in self._entry_slices:
+            raise KeyError(f"'{entry}' is not a valid state entry.")
+        self._s[..., self._entry_slices[entry]] = value
 
-        Returns
-        -------
-        bool
-            True if coupling structure is valid, False otherwise.
+    # ── xarray field (zero-copy views) ────────────────────────────────────
 
-        """
-        flag = True
-        for entry, n_entries in coupling_structure:
-            if entry not in self.entries:
-                flag = False
-                warnings.warn(f"Entry '{entry}' is not found in entries.")
-            if n_entries != self.entries[entry]:
-                flag = False
-                warnings.warn(
-                    f"Entry '{entry}' does not have shape {self.entries[entry]}."
+    @property
+    def field(self) -> dict[str, xr.DataArray]:
+        """Zero-copy xarray views per entry. Always reflects current ``s``."""
+        return self._field
+
+    def _build_field(self) -> dict[str, xr.DataArray]:
+        coords = self._geometry.coordinates
+        spatial_dims = list(coords.keys())
+        result = {}
+        for entry, sl in self._entry_slices.items():
+            data = self._s[..., sl]
+            n = self.entries[entry]
+            if n > 1:
+                da = xr.DataArray(
+                    data,
+                    coords={**coords, "component": np.arange(n)},
+                    dims=spatial_dims + ["component"],
+                    name=entry,
                 )
-        return flag
+            else:
+                da = xr.DataArray(
+                    data[..., 0],
+                    coords=coords,
+                    dims=spatial_dims,
+                    name=entry,
+                )
+            result[entry] = da
+        return result
+
+    # ── port access ───────────────────────────────────────────────────────
+
+    def get_port_state(self, port_name: str) -> dict[str, np.ndarray]:
+        """Return entry arrays at the named external port (views into s)."""
+        idx = self._geometry.external_ports[port_name]
+        return {
+            entry: self._s[(*idx, self._entry_slices[entry])]
+            for entry in self.entries
+        }
+
+    def set_port_state(self, port_name: str, values: dict[str, np.ndarray]) -> None:
+        """Set entry values at the named external port (in-place)."""
+        idx = self._geometry.external_ports[port_name]
+        for entry, value in values.items():
+            self._s[(*idx, self._entry_slices[entry])] = value
+
+    # ── legacy port interface (backward compatibility) ─────────────────────
+
+    @property
+    def n_inlet_ports(self) -> int:
+        if self._legacy_ports is not None:
+            return self._legacy_ports["n_inlet_ports"]
+        return sum(1 for k in self._geometry.external_ports if k == "inlet")
+
+    @property
+    def n_outlet_ports(self) -> int:
+        if self._legacy_ports is not None:
+            return self._legacy_ports["n_outlet_ports"]
+        return sum(1 for k in self._geometry.external_ports if k == "outlet")
+
+    @property
+    def inlet_port_mapping(self) -> str | None:
+        if self._legacy_ports is None:
+            return None
+        return self._legacy_ports.get("inlet_mapping")
+
+    @property
+    def outlet_port_mapping(self) -> str | None:
+        if self._legacy_ports is None:
+            return None
+        return self._legacy_ports.get("outlet_mapping")
 
     def set_inlet_port_state(
         self, inlet_port_state: dict[str, np.ndarray], port_index: int
-    ) -> NoReturn:
-        """
-        Set the state for a specified inlet port.
-
-        Parameters
-        ----------
-        inlet_port_state : Dict[str, np.ndarray]
-            A dictionary mapping each state entry to its new values at the inlet port.
-        port_index : int
-            The index of the port in the inlet port dimension to update.
-
-        Raises
-        ------
-        Exception
-            If port index exceeds number of inlet ports.#
-
-        """
+    ) -> None:
         if port_index > (self.n_inlet_ports - 1):
-            raise Exception("Port index exceeds number of inlet ports.")
-
-        # Create a slicing object dynamically
-        slice_indices = [0] * (self.n_dimensions + 1)
-
-        port_dim_index = self.inlet_port_mapping or 0
-        if isinstance(port_dim_index, str):
-            dim_keys = list(self.dimensions.keys())
-            port_dim_index = dim_keys.index(port_dim_index)
-
-        # Set the slice for the port dimension to the specific index
-        slice_indices[port_dim_index] = port_index
-
-        # State entries are always the last dimension, so set it to slice all entries
-        slice_indices[-1] = slice(None)
-
-        # Convert list of slices to a tuple (as numpy expects a tuple for slicing)
-        slice_tuple = tuple(slice_indices)
-
-        # Assemble
+            raise ValueError("Port index exceeds number of inlet ports.")
+        idx = _legacy_port_slice(self, "inlet", port_index)
         s_split = self.s_split
-        for component, entry in inlet_port_state.items():
-            s_split[component][slice_tuple] = entry
+        for entry, value in inlet_port_state.items():
+            s_split[entry][idx] = value
 
     def get_outlet_port_state(self, port_index: int) -> dict[str, np.ndarray]:
-        """
-        Retrieve the state for a specified outlet port.
-
-        Parameters
-        ----------
-        port_index : int
-            The index of the port in the outlet port dimension to retrieve.
-
-        Returns
-        -------
-        Dict[str, np.ndarray]
-            A dictionary mapping each state entry to its current values at the outlet
-            port.
-
-        Raises
-        ------
-        Exception
-            If port index exceeds number of outlet ports.
-
-        """
         if port_index > (self.n_outlet_ports - 1):
             raise ValueError("Port index exceeds number of outlet ports.")
+        idx = _legacy_port_slice(self, "outlet", port_index)
+        return {entry: self.s_split[entry][idx] for entry in self.entries}
 
-        # Create a slicing object dynamically
-        slice_indices = [-1] * (self.n_dimensions + 1)
+    def validate_coupling_structure(self, coupling_structure: dict[str, int]) -> bool:
+        flag = True
+        for entry, n_entries in coupling_structure:
+            if entry not in self.entries:
+                import warnings
+                warnings.warn(f"Entry '{entry}' is not found in entries.")
+                flag = False
+            elif n_entries != self.entries[entry]:
+                import warnings
+                warnings.warn(
+                    f"Entry '{entry}' does not have shape {self.entries[entry]}."
+                )
+                flag = False
+        return flag
 
-        port_dim_index = self.outlet_port_mapping or -1
-        if isinstance(port_dim_index, str):
-            dim_keys = list(self.dimensions.keys())
-            port_dim_index = dim_keys.index(port_dim_index)
-
-        # Set the slice for the port dimension to the specific index
-        slice_indices[port_dim_index] = port_index
-
-        # State entries are always the last dimension, so set it to slice all entries
-        slice_indices[-1] = slice(None)
-
-        # Convert list of slices to a tuple (as numpy expects a tuple for slicing)
-        slice_tuple = tuple(slice_indices)
-
-        # Assemble
-        s_split = self.s_split
-        outlet_port_state = {}
-
-        for component, n_entries in self.entries.items():
-            outlet_port_state[component] = s_split[component][slice_tuple]
-
-        return outlet_port_state
-
-    def __getitem__(self, entry) -> np.ndarray:
-        """
-        Get state entry array indexed by entry name.
-
-        Parameters
-        ----------
-        entry : str
-            Name of the state entry.
-
-        Returns
-        -------
-        np.ndarray
-            State of the corresponding entry.
-
-        Raises
-        ------
-        KeyError
-            If entry not in State
-
-        """
-        try:
-            return self.s_split[entry]
-        except KeyError:
-            raise KeyError("Not a valid state.")
-
-    def __setitem__(self, entry, value: np.ndarray) -> None:
-        """
-        Set state entry array indexed by entry name.
-
-        Parameters
-        ----------
-        entry : str
-            Name of the state entry.
-        value : np.ndarray
-            New value to set for the corresponding entry.
-
-        Raises
-        ------
-        KeyError
-            If entry is not in State.
-        ValueError
-            If the shape of the value does not match the expected shape for the entry.
-
-        """
-        if entry not in self.entries:
-            raise KeyError("Not a valid state.")
-
-        self.s_split[entry][:] = value
+    # ── dunder ────────────────────────────────────────────────────────────
 
     def __str__(self) -> str:
-        """str: String representation of the State instance."""
         return self.name
 
     def __repr__(self) -> str:
-        """str: String representation of the State instance."""
-        n_inlet_ports = self.n_inlet_ports
-        port_mapping = self.inlet_port_mapping
-        if n_inlet_ports > 0 and port_mapping is not None:
-            n_inlet_ports = port_mapping
-            n_inlet_ports = f"'{port_mapping}'"
-
-        n_outlet_ports = self.n_outlet_ports
-        port_mapping = self.outlet_port_mapping
-        if n_outlet_ports > 0 and port_mapping is not None:
-            n_outlet_ports = f"'{port_mapping}'"
-
         return (
             f"State(name='{self.name}', "
-            f"dimensions={self.dimensions}, "
-            f"entries={self.entries}, "
-            f"n_inlet_ports={n_inlet_ports}, "
-            f"n_outlet_ports={n_outlet_ports})"
+            f"geometry={self._geometry!r}, "
+            f"entries={self.entries})"
         )
 
 
-# %%
+# ── helpers ────────────────────────────────────────────────────────────────
 
+def _legacy_port_slice(
+    state: State, port_type: str, port_index: int
+) -> tuple:
+    """Build a slice tuple for legacy port access (used by old unit ops)."""
+    n_dims = len(state.dimension_shape)
+
+    if port_type == "inlet":
+        mapping = state.inlet_port_mapping
+        face_index = 0
+    else:
+        mapping = state.outlet_port_mapping
+        face_index = -1
+
+    slice_indices = [face_index] * (n_dims + 1)
+
+    if mapping is not None:
+        dim_keys = list(state._legacy_ports["dimensions"].keys())
+        port_dim_index = dim_keys.index(mapping)
+        slice_indices[port_dim_index] = port_index
+
+    slice_indices[-1] = slice(None)
+    return tuple(slice_indices)
+
+
+def _geometry_from_legacy(
+    dimensions: dict[str, int],
+    n_inlet_ports: int | str,
+    n_outlet_ports: int | str,
+) -> DiscretizedGeometry:
+    """
+    Build a minimal DiscretizedGeometry from an old-style dimensions dict.
+    Physical parameters (length, radius) are placeholders — this is only for
+    structural compatibility until unit ops are upgraded to pass geometry directly.
+    """
+    from CADETPythonSimulator.geometry import (
+        AngularSymmetry,
+        Cylinder,
+        RadialAngularSymmetry,
+        Sphere,
+        SphericalSymmetry,
+        WellMixed,
+    )
+
+    if not dimensions:
+        return DiscretizedGeometry(Cylinder(length=1.0), WellMixed())
+
+    # normalise: strip optional "n_" prefix for matching
+    n_cells = {k.removeprefix("n_"): v for k, v in dimensions.items()}
+    normalized = list(n_cells.keys())
+
+    # best-effort mapping of legacy dimension names
+    if normalized == ["axial"]:
+        return DiscretizedGeometry(
+            Cylinder(length=1.0), RadialAngularSymmetry(), {"axial": n_cells["axial"]}
+        )
+    if normalized == ["axial", "radial"]:
+        return DiscretizedGeometry(
+            Cylinder(length=1.0, radius=1.0),
+            AngularSymmetry(),
+            {"axial": n_cells["axial"], "radial": n_cells["radial"]},
+        )
+    if normalized == ["radial"]:
+        return DiscretizedGeometry(
+            Sphere(radius=1.0), SphericalSymmetry(), {"radial": n_cells["radial"]}
+        )
+
+    # fallback: treat as 0D
+    return DiscretizedGeometry(Cylinder(length=1.0), WellMixed())
+
+
+# ── factory ────────────────────────────────────────────────────────────────
 
 def state_factory(
     instance: Any,
     name: str,
-    dimensions: tuple[int],
+    dimensions: tuple[str, ...] | dict,
     entries: dict[str, int | str],
     n_inlet_ports: int | str = 0,
     n_outlet_ports: int | str = 0,
+    geometry: DiscretizedGeometry | None = None,
 ) -> State:
     """
-    Initialize a State instance.
+    Create a State, resolving string attribute references on ``instance``.
 
-    Parameters
-    ----------
-    instance : Any
-        instance to initialize
-    name : str
-        Name of the state
-    dimensions : int or tuple
-        The expected dimensions of the state. Individual elements can be either
-        integers or strings (indicating other instance parameters).
-    entries : dict
-        The state entries at each cell. Individual elements can be either
-        integers or strings (indicating other instance parameters).
-    n_inlet_ports: int | str
-        Noumber of inlet Ports
-    n_outlet_ports: int | str
-        Number of outlet Ports
-
+    Accepts either a ``geometry`` (new interface) or the legacy
+    ``dimensions`` tuple / port arguments (old interface).
     """
-    dimensions = {dim: getattr(instance, dim) for dim in dimensions}
-    entries = {
-        entry: (
-            n_entries if isinstance(n_entries, int) else getattr(instance, n_entries)
-        )
-        for entry, n_entries in entries.items()
+    # resolve entries
+    resolved_entries = {
+        entry: (n if isinstance(n, int) else getattr(instance, n))
+        for entry, n in entries.items()
     }
 
-    state = State(
-        name=name,
-        dimensions=dimensions,
-        entries=entries,
-        n_inlet_ports=n_inlet_ports,
-        n_outlet_ports=n_outlet_ports,
+    if geometry is not None:
+        return State(name=name, entries=resolved_entries, geometry=geometry)
+
+    # legacy path: resolve dimensions from instance attributes
+    if isinstance(dimensions, (list, tuple)):
+        resolved_dims = {dim: getattr(instance, dim) for dim in dimensions}
+    else:
+        resolved_dims = dict(dimensions)
+
+    # resolve port counts that reference dimension names
+    resolved_n_inlet = (
+        resolved_dims[n_inlet_ports]
+        if isinstance(n_inlet_ports, str)
+        else n_inlet_ports
+    )
+    resolved_n_outlet = (
+        resolved_dims[n_outlet_ports]
+        if isinstance(n_outlet_ports, str)
+        else n_outlet_ports
     )
 
-    return state
+    return State(
+        name=name,
+        entries=resolved_entries,
+        dimensions=resolved_dims,
+        n_inlet_ports=resolved_n_inlet,
+        n_outlet_ports=resolved_n_outlet,
+    )
