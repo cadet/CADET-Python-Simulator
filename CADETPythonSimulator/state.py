@@ -107,6 +107,17 @@ class State:
     def n_dof(self) -> int:
         return int(np.prod(self._s.shape))
 
+    # ── buffer wiring (one-time setup before solve) ───────────────────────
+
+    def wire_to_buffer(self, buf: np.ndarray, offset: int) -> None:
+        """Replace _s with a shaped view into buf[offset:offset+n_dof].
+
+        Called once by the system before the first solver section.
+        Rebuilds field DataArrays so they point at the new memory.
+        """
+        self._s = buf[offset : offset + self.n_dof].reshape(self._s.shape)
+        self._field = self._build_field()
+
     # ── s access (in-place invariant) ─────────────────────────────────────
 
     @property

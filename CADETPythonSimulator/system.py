@@ -28,6 +28,10 @@ class SystemBase(Structure):
 
         self._t_zero: Optional[float] = None
 
+        self._y_buf: Optional[np.ndarray] = None
+        self._yd_buf: Optional[np.ndarray] = None
+        self._r_buf: Optional[np.ndarray] = None
+
         if not self._coupling_state_structure:
             self._coupling_state_structure: Optional[dict[str, CouplingInterface]] = (
                 None
@@ -63,6 +67,34 @@ class SystemBase(Structure):
             self._residuals[unit_name] = unit_operation.residuals
 
         self._setup_connectivity()
+
+    def wire_states(self) -> None:
+        """Wire all state buffers to three flat system-owned arrays.
+
+        Called once by the Solver before the first section. After this,
+        system.y / y_dot / r are single bulk copies instead of N cascaded
+        per-state copies, and system.r requires no concatenation.
+        """
+        n = self.n_dof
+        # Snapshot current values before replacing _s pointers
+        y_current = self.y
+        yd_current = self.y_dot
+
+        self._y_buf = np.empty(n)
+        self._yd_buf = np.empty(n)
+        self._r_buf = np.empty(n)
+
+        self._y_buf[...] = y_current
+        self._yd_buf[...] = yd_current
+
+        offset = 0
+        for unit in self.unit_operations.values():
+            for name in unit.states:
+                n_state = unit.states[name].n_dof
+                unit.states[name].wire_to_buffer(self._y_buf, offset)
+                unit.state_derivatives[name].wire_to_buffer(self._yd_buf, offset)
+                unit.residuals[name].wire_to_buffer(self._r_buf, offset)
+                offset += n_state
 
     def _setup_connectivity(self):
         """Set up helper Parameters for connectivity."""
@@ -138,6 +170,8 @@ class SystemBase(Structure):
     @property
     def y(self) -> np.ndarray:
         """np.ndarray: State array flattened into one dimension."""
+        if self._y_buf is not None:
+            return self._y_buf
         return np.concatenate(
             [unit_operation.y for unit_operation in self.unit_operations.values()]
         )
@@ -145,6 +179,9 @@ class SystemBase(Structure):
     @y.setter
     def y(self, y: np.ndarray) -> NoReturn:
         """Setter for state in From of y array."""
+        if self._y_buf is not None:
+            self._y_buf[...] = y
+            return
         start_index = 0
         for unit_operation in self.unit_operations.values():
             end_index = start_index + unit_operation.n_dof
@@ -178,6 +215,8 @@ class SystemBase(Structure):
     @property
     def y_dot(self) -> np.ndarray:
         """np.ndarray: State derivative array flattened into one dimension."""
+        if self._yd_buf is not None:
+            return self._yd_buf
         return np.concatenate(
             [unit_operation.y_dot for unit_operation in self.unit_operations.values()]
         )
@@ -185,6 +224,9 @@ class SystemBase(Structure):
     @y_dot.setter
     def y_dot(self, y_dot: np.ndarray) -> NoReturn:
         """Setter for y_dot."""
+        if self._yd_buf is not None:
+            self._yd_buf[...] = y_dot
+            return
         start_index = 0
         for unit_operation in self.unit_operations.values():
             end_index = start_index + unit_operation.n_dof
@@ -202,6 +244,8 @@ class SystemBase(Structure):
     @property
     def r(self) -> np.ndarray:
         """np.ndarray: Residual array flattened into one dimension."""
+        if self._r_buf is not None:
+            return self._r_buf
         return np.concatenate(
             [unit_operation.r for unit_operation in self.unit_operations.values()]
         )
@@ -209,6 +253,9 @@ class SystemBase(Structure):
     @r.setter
     def r(self, r: np.ndarray) -> NoReturn:
         """Setter for r."""
+        if self._r_buf is not None:
+            self._r_buf[...] = r
+            return
         start_index = 0
         for unit_operation in self.unit_operations.values():
             end_index = start_index + unit_operation.n_dof

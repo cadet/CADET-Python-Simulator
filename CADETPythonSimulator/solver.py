@@ -155,8 +155,8 @@ class Solver(Structure):
 
     def solve(self) -> NoReturn:
         """Simulate the system."""
-        # self.initialize_system()
         self.initialize_solution_recorder()
+        self._system.wire_states()
 
         for section in self.sections[:-1]:
             self.solve_section(section)
