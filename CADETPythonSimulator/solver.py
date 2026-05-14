@@ -3,6 +3,7 @@ from typing import NoReturn, Optional
 from addict import Dict
 import numpy as np
 import numpy.typing as npt
+import xarray as xr
 from scikits.odes.dae import dae
 
 from CADETProcess.dataStructure import Structure
@@ -91,27 +92,20 @@ class Solver(Structure):
         r[...] = self._system.r
 
     def initialize_solution_recorder(self) -> NoReturn:
-        """
-        Initialize the solution recorder for all unit_operations.
-
-        Iterates over each unit in the system and initializes an empty numpy array for
-        each state variable within the unit. The structure and size of the array for
-        each state variable are determined by the unit's state structure.
-        """
-        self.unit_solutions: dict[str, dict] = {}
-        self.time_solutions: np.ndarray = np.empty((0,))
+        """Initialize per-entry accumulation lists for all unit operation states."""
+        self._time_list: list[float] = []
+        self._y_lists: dict = {}
+        self._yd_lists: dict = {}
 
         for unit in self._system.unit_operations.values():
-            self.unit_solutions[unit.name]: dict[str, dict] = {}
-            for state_name, state in unit.states.items():
-                self.unit_solutions[unit.name][state_name]: dict[str, dict] = {}
-                for entry, dim in state.entries.items():
-                    self.unit_solutions[unit.name][state_name][entry]:\
-                        dict[str, np.ndarray] = {}
-                    self.unit_solutions[unit.name][state_name][entry]['values'] =\
-                        np.empty((0, dim))
-                    self.unit_solutions[unit.name][state_name][entry]['derivatives'] =\
-                        np.empty((0, dim))
+            self._y_lists[unit.name] = {
+                s: {e: [] for e in state.entries}
+                for s, state in unit.states.items()
+            }
+            self._yd_lists[unit.name] = {
+                s: {e: [] for e in state.entries}
+                for s, state in unit.state_derivatives.items()
+            }
 
     def write_solution(
             self,
@@ -119,39 +113,69 @@ class Solver(Structure):
             y_history: np.ndarray,
             y_dot_history: np.ndarray
         ) -> NoReturn:
+        """Snapshot all state entries at each time step and append to accumulation lists.
+
+        Sets system.y / y_dot for each step so state views reflect the correct values,
+        then restores the system to its state before this call.
         """
-        Update the solution recorder for each unit with the current state.
+        saved_y = self._system.y.copy()
+        saved_yd = self._system.y_dot.copy()
 
-        Iterates over each unit, to extract the relevant portions of `y` and `y_dot`.
-        The current state of each unit is determined by splitting `y` according to each
-        unit's requirements.
+        for i, t in enumerate(times):
+            self._system.y = y_history[i]
+            self._system.y_dot = y_dot_history[i]
+            self._time_list.append(float(t))
 
-        Parameters
-        ----------
-        times : np.ndarray
-            Time history to save
-        y_history : np.ndarray
-            Calculatet y to save
-        y_dot_history : np.ndarray
-            Calculated derivatives of y to save
+            for unit in self._system.unit_operations.values():
+                for state_name, state in unit.states.items():
+                    for entry in state.entries:
+                        self._y_lists[unit.name][state_name][entry].append(
+                            state.field[entry].values.copy()
+                        )
+                for state_name, state in unit.state_derivatives.items():
+                    for entry in state.entries:
+                        self._yd_lists[unit.name][state_name][entry].append(
+                            state.field[entry].values.copy()
+                        )
 
-        """
-        it = 0
-        for state in self.unit_solutions.values():
-            for state_dict in state.values():
-                for sol_tuple in state_dict.values():
-                    itp = it + sol_tuple["values"].shape[1]
+        self._system.y = saved_y
+        self._system.y_dot = saved_yd
 
-                    y = y_history[:, it:itp]
-                    ydot = y_dot_history[:, it:itp]
+    @property
+    def time_solutions(self) -> np.ndarray:
+        """Time points at which solution snapshots were recorded."""
+        return np.array(self._time_list)
 
-                    sol_tuple["values"] = np.concatenate((sol_tuple["values"], y))
-                    sol_tuple["derivatives"] = np.concatenate((
-                        sol_tuple["derivatives"], ydot
-                    ))
-                    it = itp
+    @property
+    def unit_solutions(self) -> dict[str, dict[str, dict[str, xr.DataArray]]]:
+        """Recorded state values: unit → state → entry → DataArray(time, ...)."""
+        return self._build_datasets(self._y_lists)
 
-        self.time_solutions = np.concatenate((self.time_solutions, times))
+    @property
+    def unit_derivatives(self) -> dict[str, dict[str, dict[str, xr.DataArray]]]:
+        """Recorded state derivatives: unit → state → entry → DataArray(time, ...)."""
+        return self._build_datasets(self._yd_lists)
+
+    def _build_datasets(
+        self,
+        lists: dict,
+    ) -> dict[str, dict[str, dict[str, xr.DataArray]]]:
+        times = self.time_solutions
+        result = {}
+        for unit in self._system.unit_operations.values():
+            result[unit.name] = {}
+            for state_name, state in unit.states.items():
+                result[unit.name][state_name] = {}
+                sample = state.field
+                for entry in state.entries:
+                    da_sample = sample[entry]
+                    stacked = np.stack(lists[unit.name][state_name][entry], axis=0)
+                    coords = {"time": times, **dict(da_sample.coords)}
+                    dims = ["time"] + list(da_sample.dims)
+                    result[unit.name][state_name][entry] = xr.DataArray(
+                        stacked, coords=coords, dims=dims, name=entry
+                    )
+        return result
 
     def solve(self) -> NoReturn:
         """Simulate the system."""
