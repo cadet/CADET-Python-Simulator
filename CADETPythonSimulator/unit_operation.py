@@ -803,6 +803,8 @@ class DeadEndFiltration(UnitOperationBase):
                 sub_start_index = start_index
                 for entry, dim in state_derivative.entries.items():
                     sub_end_index = sub_start_index + dim
+                    # TODO: bug — `state != "pressure"` is always True here (state == "cake");
+                    # should be `entry != "pressure"` so pressure is set on states, not state_derivatives
                     if state != "pressure":
                         self.state_derivatives[state][entry] = y_init[
                             sub_start_index:sub_end_index
@@ -982,7 +984,6 @@ class _2DGRM(UnitOperationBase):
     n_radial = UnsignedInteger(default=3)
     n_particle = UnsignedInteger(default=5)
 
-    # vector ports: port_index selects a radial slice
     _inlet_ports = {"inlet": "bulk"}
     _outlet_ports = {"outlet": "bulk"}
 

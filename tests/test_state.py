@@ -195,9 +195,6 @@ class TestStateGeometryInterface:
 
 
 # %% Test coupling structure
-# TODO: Add Test for coupling structure
-# TODO: Add Test for setting state if not all entries are in coupling structure
-
 # %% Run tests
 
 if __name__ == "__main__":

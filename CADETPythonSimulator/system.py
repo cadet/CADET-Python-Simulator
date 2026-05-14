@@ -26,8 +26,6 @@ class Connection:
     dest: str
     dest_port: str
     flow_rate: float
-    source_index: int | None = None
-    dest_index: int | None = None
 
 
 class SystemBase(Structure):
@@ -263,20 +261,17 @@ class SystemBase(Structure):
         """Parse and store connections for the current section."""
         self._connections = [self._parse_connection(c) for c in connections]
 
-    def _resolve_endpoint(
-        self, endpoint, direction: str
-    ) -> tuple[str, str, int | None]:
-        """Return (unit_name, port_name, port_index) from a connection endpoint.
+    def _resolve_endpoint(self, endpoint, direction: str) -> tuple[str, str]:
+        """Return (unit_name, port_name) from a connection endpoint.
 
-        Accepts a plain unit name (str), a (unit, port) tuple, or a
-        (unit, port, index) tuple for vector ports.
+        Accepts a plain unit name (str) or a (unit, port) tuple.
         """
         if isinstance(endpoint, str):
             unit_name = endpoint
             unit = self.unit_operations[unit_name]
             ports = unit._outlet_ports if direction == "outlet" else unit._inlet_ports
             if len(ports) == 1:
-                return unit_name, next(iter(ports)), None
+                return unit_name, next(iter(ports))
             if len(ports) == 0:
                 raise ValueError(
                     f"Unit '{unit_name}' has no {direction} ports."
@@ -287,9 +282,7 @@ class SystemBase(Structure):
             )
         if isinstance(endpoint, (tuple, list)):
             if len(endpoint) == 2:
-                return str(endpoint[0]), str(endpoint[1]), None
-            if len(endpoint) == 3:
-                return str(endpoint[0]), str(endpoint[1]), int(endpoint[2])
+                return str(endpoint[0]), str(endpoint[1])
             raise ValueError(f"Invalid endpoint spec: {endpoint!r}")
         raise TypeError(f"Invalid endpoint type: {type(endpoint)}")
 
@@ -303,16 +296,14 @@ class SystemBase(Structure):
             flow_rate = float(conn["flow_rate"])
         else:
             src_ep, dst_ep, flow_rate = conn[0], conn[1], float(conn[2])
-        src_name, src_port, src_idx = self._resolve_endpoint(src_ep, "outlet")
-        dst_name, dst_port, dst_idx = self._resolve_endpoint(dst_ep, "inlet")
+        src_name, src_port = self._resolve_endpoint(src_ep, "outlet")
+        dst_name, dst_port = self._resolve_endpoint(dst_ep, "inlet")
         return Connection(
             source=src_name,
             source_port=src_port,
             dest=dst_name,
             dest_port=dst_port,
             flow_rate=flow_rate,
-            source_index=src_idx,
-            dest_index=dst_idx,
         )
 
     def update_ports(self) -> None:
