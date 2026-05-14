@@ -3,6 +3,7 @@ from typing import NoReturn
 import numpy as np
 import pytest
 
+from CADETPythonSimulator.exception import NotInitializedError
 from CADETPythonSimulator.unit_operation import UnitOperationBase
 
 from conftest import (
@@ -158,7 +159,7 @@ class TestUnitStateStructure:
 
     def test_initialize(self, unit_operation: UnitOperationBase, expected: dict):
         """Check exception raising while not initialized."""
-        with pytest.raises(Exception):
+        with pytest.raises(NotInitializedError):
             unit_operation.states
 
     def test_state_structure(self, unit_operation: UnitOperationBase, expected: dict):
@@ -179,7 +180,7 @@ class TestUnitStateStructure:
     def test_set_inlet_state(self, unit_operation: UnitOperationBase, expected: dict):
         """Test set_port_state for inlet ports."""
         if unit_operation.n_inlet_ports == 0:
-            with pytest.raises(Exception):
+            with pytest.raises(ValueError):
                 unit_operation.set_port_state("inlet", {"c": [0.1, 0.2]})
         else:
             for i, port_name in enumerate(unit_operation._inlet_ports):
@@ -197,7 +198,7 @@ class TestUnitStateStructure:
     def test_get_outlet_state(self, unit_operation: UnitOperationBase, expected: dict):
         """Test get_port_state for outlet ports."""
         if unit_operation.n_outlet_ports == 0:
-            with pytest.raises(Exception):
+            with pytest.raises(ValueError):
                 unit_operation.get_port_state("outlet")
         else:
             for i, port_name in enumerate(unit_operation._outlet_ports):
