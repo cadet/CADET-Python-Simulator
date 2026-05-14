@@ -3,152 +3,16 @@ from typing import NoReturn
 import numpy as np
 import pytest
 
-from CADETPythonSimulator.componentsystem import CPSComponentSystem
+from CADETPythonSimulator.unit_operation import UnitOperationBase
 
-from CADETPythonSimulator.unit_operation import (
-    UnitOperationBase,
-    Inlet,
-    Outlet,
-    Cstr,
-    DeadEndFiltration,
-    CrossFlowFiltration,
-    _2DGRM,
+from conftest import (
+    InletFixture,
+    OutletFixture,
+    CstrFixture,
+    DeadEndFiltrationFixture,
+    CrossFlowFiltrationFixture,
+    _2DGRMFixture,
 )
-
-from CADETPythonSimulator.rejection import StepCutOff
-from CADETPythonSimulator.viscosity import LogarithmicMixingViscosity
-
-
-# %% Unit Operation Fixtures
-class TwoComponentFixture(CPSComponentSystem):
-    """Component Fixture class wiht two pre set components."""
-
-    def __init__(self, *args, **kwargs):
-        """Initialize the component with parameters."""
-        super().__init__(*args, **kwargs)
-
-        self.add_component(
-            "A", molecular_weight=1e3, density=1e3, molecular_volume=1, viscosity=1
-        )
-        self.add_component(
-            "B", molecular_weight=10e3, density=1e3, molecular_volume=1, viscosity=1
-        )
-
-
-class UnitOperationFixture(UnitOperationBase):
-    """Unit Operation Fixture Class for testing purpose."""
-
-    class_cps = TwoComponentFixture()
-
-    def __init__(self, component_system, name, *args, **kwargs):
-        """Initialize the unit operation."""
-        if component_system is None:
-            component_system = UnitOperationFixture.class_cps
-        super().__init__(component_system, name, *args, **kwargs)
-
-    def add_section(self, *args, **kwargs):
-        """Add section depending on unit operation."""
-        pass
-
-    def initialize_state(self) -> NoReturn:
-        """Initialize unit operation dependend for testing purpose."""
-        super().initialize_state()
-        self.add_section()
-
-
-class InletFixture(UnitOperationFixture, Inlet):
-    """Inlet fixture class for testing purpose, inherits from UnitOperationFixture."""
-
-    def __init__(
-        self,
-        component_system=None,
-        name="inlet",
-        c_poly=None,
-        viscosity=1e-3,
-        *args,
-        **kwargs,
-    ):
-        """Initialize class for inlet fixture."""
-        super().__init__(component_system, name, *args, **kwargs)
-
-        if c_poly is None:
-            c_poly = np.arange(self.component_system.n_comp)
-        self.c_poly = c_poly
-
-        self.viscosity = viscosity
-
-    def add_section(self, c_poly=None, start=0, end=1):
-        """For testing purpose, c_poly is set."""
-        if c_poly is None:
-            c_poly = self.c_poly
-        self.update_parameters(start, end, {"c_poly": c_poly})
-
-
-class OutletFixture(UnitOperationFixture, Outlet):
-    """Oulet fixture class for testing purpose, inherits from UnitOperationFixture."""
-
-    def __init__(self, component_system=None, name="outlet", *args, **kwargs):
-        """Initialize the outlet fixture."""
-        super().__init__(component_system, name, *args, **kwargs)
-
-
-class CstrFixture(UnitOperationFixture, Cstr):
-    """Cstr fixture class for testing purpose, inherits from UnitOperationFixture."""
-
-    def __init__(self, component_system=None, name="cstr", *args, **kwargs):
-        """Initialize the cstr fixture."""
-        super().__init__(component_system, name, *args, **kwargs)
-
-
-class DeadEndFiltrationFixture(UnitOperationFixture, DeadEndFiltration):
-    """DEF fixture class for testing purpose, inherits from UnitOperationFixture."""
-
-    def __init__(
-        self,
-        component_system=None,
-        name="dead_end_filtration",
-        membrane_area=1,
-        membrane_resistance=1,
-        specific_cake_resistance=1,
-        solution_viscosity=1,
-        rejection_model=StepCutOff(cutoff_weight=0),
-        viscosity_model=LogarithmicMixingViscosity(),
-        *args,
-        **kwargs,
-    ):
-        """Initialize DEF fixture with default parameter and default rejection."""
-        super().__init__(component_system, name, *args, **kwargs)
-
-        self.membrane_area = membrane_area
-        self.membrane_resistance = membrane_resistance
-        self.specific_cake_resistance = specific_cake_resistance
-        self.rejection_model = rejection_model
-        self.solution_viscosity = solution_viscosity
-        self.viscosity_model = viscosity_model
-
-
-class CrossFlowFiltrationFixture(UnitOperationFixture, CrossFlowFiltration):
-    """CFF fixture class for testing purpose, inherits from UnitOperationFixture."""
-
-    def __init__(
-        self,
-        component_system=None,
-        name="cross_flow_filtration",
-        membrane_area=1,
-        membrane_resistance=1e-9,
-        *args,
-        **kwargs,
-    ):
-        """Initialize CFF fixture with default parameter and defaultrejection."""
-        super().__init__(component_system, name, *args, **kwargs)
-
-        self.membrane_area = membrane_area
-        self.membrane_resistance = membrane_resistance
-
-
-class _2DGRMFixture(UnitOperationFixture, _2DGRM):
-    def __init__(self, component_system=None, name="2DGRM", *args, **kwargs):
-        super().__init__(component_system, name, *args, **kwargs)
 
 
 # %% Unit Operation State Structure

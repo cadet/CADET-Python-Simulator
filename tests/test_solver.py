@@ -1,83 +1,9 @@
 import numpy as np
 import pytest
-from addict import Dict
-from typing import Optional
 
-from test_unit_operation import (
-    InletFixture,
-    OutletFixture,
-    DeadEndFiltrationFixture,
-)
-from CADETProcess.dataStructure import Structure
-from CADETPythonSimulator.system import FlowSystem
 from CADETPythonSimulator.solver import Solver
 
-
-class SolveDummy(Structure):
-    """Dummy class to Simulate a Solution Object of DAE."""
-
-    def __init__(self, test_dict=None):
-        """Construct a Solution Dummy."""
-        self._test_dict: Optional[Dict] = test_dict
-
-    @property
-    def values(self):
-        """Values Property to imitate."""
-        return self._test_dict
-
-
-# %% System Fixtures
-class SolverFixture(Solver):
-    """Solver Fixture Class for testing Solver."""
-
-    def __init__(self, system=None, sections=None, *args, **kwargs):
-        """Init of the Solver Fixture with pre set sections."""
-        if sections is None:
-            sections = [
-                {
-                    "start": 0,
-                    "end": 10,
-                    "connections": [
-                        ("inlet", "dead_end_filtration", 1e-3),
-                        ("dead_end_filtration", "outlet", 1e-3),
-                    ],
-                    "section_states": {
-                        "inlet": {"c_poly": [[1, 0, 0, 0], [2, 0, 0, 0]]}
-                    },
-                },
-                {
-                    "start": 10,
-                    "end": 12,
-                    "connections": [
-                        ("inlet", "dead_end_filtration", 1e-3),
-                        ("dead_end_filtration", "outlet", 0.5e-3),
-                    ],
-                    "section_states": {
-                        "inlet": {"c_poly": [[0, 1, 0, 0], [1, 0, 0, 0]]}
-                    },
-                },
-            ]
-
-        if system is None:
-            system = SystemFixture()
-
-        super().__init__(system, sections, *args, **kwargs)
-
-
-class SystemFixture(FlowSystem):
-    """System Fixture Class for Testing purposes."""
-
-    def __init__(self, unit_operations=None, *args, **kwargs):
-        """Init System Fixture with set untitoperations when not given."""
-        if unit_operations is None:
-            unit_operations = [
-                InletFixture(),
-                DeadEndFiltrationFixture(),
-                OutletFixture(),
-            ]
-
-        super().__init__(unit_operations, *args, **kwargs)
-        self.initialize_state()
+from conftest import SolveDummy, SystemFixture, SolverFixture
 
 
 # %% State Structure
