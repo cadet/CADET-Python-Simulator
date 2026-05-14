@@ -48,22 +48,22 @@ bulk["c"][:] = 0   # mutates _s in place
 
 ### `state.field["c"]` — xr.DataArray view
 
-Created once at `__init__` time. Carries coordinate labels from the geometry. The underlying
-data is the same numpy memory — mutations to `_s` (or via `state["c"]`) are immediately
-visible through `field`.
+`state.field` calls `_build_field()` on every access and returns a fresh dict of
+zero-copy `xr.DataArray` wrappers over the current `_s` memory. Because there is no cached
+`_field` attribute, there is no stale-reference risk across `wire_to_buffer()`.
 
 ```python
 bulk.field["c"]                        # xr.DataArray, dims=["axial", "component"]
-bulk.field["c"].sel(component=0)       # first component, still a view
+bulk.field["c"].sel(component=0)       # first component, still a view into _s
 bulk.field["V"]                        # xr.DataArray, dims=["axial"]  (scalar entry, no component dim)
 ```
 
 Multi-component entries get a `"component"` dimension. Single-component entries are squeezed
-— no trailing `"component"` dim.
+— no trailing size-1 dim.
 
 :::{note}
-`state.field` is for **reading** labeled data and for passing to plotting / output routines.
-For residual computation, use `state["entry"]` — it avoids xarray overhead on the hot path.
+`state.field` is for **reading** labeled data and for output routines.
+For residual computation, use `state["entry"]` — it avoids the `_build_field()` overhead on the hot path.
 :::
 
 ## Entries
@@ -119,7 +119,7 @@ Unit operations only read from their own ports; they never call port methods on 
 
 - `state._s` is never replaced — all setters use `self._s[...] = value`
 - `state["entry"]` returns a numpy **view**, not a copy
-- `state.field["entry"]` is an xr.DataArray **view**, created once, always current
+- `state.field["entry"]` is an xr.DataArray zero-copy **view** into `_s`, rebuilt on each `field` access
 - Port access (`get_port_state`, `set_port_state`) indexes directly into `_s`
 
 ## Solver integration
@@ -134,5 +134,9 @@ y (flat, owned by IDA)
    └─ state.field["c"]  xr.DataArray — labeled access
 ```
 
-At `write_solution()` time, data is **copied** into xr.DataArray output with geometry
-coordinates and time attached. The live state buffer is always numpy.
+At `write_solution()` time, the solver replays each recorded time step by setting
+`system.y` to the corresponding row of `y_history`. This updates all wired `_s` views.
+For each state, `state.field[entry].values.copy()` captures an owned snapshot.
+After all steps the snapshots are stacked into `xr.DataArray` objects with a `time` dim
+prepended — shape `(T, *geometry_dims, n_comp?)`. The live state buffer is always numpy;
+xarray only appears at the output boundary.
