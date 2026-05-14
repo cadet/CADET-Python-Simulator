@@ -351,17 +351,13 @@ class SystemBase(Structure):
             if total_Q > 0:
                 unit_Q_list = [
                     (
-                        self.unit_operations[c.source].get_port_state(
-                            c.source_port, c.source_index or 0
-                        ),
+                        self.unit_operations[c.source].get_port_state(c.source_port),
                         c.flow_rate,
                     )
                     for c in conns
                 ]
                 coupled = self.coupled_state_func(unit_Q_list)
-                dest_unit.set_port_state(
-                    dest_port, coupled, conns[0].dest_index or 0
-                )
+                dest_unit.set_port_state(dest_port, coupled)
 
     def compute_residual(self, t: float, y: np.ndarray, y_dot: np.ndarray) -> NoReturn:
         """

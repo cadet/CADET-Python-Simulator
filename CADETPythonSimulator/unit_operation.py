@@ -16,6 +16,12 @@ from CADETProcess.dynamicEvents import Section
 
 from CADETPythonSimulator.componentsystem import CPSComponentSystem
 from CADETPythonSimulator.exception import NotInitializedError
+from CADETPythonSimulator.geometry import (
+    Cylinder,
+    DiscretizedGeometry,
+    RadialAngularSymmetry,
+    WellMixed,
+)
 from CADETPythonSimulator.state import State, state_factory
 from CADETPythonSimulator.residual import (
     calculate_residual_volume_cstr,
@@ -52,6 +58,10 @@ class UnitOperationBase(Structure):
     _inlet_ports: dict[str, str] = {}
     _outlet_ports: dict[str, str] = {}
 
+    def _make_state_geometry(self, state_name: str) -> DiscretizedGeometry:
+        """Return the DiscretizedGeometry for a given state block. Defaults to 0D."""
+        return DiscretizedGeometry(Cylinder(length=1.0), WellMixed())
+
     def __init__(self, component_system, name, *args, **kwargs):
         """Construct the UnitOperationBase."""
         self.component_system = component_system
@@ -85,14 +95,15 @@ class UnitOperationBase(Structure):
         self._residuals = {}
         for state_block in self._state_structures:
             state_structure = getattr(self, state_block)
+            geometry = self._make_state_geometry(state_block)
 
-            state = state_factory(self, state_block, **state_structure)
+            state = state_factory(self, state_block, geometry=geometry, **state_structure)
             self._states[state.name] = state
 
-            state_derivative = state_factory(self, state_block, **state_structure)
+            state_derivative = state_factory(self, state_block, geometry=geometry, **state_structure)
             self._state_derivatives[state_derivative.name] = state_derivative
 
-            residual = state_factory(self, state_block, **state_structure)
+            residual = state_factory(self, state_block, geometry=geometry, **state_structure)
             self._residuals[residual.name] = residual
 
         self._Q_in = np.zeros(self.n_inlet_ports)
@@ -232,28 +243,21 @@ class UnitOperationBase(Structure):
         """int: Number of outlet ports."""
         return len(self._outlet_ports)
 
-    def get_port_state(
-        self, port_name: str, port_index: int = 0
-    ) -> dict[str, np.ndarray]:
+    def get_port_state(self, port_name: str) -> dict[str, np.ndarray]:
         """Return entry arrays at the named outlet port."""
         try:
             state_name = self._outlet_ports[port_name]
         except KeyError:
             raise ValueError(f"'{port_name}' is not an outlet port of '{self.name}'.")
-        return self.states[state_name].get_outlet_port_state(port_index)
+        return self.states[state_name].get_port_state("outlet")
 
-    def set_port_state(
-        self,
-        port_name: str,
-        values: dict[str, np.ndarray],
-        port_index: int = 0,
-    ) -> None:
+    def set_port_state(self, port_name: str, values: dict[str, np.ndarray]) -> None:
         """Set entry values at the named inlet port (in-place)."""
         try:
             state_name = self._inlet_ports[port_name]
         except KeyError:
             raise ValueError(f"'{port_name}' is not an inlet port of '{self.name}'.")
-        self.states[state_name].set_inlet_port_state(values, port_index)
+        self.states[state_name].set_port_state("inlet", values)
 
     @abstractmethod
     def compute_residual(self, t: float) -> NoReturn:
@@ -375,7 +379,7 @@ class Inlet(UnitOperationBase):
     _inlet_ports = {}
     _outlet_ports = {"outlet": "outlet"}
 
-    outlet = {"dimensions": (), "entries": {"c": "n_comp"}, "n_outlet_ports": 1}
+    outlet = {"entries": {"c": "n_comp"}}
     _state_structures = ["outlet"]
 
     def compute_residual(self, t: float) -> NoReturn:
@@ -427,7 +431,7 @@ class DistributionInlet(UnitOperationBase):
     _inlet_ports = {}
     _outlet_ports = {"outlet": "outlet"}
 
-    outlet = {"dimensions": (), "entries": {"c": "n_comp"}, "n_outlet_ports": 1}
+    outlet = {"entries": {"c": "n_comp"}}
     _state_structures = ["outlet"]
     _parameters = ["section_number"]
     _section_dependent_parameters = ["section_number"]
@@ -489,7 +493,7 @@ class ConcentrationDistributionInlet(UnitOperationBase):
     _inlet_ports = {}
     _outlet_ports = {"outlet": "outlet"}
 
-    outlet = {"dimensions": (), "entries": {"c": "n_comp"}, "n_outlet_ports": 1}
+    outlet = {"entries": {"c": "n_comp"}}
     _state_structures = ["outlet"]
     _parameters = ["section_number"]
     _section_dependent_parameters = ["section_number"]
@@ -532,7 +536,7 @@ class Outlet(UnitOperationBase):
     _inlet_ports = {"inlet": "inlet"}
     _outlet_ports = {}
 
-    inlet = {"dimensions": (), "entries": {"c": "n_comp"}, "n_inlet_ports": 1}
+    inlet = {"entries": {"c": "n_comp"}}
     _state_structures = ["inlet"]
 
     def compute_residual(self, t: float) -> NoReturn:
@@ -554,12 +558,8 @@ class Cstr(UnitOperationBase):
     _inlet_ports = {"inlet": "inlet"}
     _outlet_ports = {"outlet": "bulk"}
 
-    inlet = {"dimensions": (), "entries": {"c": "n_comp"}, "n_inlet_ports": 1}
-    bulk = {
-        "dimensions": (),
-        "entries": {"c": "n_comp", "Volume": 1},
-        "n_outlet_ports": 1,
-    }
+    inlet = {"entries": {"c": "n_comp"}}
+    bulk = {"entries": {"c": "n_comp", "Volume": 1}}
     _state_structures = ["inlet", "bulk"]
 
     def compute_residual(self, t: float) -> NoReturn:
@@ -639,22 +639,11 @@ class DeadEndFiltration(UnitOperationBase):
     _inlet_ports = {"inlet": "inlet"}
     _outlet_ports = {"outlet": "permeate_tank"}
 
-    inlet = {
-        "dimensions": {},
-        "entries": {"c": "n_comp", "n": "n_comp"},
-        "n_inlet_ports": 1,
-    }
-    permeate = {"dimensions": (), "entries": {"c": "n_comp", "n": "n_comp", "V": 1}}
-    retentate = {"dimensions": (), "entries": {"c": "n_comp", "n": "n_comp", "V": 1}}
-    cake = {
-        "dimensions": (),
-        "entries": {"c": "n_comp", "n": "n_comp", "V": 1, "pressure": 1},
-    }
-    permeate_tank = {
-        "dimensions": (),
-        "entries": {"c": "n_comp", "n": "n_comp", "V": 1},
-        "n_outlet_ports": 1,
-    }
+    inlet = {"entries": {"c": "n_comp", "n": "n_comp"}}
+    permeate = {"entries": {"c": "n_comp", "n": "n_comp", "V": 1}}
+    retentate = {"entries": {"c": "n_comp", "n": "n_comp", "V": 1}}
+    cake = {"entries": {"c": "n_comp", "n": "n_comp", "V": 1, "pressure": 1}}
+    permeate_tank = {"entries": {"c": "n_comp", "n": "n_comp", "V": 1}}
 
     _state_structures = ["inlet", "permeate", "retentate", "cake", "permeate_tank"]
 
@@ -937,18 +926,14 @@ class CrossFlowFiltration(UnitOperationBase):
     _inlet_ports = {"inlet": "retentate"}
     _outlet_ports = {"retentate": "retentate", "permeate": "permeate"}
 
-    retentate = {
-        "dimensions": ("n_axial",),
-        "entries": {"c": "n_comp", "viscosity": 1, "Volume": 1},
-        "n_inlet_ports": 1,
-        "n_outlet_ports": 1,
-    }
-    permeate = {
-        "dimensions": ("n_axial",),
-        "entries": {"c": "n_comp", "viscosity": 1, "Volume": 1},
-        "n_outlet_ports": 1,
-    }
+    retentate = {"entries": {"c": "n_comp", "viscosity": 1, "Volume": 1}}
+    permeate = {"entries": {"c": "n_comp", "viscosity": 1, "Volume": 1}}
     _state_structures = ["retentate", "permeate"]
+
+    def _make_state_geometry(self, state_name: str) -> DiscretizedGeometry:
+        return DiscretizedGeometry(
+            Cylinder(length=1.0), RadialAngularSymmetry(), {"axial": self.n_axial}
+        )
 
     rejection_model = Typed(ty=RejectionBase)
 
@@ -1001,22 +986,9 @@ class _2DGRM(UnitOperationBase):
     _inlet_ports = {"inlet": "bulk"}
     _outlet_ports = {"outlet": "bulk"}
 
-    bulk = {
-        "dimensions": ("n_radial", "n_axial"),
-        "entries": {"c": "n_comp", "viscosity": 1},
-        "n_inlet_ports": "n_radial",
-        "n_outlet_ports": "n_radial",
-    }
-    particle = {
-        "dimensions": ("n_radial", "n_axial", "n_particle"),
-        "entries": {"c": "n_comp", "viscosity": 1, "q": "n_comp"},
-        "n_outlet_ports": 1,
-    }
-    flux = {
-        "dimensions": ("n_radial", "n_axial"),
-        "entries": {"c": "n_comp"},
-        "n_outlet_ports": 1,
-    }
+    bulk = {"entries": {"c": "n_comp", "viscosity": 1}}
+    particle = {"entries": {"c": "n_comp", "viscosity": 1, "q": "n_comp"}}
+    flux = {"entries": {"c": "n_comp"}}
     _state_structures = ["bulk", "particle", "flux"]
 
     def compute_residual(
