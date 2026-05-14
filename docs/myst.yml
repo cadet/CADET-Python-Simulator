@@ -10,6 +10,7 @@ project:
       children:
         - file: concepts/geometry.md
         - file: concepts/state.md
+        - file: concepts/system.md
     - title: API Reference
       children:
         - file: api/geometry.md

@@ -1,3 +1,5 @@
+from collections import defaultdict
+from dataclasses import dataclass
 from typing import NoReturn, Optional
 
 from addict import Dict
@@ -15,6 +17,19 @@ from CADETPythonSimulator.unit_operation import UnitOperationBase
 from CADETPythonSimulator.componentsystem import CPSComponentSystem
 
 
+@dataclass
+class Connection:
+    """A directed flow connection between two unit operation ports."""
+
+    source: str
+    source_port: str
+    dest: str
+    dest_port: str
+    flow_rate: float
+    source_index: int | None = None
+    dest_index: int | None = None
+
+
 class SystemBase(Structure):
     """Base Class Structure for a System."""
 
@@ -24,13 +39,14 @@ class SystemBase(Structure):
         self._state_derivatives: Optional[dict[str, State]] = None
         self._residuals: Optional[dict[str, State]] = None
         self._component_system: Optional[CPSComponentSystem] = None
-        self._connectivity: Optional[np.ndarray] = None
 
         self._t_zero: Optional[float] = None
 
         self._y_buf: Optional[np.ndarray] = None
         self._yd_buf: Optional[np.ndarray] = None
         self._r_buf: Optional[np.ndarray] = None
+
+        self._connections: list[Connection] = []
 
         if not self._coupling_state_structure:
             self._coupling_state_structure: Optional[dict[str, CouplingInterface]] = (
@@ -66,8 +82,6 @@ class SystemBase(Structure):
             self._state_derivatives[unit_name] = unit_operation.state_derivatives
             self._residuals[unit_name] = unit_operation.residuals
 
-        self._setup_connectivity()
-
     def wire_states(self) -> None:
         """Wire all state buffers to three flat system-owned arrays.
 
@@ -96,49 +110,11 @@ class SystemBase(Structure):
                 unit.residuals[name].wire_to_buffer(self._r_buf, offset)
                 offset += n_state
 
-    def _setup_connectivity(self):
-        """Set up helper Parameters for connectivity."""
-        # dict with [origin_index]{unit, port}
-        origin_index_unit_operations = Dict()
-        # Nested dict with [unit_operations][ports]: origin_index in connectivity matrix
-        origin_unit_ports = Dict()
-        origin_counter = 0
-        for i_unit, unit in enumerate(self.unit_operations.items()):
-            for port in range(unit[1].n_outlet_ports):
-                origin_unit_ports[i_unit][port] = origin_counter
-                origin_index_unit_operations[origin_counter] = {
-                    "unit": i_unit,
-                    "port": port,
-                    "name": unit[0],
-                }
-                origin_counter += 1
-        self.origin_unit_ports = origin_unit_ports
-        self.origin_index_unit_operations = origin_index_unit_operations
-        self.n_origin_ports = origin_counter
-
-        # dict with [origin_index]{unit, port}
-        destination_index_unit_operations = Dict()
-        # Nested dict with [unit_operations][ports]: dest*_index in connectivity matrix
-        destination_unit_ports = Dict()
-        destination_counter = 0
-        for i_unit, unit in enumerate(self.unit_operations.items()):
-            for port in range(unit[1].n_inlet_ports):
-                destination_unit_ports[i_unit][port] = destination_counter
-                destination_index_unit_operations[destination_counter] = {
-                    "unit": i_unit,
-                    "port": port,
-                    "name": unit[0],
-                }
-                destination_counter += 1
-        self.destination_unit_ports = destination_unit_ports
-        self.destination_index_unit_operations = destination_index_unit_operations
-        self.n_destination_ports = destination_counter
-
     def _setup_unit_operations(self, unit_operations: list[UnitOperationBase]):
         """
         Set up unit operations.
 
-        Checks wheter every Unit has the same Component system and adds them to a
+        Checks whether every Unit has the same Component system and adds them to a
         dictionary.
 
         Parameters
@@ -147,7 +123,6 @@ class SystemBase(Structure):
             list of UnitOperation that are part of the System
 
         """
-        # TODO: check if all unit_operation satisfy the system
         self._component_system = unit_operations[0].component_system
 
         for unit in unit_operations:
@@ -178,7 +153,7 @@ class SystemBase(Structure):
 
     @y.setter
     def y(self, y: np.ndarray) -> NoReturn:
-        """Setter for state in From of y array."""
+        """Setter for state in Form of y array."""
         if self._y_buf is not None:
             self._y_buf[...] = y
             return
@@ -197,7 +172,7 @@ class SystemBase(Structure):
 
     @y_init.setter
     def y_init(self, y_init: np.ndarray) -> NoReturn:
-        """Setter for state in From of y_init array."""
+        """Setter for state in Form of y_init array."""
         start_index = 0
         for unit_operation in self.unit_operations.values():
             end_index = start_index + unit_operation.n_dof
@@ -273,11 +248,6 @@ class SystemBase(Structure):
         self._coupling_state_structure = coupling_state_structure
 
     @property
-    def connectivity(self) -> np.ndarray:
-        """np.ndarray: Connectivity Matrix."""
-        return self._connectivity
-
-    @property
     def t_zero(self) -> float:
         """float: Initial Time of current Section."""
         return self._t_zero
@@ -287,27 +257,111 @@ class SystemBase(Structure):
         """Setter for Initial Time of current Section."""
         self._t_zero = t0
 
-    def update_system_connectivity(self, connections: list) -> NoReturn:
+    # ── connection API ────────────────────────────────────────────────────
+
+    def set_connections(self, connections: list) -> None:
+        """Parse and store connections for the current section."""
+        self._connections = [self._parse_connection(c) for c in connections]
+
+    def _resolve_endpoint(
+        self, endpoint, direction: str
+    ) -> tuple[str, str, int | None]:
+        """Return (unit_name, port_name, port_index) from a connection endpoint.
+
+        Accepts a plain unit name (str), a (unit, port) tuple, or a
+        (unit, port, index) tuple for vector ports.
         """
-        Update the System connectivity.
+        if isinstance(endpoint, str):
+            unit_name = endpoint
+            unit = self.unit_operations[unit_name]
+            ports = unit._outlet_ports if direction == "outlet" else unit._inlet_ports
+            if len(ports) == 1:
+                return unit_name, next(iter(ports)), None
+            if len(ports) == 0:
+                raise ValueError(
+                    f"Unit '{unit_name}' has no {direction} ports."
+                )
+            raise ValueError(
+                f"Unit '{unit_name}' has multiple {direction} ports "
+                f"{list(ports)}: specify explicitly as (unit_name, port_name)."
+            )
+        if isinstance(endpoint, (tuple, list)):
+            if len(endpoint) == 2:
+                return str(endpoint[0]), str(endpoint[1]), None
+            if len(endpoint) == 3:
+                return str(endpoint[0]), str(endpoint[1]), int(endpoint[2])
+            raise ValueError(f"Invalid endpoint spec: {endpoint!r}")
+        raise TypeError(f"Invalid endpoint type: {type(endpoint)}")
 
-        Parameters
-        ----------
-        connections : list
-            list that contains the conncections between Unit Operations
+    def _parse_connection(self, conn) -> Connection:
+        """Parse one connection spec into a Connection object."""
+        if isinstance(conn, Connection):
+            return conn
+        if isinstance(conn, dict):
+            src_ep = conn["source"]
+            dst_ep = conn["dest"]
+            flow_rate = float(conn["flow_rate"])
+        else:
+            src_ep, dst_ep, flow_rate = conn[0], conn[1], float(conn[2])
+        src_name, src_port, src_idx = self._resolve_endpoint(src_ep, "outlet")
+        dst_name, dst_port, dst_idx = self._resolve_endpoint(dst_ep, "inlet")
+        return Connection(
+            source=src_name,
+            source_port=src_port,
+            dest=dst_name,
+            dest_port=dst_port,
+            flow_rate=flow_rate,
+            source_index=src_idx,
+            dest_index=dst_idx,
+        )
 
+    def update_ports(self) -> None:
+        """Set flow rates and inlet states from current connections.
+
+        Replaces the old couple_unit_operations() + set_rates() pair.
         """
-        self._compute_connectivity_matrix(connections)
-        self.set_rates()
+        # Reset all flow rates
+        for unit in self.unit_operations.values():
+            if unit._Q_in is not None:
+                unit._Q_in[:] = 0.0
+            if unit._Q_out is not None:
+                unit._Q_out[:] = 0.0
 
-    def set_rates(self) -> NoReturn:
-        """
-        Set Flowrates of Unit Operations.
+        if not self._connections:
+            return
 
-        Abstract Method that has to be implemented by every System
+        # Accumulate Q_out per source port
+        for conn in self._connections:
+            src_unit = self.unit_operations[conn.source]
+            src_idx = list(src_unit._outlet_ports).index(conn.source_port)
+            src_unit._Q_out[src_idx] += conn.flow_rate
 
-        """
-        raise NotImplementedError("SystemBase is abstract.")
+        # Group by destination port and do weighted-average state coupling
+        by_dest: dict[tuple, list] = defaultdict(list)
+        for conn in self._connections:
+            by_dest[(conn.dest, conn.dest_port)].append(conn)
+
+        for (dest_name, dest_port), conns in by_dest.items():
+            dest_unit = self.unit_operations[dest_name]
+            total_Q = sum(c.flow_rate for c in conns)
+
+            dst_idx = list(dest_unit._inlet_ports).index(dest_port)
+            dest_unit._Q_in[dst_idx] = total_Q
+
+            if total_Q > 0:
+                unit_Q_list = [
+                    (
+                        self.unit_operations[c.source].get_port_state(
+                            c.source_port, c.source_index or 0
+                        ),
+                        c.flow_rate,
+                    )
+                    for c in conns
+                ]
+                coupled = self.coupled_state_func(unit_Q_list)
+                dest_unit.set_port_state(
+                    dest_port, coupled, conns[0].dest_index or 0
+                )
 
     def compute_residual(self, t: float, y: np.ndarray, y_dot: np.ndarray) -> NoReturn:
         """
@@ -326,47 +380,9 @@ class SystemBase(Structure):
         self.y = y
         self.y_dot = y_dot
         self.r = y
-        self.couple_unit_operations()
+        self.update_ports()
         for unit_operation in self.unit_operations.values():
             unit_operation.compute_residual(t)
-
-    def couple_unit_operations(self) -> NoReturn:
-        """
-        Couple unit operations for set parameters.
-
-        Iterates first over all rows of the connectivity-matrix which is the
-        destination. If the total flow is 0, the row is ignored.
-
-        Then it iterates over every origin flow by iterating over the row itself and
-        saves the state and the rate into a touple that gets added to a list.
-
-        With this list, the new state for destination_unit is created with the
-        coupled_state_func. And afterward is set.
-        """
-        for destination_port_index, Q_destinations in enumerate(self.connectivity):
-            Q_destination_total = sum(Q_destinations)
-            if Q_destination_total == 0:
-                continue
-
-            destination_info = self.destination_index_unit_operations[
-                destination_port_index
-            ]
-            destination_unit = self.unit_operations[destination_info["name"]]
-            destination_port = destination_info["port"]
-            unit_Q_list = []
-            for origin_port_index, Q_destination in enumerate(Q_destinations):
-                if Q_destination == 0:
-                    continue
-
-                origin_info = self.origin_index_unit_operations[origin_port_index]
-                origin_unit = self.unit_operations[origin_info["name"]]
-                origin_port = origin_info["port"]
-                unit_Q_list.append(
-                    (origin_unit.get_outlet_state_flat(origin_port), Q_destination)
-                )
-
-            s_new = self.coupled_state_func(unit_Q_list)
-            destination_unit.set_inlet_state_flat(s_new, destination_port)
 
     def coupled_state_func(self, unit_Q_list: list[dict, float]) -> dict:
         """
@@ -378,7 +394,7 @@ class SystemBase(Structure):
         Parameters
         ----------
         unit_Q_list : list[dict, float]
-            list that contains every state and thei corresponding rate that is connected
+            list that contains every state and their corresponding rate that is connected
             to the to create state
 
         """
@@ -386,64 +402,6 @@ class SystemBase(Structure):
         for state, calc_method in self.coupling_state_structure.items():
             ret[state] = calc_method.get_coupled_state(unit_Q_list, state)
         return ret
-
-    def _compute_connectivity_matrix(self, connections: list) -> np.ndarray:
-        # TODO: This could be the setter for `connectivity`
-        # Note, maybe we already adapt the interface s.t. we compute this matrix,
-        # or we might even use a better maintainable data structure (e.g. a nested dict
-        # representing the flow sheet as directed graph)
-        """
-        Compute the connectivity matrix from the connections interface.
-
-        # Connectivity with ports
-        ```
-        'connections': [
-            [0, 1, 0, 0, 1e-3], # unit 0 to unit 1, port 0 to port 0
-            [1, 2, 0, 0, 0.5e-3], # unit 1 to unit 2, port 0 to port 0 (e.g. retentate)
-            [1, 3, 1, 0, 0.5e-3], # unit 1 to unit 3, port 1 to port 0 (e.g. permeate)
-        ]
-        ```
-        would translate to:
-        ```
-        connections = [
-        # from  0  1/0 1/1 2  3   (to)
-               [0, 0,  0,  0, 0],  # 0
-               [1, 0,  0,  0, 0],  # 1
-               [0, 1,  0,  0, 0],  # 2
-               [0, 0,  1,  0, 0],  # 3
-        ]
-        ```
-
-        Parameters
-        ----------
-        connections : list
-            Flow sheet connectivity of the section.
-
-        Returns
-        -------
-        np.ndarray
-            Connectivity matrix.
-
-        """
-        connections = np.asarray(connections)
-
-        connections_matrix = np.zeros((self.n_destination_ports, self.n_origin_ports))
-        for connection in connections:
-            origin_unit = connection[0]
-            origin_port = connection[2]
-            origin_index = self.origin_unit_ports[origin_unit][origin_port]
-
-            destination_unit = connection[1]
-            destination_port = connection[3]
-            destination_index = self.destination_unit_ports[destination_unit][
-                destination_port
-            ]
-
-            rate = connection[4]
-
-            connections_matrix[destination_index, origin_index] = rate
-
-        self._connectivity = connections_matrix
 
     def initialize_initial_values(self, t0: float):
         """
@@ -454,11 +412,10 @@ class SystemBase(Structure):
 
         """
         self.t_zero = t0
-        self.set_rates()
-        self.couple_unit_operations()
+        self.update_ports()
         for unit_operation in self.unit_operations.values():
             unit_operation.initialize_initial_values(t0)
-            self.couple_unit_operations()
+            self.update_ports()
 
 
 class FlowSystem(SystemBase):
@@ -473,23 +430,3 @@ class FlowSystem(SystemBase):
         """Construct FlowSystem Object."""
         self.coupling_state_structure = {"c": WeightedAverageCoupling()}
         super().__init__(unit_operations)
-
-    def set_rates(self) -> NoReturn:
-        """
-        Set Flowrates of Unit Operations.
-
-        Parameters
-        ----------
-        flowrates: dict[str:np.ndarray]
-            dictionary containing the rates
-
-        """
-        for dest_i, Q_n in enumerate(self.connectivity):
-            unit_operation = self.destination_index_unit_operations[dest_i]["name"]
-            unit_port = self.destination_index_unit_operations[dest_i]["port"]
-            self.unit_operations[unit_operation].set_Q_in_port(unit_port, np.sum(Q_n))
-
-        for origin_i, Q_n in enumerate(self.connectivity.T):
-            unit_operation = self.origin_index_unit_operations[origin_i]["name"]
-            unit_port = self.origin_index_unit_operations[origin_i]["port"]
-            self.unit_operations[unit_operation].set_Q_out_port(unit_port, np.sum(Q_n))

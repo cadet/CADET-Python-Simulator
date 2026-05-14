@@ -1,5 +1,4 @@
 from abc import abstractmethod
-from collections import defaultdict
 from typing import NoReturn, Optional
 
 import numpy as np
@@ -48,6 +47,11 @@ class UnitOperationBase(Structure):
     _parameters = []
     _section_dependent_parameters = []
 
+    # Named ports exposed to the System. Keys are port names (used in connect()),
+    # values are state names (which state's boundary cells are read/written).
+    _inlet_ports: dict[str, str] = {}
+    _outlet_ports: dict[str, str] = {}
+
     def __init__(self, component_system, name, *args, **kwargs):
         """Construct the UnitOperationBase."""
         self.component_system = component_system
@@ -63,7 +67,6 @@ class UnitOperationBase(Structure):
 
         self._Q_in: Optional[np.ndarray] = None
         self._Q_out: Optional[np.ndarray] = None
-        self._coupling_state_structure = {"c": component_system.n_comp}
 
     @property
     def n_dof(self) -> int:
@@ -183,7 +186,7 @@ class UnitOperationBase(Structure):
 
     @property
     def Q_in(self) -> np.ndarray:
-        """np.ndarray: Ingoing flow rates."""
+        """np.ndarray: Ingoing flow rates, indexed by _inlet_ports declaration order."""
         if self._Q_in is None:
             raise NotInitializedError(
                 "Unit operation flow rates are not yet initialized."
@@ -202,7 +205,7 @@ class UnitOperationBase(Structure):
 
     @property
     def Q_out(self) -> np.ndarray:
-        """np.ndarray: Ingoing flow rates."""
+        """np.ndarray: Outgoing flow rates, indexed by _outlet_ports declaration order."""
         if self._Q_out is None:
             raise NotInitializedError(
                 "Unit operation flow rates are not yet initialized."
@@ -219,194 +222,38 @@ class UnitOperationBase(Structure):
             )
         self._Q_out = np.array(Q_out)
 
-    def set_Q_in_port(self, port: int, Q_in: float):
-        """
-        Set a portspecific Q_in.
-
-        Parameters
-        ----------
-        port : int
-            port to set Q
-        Q_in : float
-            rate to set
-
-        """
-        if not port < self.n_inlet_ports and port >= 0:
-            raise f"""Port {port} is not inbetween 0 and {self.n_inlet_ports}"""
-        self._Q_in[port] = Q_in
-
-    def set_Q_out_port(self, port: int, Q_out: float):
-        """
-        Set a portspecific Q_out.
-
-        Parameters
-        ----------
-        port : int
-            port to set Q
-        Q_out : float
-            rate to set
-
-        """
-        if not port < self.n_outlet_ports and port >= 0:
-            raise f"""Port {port} is not inbetween 0 and {self.n_outlet_ports}"""
-        self._Q_out[port] = Q_out
-
-    @property
-    def coupling_state_structure(self) -> dict:
-        """dict: State structure that must be accessible in inlet / outlet ports."""
-        return self._coupling_state_structure
-
-    @coupling_state_structure.setter
-    def coupling_state_structure(self, coupling_state_structure: dict) -> NoReturn:
-        """Set coupling state structure."""
-        self._coupling_state_structure = coupling_state_structure
-
-    @property
-    def n_dof_coupling(self) -> int:
-        """int: Number of coupling DOFs."""
-        return sum(self.coupling_state_structure.values())
-
-    @property
-    def inlet_ports(self) -> dict[str, int]:
-        """dict: Number of inlet ports per state."""
-        return {state.name: state.n_inlet_ports for state in self.states.values()}
-
     @property
     def n_inlet_ports(self) -> int:
         """int: Number of inlet ports."""
-        return sum(state.n_inlet_ports for state in self.states.values())
-
-    @property
-    def outlet_ports(self) -> dict[str, int]:
-        """dict: Number of outlet ports per state."""
-        return {state.name: state.n_outlet_ports for state in self.states.values()}
+        return len(self._inlet_ports)
 
     @property
     def n_outlet_ports(self) -> int:
-        """int: Number of inlet ports."""
-        return sum(state.n_outlet_ports for state in self.states.values())
+        """int: Number of outlet ports."""
+        return len(self._outlet_ports)
 
-    @property
-    def port_mapping(self) -> dict[int, str]:
-        """dict: Mapping of port indices to corresponding state entries."""
-        # TODO: Let this be handled by the SystemSolver?
-        port_mapping = defaultdict(dict)
-
-        counter = 0
-        for mapped_state, n_ports in self.inlet_ports.items():
-            for port in range(n_ports):
-                port_mapping["inlet"][counter] = {}
-                port_mapping["inlet"][counter]["mapped_state"] = mapped_state
-                port_mapping["inlet"][counter]["port_index"] = port
-                counter += 1
-
-        counter = 0
-        for mapped_state, n_ports in self.outlet_ports.items():
-            for port in range(n_ports):
-                port_mapping["outlet"][counter] = {}
-                port_mapping["outlet"][counter]["mapped_state"] = mapped_state
-                port_mapping["outlet"][counter]["port_index"] = port
-                counter += 1
-
-        return dict(port_mapping)
-
-    def set_inlet_state(
-        self, inlet_state: dict[str, np.ndarray], state: str, state_port_index: int
-    ) -> NoReturn:
-        """
-        Set the state of the unit operation inlet for a given port.
-
-        Parameters
-        ----------
-        inlet_state : Dict[str, np.ndarray]
-            A dictionary mapping each state entry to its new values at the inlet port.
-        state : str
-            Name of the state for with to update the inlet state.
-        state_port_index : int
-            The state port index for which to update the state.
-
-        Raises
-        ------
-        ValueError
-            If state is not found.
-
-        """
-        try:
-            state = self.states[state]
-        except KeyError:
-            raise ValueError(f"Unknown state {state}.")
-
-        state.set_inlet_port_state(inlet_state, state_port_index)
-
-    def set_inlet_state_flat(
-        self, inlet_state: dict[str, np.ndarray], unit_port_index: int
-    ) -> NoReturn:
-        """
-        Set the state of the unit operation inlet for a given port.
-
-        Parameters
-        ----------
-        inlet_state : Dict[str, np.ndarray]
-            A dictionary mapping each state entry to its new values at the inlet port.
-        unit_port_index : int
-            The index of the unit operation inlet port.
-
-        """
-        port_info = self.port_mapping["inlet"][unit_port_index]
-
-        self.set_inlet_state(
-            inlet_state, port_info["mapped_state"], port_info["port_index"]
-        )
-
-    def get_outlet_state(
-        self, state: str, state_port_index: int
+    def get_port_state(
+        self, port_name: str, port_index: int = 0
     ) -> dict[str, np.ndarray]:
-        """
-        Get the state of the unit operation outlet for a given port.
-
-        Parameters
-        ----------
-        state : str
-            Name of the state for with to retrieve the outlet state.
-        state_port_index : int
-            The state port index for which to retrieve the state.
-
-        Returns
-        -------
-        Dict[str, np.ndarray]
-            A dictionary mapping each state entry to the values at the outlet port.
-
-        Raises
-        ------
-        ValueError
-            If state is not found.
-
-        """
+        """Return entry arrays at the named outlet port."""
         try:
-            state = self.states[state]
+            state_name = self._outlet_ports[port_name]
         except KeyError:
-            raise ValueError(f"Unknown state {state}.")
+            raise ValueError(f"'{port_name}' is not an outlet port of '{self.name}'.")
+        return self.states[state_name].get_outlet_port_state(port_index)
 
-        return state.get_outlet_port_state(state_port_index)
-
-    def get_outlet_state_flat(self, unit_port_index: int) -> dict[str, np.ndarray]:
-        """
-        Get the state of the unit operation outlet for a given port.
-
-        Parameters
-        ----------
-        unit_port_index : int
-            The index of the unit operation outlet port.
-
-        Returns
-        -------
-        Dict[str, np.ndarray]
-            A dictionary mapping each state entry to the values at the outlet port.
-
-        """
-        port_info = self.port_mapping["outlet"][unit_port_index]
-
-        return self.get_outlet_state(port_info["mapped_state"], port_info["port_index"])
+    def set_port_state(
+        self,
+        port_name: str,
+        values: dict[str, np.ndarray],
+        port_index: int = 0,
+    ) -> None:
+        """Set entry values at the named inlet port (in-place)."""
+        try:
+            state_name = self._inlet_ports[port_name]
+        except KeyError:
+            raise ValueError(f"'{port_name}' is not an inlet port of '{self.name}'.")
+        self.states[state_name].set_inlet_port_state(values, port_index)
 
     @abstractmethod
     def compute_residual(self, t: float) -> NoReturn:
@@ -525,6 +372,9 @@ class Inlet(UnitOperationBase):
     _polynomial_parameters = ["c_poly"]
     _section_dependent_parameters = ["c_poly"]
 
+    _inlet_ports = {}
+    _outlet_ports = {"outlet": "outlet"}
+
     outlet = {"dimensions": (), "entries": {"c": "n_comp"}, "n_outlet_ports": 1}
     _state_structures = ["outlet"]
 
@@ -573,6 +423,9 @@ class DistributionInlet(UnitOperationBase):
 
     distribution_function = Typed(ty=DistributionBase)
     section_number = Typed(ty=int)
+
+    _inlet_ports = {}
+    _outlet_ports = {"outlet": "outlet"}
 
     outlet = {"dimensions": (), "entries": {"c": "n_comp"}, "n_outlet_ports": 1}
     _state_structures = ["outlet"]
@@ -633,6 +486,9 @@ class ConcentrationDistributionInlet(UnitOperationBase):
     distribution_function = Typed(ty=DistributionBase)
     section_number = Typed(ty=int)
 
+    _inlet_ports = {}
+    _outlet_ports = {"outlet": "outlet"}
+
     outlet = {"dimensions": (), "entries": {"c": "n_comp"}, "n_outlet_ports": 1}
     _state_structures = ["outlet"]
     _parameters = ["section_number"]
@@ -673,6 +529,9 @@ class ConcentrationDistributionInlet(UnitOperationBase):
 class Outlet(UnitOperationBase):
     """System outlet."""
 
+    _inlet_ports = {"inlet": "inlet"}
+    _outlet_ports = {}
+
     inlet = {"dimensions": (), "entries": {"c": "n_comp"}, "n_inlet_ports": 1}
     _state_structures = ["inlet"]
 
@@ -691,6 +550,9 @@ class Outlet(UnitOperationBase):
 
 class Cstr(UnitOperationBase):
     """Continuous stirred tank reactor."""
+
+    _inlet_ports = {"inlet": "inlet"}
+    _outlet_ports = {"outlet": "bulk"}
 
     inlet = {"dimensions": (), "entries": {"c": "n_comp"}, "n_inlet_ports": 1}
     bulk = {
@@ -711,7 +573,6 @@ class Cstr(UnitOperationBase):
 
         """
         c_in = self.states["inlet"]["c"]
-        # c_in_dot = self.state_derivatives['inlet']['c']
 
         c = self.states["bulk"]["c"]
         c_dot = self.state_derivatives["bulk"]["c"]
@@ -774,6 +635,9 @@ class DeadEndFiltration(UnitOperationBase):
         Model for viscosities
 
     """
+
+    _inlet_ports = {"inlet": "inlet"}
+    _outlet_ports = {"outlet": "permeate_tank"}
 
     inlet = {
         "dimensions": {},
@@ -1070,6 +934,9 @@ class CrossFlowFiltration(UnitOperationBase):
 
     n_axial = UnsignedInteger(default=10)
 
+    _inlet_ports = {"inlet": "retentate"}
+    _outlet_ports = {"retentate": "retentate", "permeate": "permeate"}
+
     retentate = {
         "dimensions": ("n_axial",),
         "entries": {"c": "n_comp", "viscosity": 1, "Volume": 1},
@@ -1089,11 +956,6 @@ class CrossFlowFiltration(UnitOperationBase):
     membrane_resistance = UnsignedFloat()
 
     _parameters = ["membrane_area", "membrane_resistance"]
-
-    def __init__(self, component_system, name, *args, **kwargs):
-        """Construct CFF."""
-        super().__init__(component_system, name, *args, **kwargs)
-        self.coupling_state_structure["viscosity"] = 1
 
     def compute_residual(
         self, t: float, y: np.ndarray, y_dot: np.ndarray, residual: np.ndarray
@@ -1134,6 +996,10 @@ class _2DGRM(UnitOperationBase):
     n_axial = UnsignedInteger(default=10)
     n_radial = UnsignedInteger(default=3)
     n_particle = UnsignedInteger(default=5)
+
+    # vector ports: port_index selects a radial slice
+    _inlet_ports = {"inlet": "bulk"}
+    _outlet_ports = {"outlet": "bulk"}
 
     bulk = {
         "dimensions": ("n_radial", "n_axial"),

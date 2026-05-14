@@ -37,7 +37,10 @@ class SolverFixture(Solver):
                 {
                     "start": 0,
                     "end": 10,
-                    "connections": [[0, 1, 1e-3], [1, 2, 1e-3]],
+                    "connections": [
+                        ("inlet", "dead_end_filtration", 1e-3),
+                        ("dead_end_filtration", "outlet", 1e-3),
+                    ],
                     "section_states": {
                         "inlet": {"c_poly": [[1, 0, 0, 0], [2, 0, 0, 0]]}
                     },
@@ -45,7 +48,10 @@ class SolverFixture(Solver):
                 {
                     "start": 10,
                     "end": 12,
-                    "connections": [[0, 1, 1e-3], [1, 2, 0.5e-3]],
+                    "connections": [
+                        ("inlet", "dead_end_filtration", 1e-3),
+                        ("dead_end_filtration", "outlet", 0.5e-3),
+                    ],
                     "section_states": {
                         "inlet": {"c_poly": [[0, 1, 0, 0], [1, 0, 0, 0]]}
                     },

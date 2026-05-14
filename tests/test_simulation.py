@@ -52,7 +52,7 @@ def setup_filter_sim():
     unit_operation_list = [inlet, filter_obj]
 
     system = FlowSystem(unit_operations=unit_operation_list)
-    section = [{"start": 0, "end": 11, "connections": [[0, 1, 0, 0, 1]]}]
+    section = [{"start": 0, "end": 11, "connections": [("inlet", "deadendfilter", 1)]}]
 
     system.initialize_state()
 

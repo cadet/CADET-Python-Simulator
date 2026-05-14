@@ -81,12 +81,14 @@ class TestSystem:
 
 
 @pytest.mark.parametrize(
-    "system, connections, expected_matrix, expected_state",
+    "system, connections, expected_state",
     [
         (
             SystemFixture(),
-            [[0, 1, 0, 0, 1e-3], [1, 2, 0, 0, 1e-3]],
-            [[0.001, 0.0], [0.0, 0.001]],
+            [
+                ("inlet", "dead_end_filtration", 1e-3),
+                ("dead_end_filtration", "outlet", 1e-3),
+            ],
             [
                 0, 1, 0, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
                 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 22, 23,
@@ -100,15 +102,8 @@ class TestSystem:
 class TestSystemConnectivity:
     """Test system connectivity class."""
 
-    def test_connections_matrix(
-        self, system: SystemBase, connections, expected_matrix, expected_state
-    ):
-        """Test for computing the connectivity."""
-        system._compute_connectivity_matrix(connections)
-        np.testing.assert_almost_equal(system._connectivity, expected_matrix)
-
     def test_coupling(
-        self, system: SystemBase, connections, expected_matrix, expected_state
+        self, system: SystemBase, connections, expected_state
     ):
         """Test for updating and coupling the system connectivity."""
         y = np.arange(system.n_dof)
@@ -117,8 +112,8 @@ class TestSystemConnectivity:
         system.y = y
         system.y_dot = y_dot
 
-        system.update_system_connectivity(connections)
-        system.couple_unit_operations()
+        system.set_connections(connections)
+        system.update_ports()
         np.testing.assert_almost_equal(system.y, expected_state)
 
 
@@ -127,7 +122,10 @@ class TestSystemConnectivity:
     [
         (
             SystemFixture(),
-            [[0, 1, 0, 0, 1e-3], [1, 2, 0, 0, 1e-3]],
+            [
+                ("inlet", "dead_end_filtration", 1e-3),
+                ("dead_end_filtration", "outlet", 1e-3),
+            ],
             [
                 0, 1, 0, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
                 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 22, 23,
@@ -147,8 +145,7 @@ class TestSystemInitializeInitialValue:
     ):
         """Test to check calculation of Initial Values."""
         system.y = initial_values
-        system.update_system_connectivity(connections)
-        # system.initialize_initial_values(0)
+        system.set_connections(connections)
 
 
 # %% TODO: System Residual

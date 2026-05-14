@@ -313,30 +313,32 @@ class TestUnitStateStructure:
             np.testing.assert_equal(state.s, expected["states"][name])
 
     def test_set_inlet_state(self, unit_operation: UnitOperationBase, expected: dict):
-        """Test set_inlet_state_flat function."""
-        s_in = {"c": [0.1, 0.2]}
-        if "viscosity" in unit_operation.coupling_state_structure:
-            s_in = {"c": [0.1, 0.2], "viscosity": [0.3]}
+        """Test set_port_state for inlet ports."""
         if unit_operation.n_inlet_ports == 0:
             with pytest.raises(Exception):
-                unit_operation.set_inlet_port_state(s_in, 0)
+                unit_operation.set_port_state("inlet", {"c": [0.1, 0.2]})
         else:
-            for port in range(unit_operation.n_inlet_ports):
-                unit_operation.set_inlet_state_flat(s_in, port)
+            for i, port_name in enumerate(unit_operation._inlet_ports):
+                state_name = unit_operation._inlet_ports[port_name]
+                state_entries = unit_operation.states[state_name].entries
+                s_in = {"c": [0.1, 0.2]}
+                if "viscosity" in state_entries:
+                    s_in["viscosity"] = [0.3]
+                unit_operation.set_port_state(port_name, s_in)
 
-                slice_information = expected["inlet_state"][port]
+                slice_information = expected["inlet_state"][i]
                 state_slice = unit_operation.y[slice_information["slice"]]
                 np.testing.assert_array_equal(state_slice, slice_information["value"])
 
     def test_get_outlet_state(self, unit_operation: UnitOperationBase, expected: dict):
-        """Test getter for outlet state."""
+        """Test get_port_state for outlet ports."""
         if unit_operation.n_outlet_ports == 0:
             with pytest.raises(Exception):
-                unit_operation.get_outlet_port_state(0)
+                unit_operation.get_port_state("outlet")
         else:
-            for port in range(unit_operation.n_outlet_ports):
-                s_out = unit_operation.get_outlet_state_flat(port)
-                np.testing.assert_equal(s_out, expected["outlet_state"][port])
+            for i, port_name in enumerate(unit_operation._outlet_ports):
+                s_out = unit_operation.get_port_state(port_name)
+                np.testing.assert_equal(s_out, expected["outlet_state"][i])
 
 
 @pytest.mark.parametrize(
