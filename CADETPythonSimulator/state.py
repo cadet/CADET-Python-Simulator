@@ -16,9 +16,9 @@ class State:
     """
     Manages the state of a unit operation domain.
 
-    The underlying array ``s`` is the single source of truth. It is always
-    mutated in-place — never replaced — so all derived views (entry slices,
-    xarray DataArrays) remain valid across solver steps.
+    The underlying array ``_s`` is the single source of truth. It is always
+    mutated in-place — never replaced — so all derived views (entry slices)
+    remain valid across solver steps.
 
     Parameters
     ----------
@@ -52,8 +52,6 @@ class State:
             self._entry_slices[entry] = slice(i, i + n)
             i += n
 
-        # xarray views — created once, always current via shared memory
-        self._field: dict[str, xr.DataArray] = self._build_field()
 
     # ── geometry access ────────────────────────────────────────────────────
 
@@ -93,10 +91,9 @@ class State:
         """Replace _s with a shaped view into buf[offset:offset+n_dof].
 
         Called once by the system before the first solver section.
-        Rebuilds field DataArrays so they point at the new memory.
+        After this, ``field`` returns DataArrays wrapping the new memory.
         """
         self._s = buf[offset : offset + self.n_dof].reshape(self._s.shape)
-        self._field = self._build_field()
 
     # ── s access (in-place invariant) ─────────────────────────────────────
 
@@ -143,7 +140,7 @@ class State:
     @property
     def field(self) -> dict[str, xr.DataArray]:
         """Zero-copy xarray views per entry. Always reflects current ``s``."""
-        return self._field
+        return self._build_field()
 
     def _build_field(self) -> dict[str, xr.DataArray]:
         coords = self._geometry.coordinates
