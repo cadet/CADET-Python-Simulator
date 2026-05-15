@@ -227,7 +227,8 @@ class Solver(Structure):
             section.end,
             section.section_states,
         )
-        self._system.set_connections(section.connections)
+        if section.connections:
+            self._system.set_connections(section.connections)
         self._system.initialize_initial_values(section.start)
 
         section_solution_times = self.get_section_solution_times(section)
