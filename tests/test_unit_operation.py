@@ -371,11 +371,11 @@ class TestAuxiliaryState:
     def test_model_owned_aux_present(self):
         """Column1D has ionic_strength aux state when IonicStrengthModel is injected."""
         from CADETPythonSimulator.auxiliary_models import IonicStrengthModel
-        from CADETPythonSimulator.componentsystem import CPSComponentSystem
+        from CADETPythonSimulator.componentsystem import Component, ComponentSystem
         from CADETPythonSimulator.system import FlowSystem
         from CADETPythonSimulator.unit_operation import Column1D
 
-        cs = CPSComponentSystem(name="t", components=2)
+        cs = ComponentSystem([Component("A"), Component("B")], name="t")
         col = Column1D(
             component_system=cs, name="col", ionic_strength_model=IonicStrengthModel()
         )
@@ -385,11 +385,11 @@ class TestAuxiliaryState:
 
     def test_model_owned_aux_absent_without_model(self):
         """Column1D has no ionic_strength aux state when no model is injected."""
-        from CADETPythonSimulator.componentsystem import CPSComponentSystem
+        from CADETPythonSimulator.componentsystem import Component, ComponentSystem
         from CADETPythonSimulator.system import FlowSystem
         from CADETPythonSimulator.unit_operation import Column1D
 
-        cs = CPSComponentSystem(name="t", components=2)
+        cs = ComponentSystem([Component("A"), Component("B")], name="t")
         col = Column1D(component_system=cs, name="col")
         FlowSystem(unit_operations=[col]).initialize_state()
         assert "ionic_strength" not in col.aux_states

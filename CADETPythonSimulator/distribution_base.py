@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.typing as npt
 
-from CADETPythonSimulator.componentsystem import CPSComponentSystem
+from CADETPythonSimulator.componentsystem import ComponentSystem
 from CADETPythonSimulator.exception import CADETPythonSimError
 
 
@@ -16,7 +16,7 @@ class DistributionBase:
 class ConstantVolumeDistribution(DistributionBase):
     """Implements DistributionBase for a Constant Volume Distribution."""
 
-    def __init__(self, component_system: CPSComponentSystem, c: npt.ArrayLike):
+    def __init__(self, component_system: ComponentSystem, c: npt.ArrayLike):
         """
         Construct the Object and calculate the Constant Value.
 
@@ -31,9 +31,7 @@ class ConstantVolumeDistribution(DistributionBase):
         self.c = c
 
         n = [i for i in self.c]
-        m = [
-            n_i * self.component_system.molecular_weights[i] for i, n_i in enumerate(n)
-        ]
+        m = [n_i * self.component_system.molar_masses[i] for i, n_i in enumerate(n)]
         V = [m_i / self.component_system.densities[i] for i, m_i in enumerate(m)]
         V_solvent = 1 - sum(V)
 
@@ -54,7 +52,7 @@ class ConstantVolumeDistribution(DistributionBase):
 class ConstantConcentrationDistribution(DistributionBase):
     """Implements of DistributionBase for a Constant Concentration Distribution."""
 
-    def __init__(self, component_system: CPSComponentSystem, c: npt.ArrayLike):
+    def __init__(self, component_system: ComponentSystem, c: npt.ArrayLike):
         """
         Construct the object and calculate the Constant Value.
 
@@ -68,7 +66,7 @@ class ConstantConcentrationDistribution(DistributionBase):
         self.component_system = component_system
 
         n = [i for i in c]
-        m = [n_i * component_system.molecular_weights[i] for i, n_i in enumerate(n)]
+        m = [n_i * component_system.molar_masses[i] for i, n_i in enumerate(n)]
         V = [m_i / component_system.densities[i] for i, m_i in enumerate(m)]
         V_solvent = 1 - sum(V)
 
@@ -78,7 +76,7 @@ class ConstantConcentrationDistribution(DistributionBase):
             )
 
         m_solvent = component_system.densities[-1] * V_solvent
-        n_solvent = m_solvent / component_system.molecular_weights[-1]
+        n_solvent = m_solvent / component_system.molar_masses[-1]
 
         self.c = [*c, n_solvent]
 

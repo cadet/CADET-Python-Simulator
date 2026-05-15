@@ -14,7 +14,7 @@ from CADETProcess.dataStructure import (
 from CADETProcess.dynamicEvents import Section
 
 from CADETPythonSimulator.auxiliary_models import IonicStrengthModel
-from CADETPythonSimulator.componentsystem import CPSComponentSystem
+from CADETPythonSimulator.componentsystem import ComponentSystem
 from CADETPythonSimulator.distribution_base import DistributionBase
 from CADETPythonSimulator.exception import NotInitializedError
 from CADETPythonSimulator.geometry import (
@@ -46,7 +46,7 @@ class UnitOperationBase(Structure):
     """
 
     name = String()
-    component_system = Typed(ty=CPSComponentSystem)
+    component_system = Typed(ty=ComponentSystem)
 
     _state_structures = []
     _parameters = []
@@ -488,7 +488,7 @@ class DistributionInlet(UnitOperationBase):
         c = self.states["outlet"]["c"]
         nr = self.section_number
         xi = self.distribution_function.get_distribution(t, nr)
-        molecular_weights = np.array(self.component_system.molecular_weights)
+        molecular_weights = np.array(self.component_system.molar_masses)
         densities = np.array(self.component_system.densities)
 
         ci = xi * densities / molecular_weights
@@ -507,7 +507,7 @@ class DistributionInlet(UnitOperationBase):
         """
         nr = self.parameters["section_number"]
         xi = self.distribution_function.get_distribution(t_zero, nr)
-        molecular_weights = np.array(self.component_system.molecular_weights)
+        molecular_weights = np.array(self.component_system.molar_masses)
         densities = np.array(self.component_system.densities)
 
         ci = xi * densities / molecular_weights
@@ -701,6 +701,12 @@ class DeadEndFiltration(UnitOperationBase):
         "viscosity_model",
     ]
 
+    def __init__(self, *args, specific_cake_resistances, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.specific_cake_resistances = np.asarray(
+            specific_cake_resistances, dtype=float
+        )
+
     def compute_residual(self, t: float) -> NoReturn:
         """Calculate the Residuum for DEF."""
         Q_in = self.Q_in[0]
@@ -732,14 +738,12 @@ class DeadEndFiltration(UnitOperationBase):
         vol_PT_dot = self.state_derivatives["permeate_tank"]["V"]
 
         # parameters
-        molecular_weights = np.array(self.component_system.molecular_weights)
+        molecular_weights = np.array(self.component_system.molar_masses)
         densities = np.array(self.component_system.densities)
         viscosities = np.array(self.component_system.viscosities)
         membrane_area = self.parameters["membrane_area"]
         membrane_resistance = self.parameters["membrane_resistance"]
-        specific_cake_resistance = np.array(
-            self.component_system.specific_cake_resistances
-        )
+        specific_cake_resistance = np.array(self.specific_cake_resistances)
 
         rejection = np.array(
             [self.rejection_model.get_rejection(mw) for mw in molecular_weights]
@@ -863,14 +867,12 @@ class DeadEndFiltration(UnitOperationBase):
 
     def initialize_initial_values(self, t_zero: float):
         """Initialize the values."""
-        molecular_weights = np.array(self.component_system.molecular_weights)
+        molecular_weights = np.array(self.component_system.molar_masses)
         densities = np.array(self.component_system.densities)
         viscosities = np.array(self.component_system.viscosities)
         membrane_area = self.parameters["membrane_area"]
         membrane_resistance = self.parameters["membrane_resistance"]
-        specific_cake_resistance = np.array(
-            self.component_system.specific_cake_resistances
-        )
+        specific_cake_resistance = np.array(self.specific_cake_resistances)
 
         Q_in = self.Q_in[0]
         Q_out = self.Q_out[0]

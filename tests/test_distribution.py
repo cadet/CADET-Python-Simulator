@@ -1,18 +1,17 @@
 import pytest
-from CADETPythonSimulator.componentsystem import CPSComponentSystem
+from CADETPythonSimulator.componentsystem import Component, ComponentSystem
 from CADETPythonSimulator.distribution_base import (
     ConstantConcentrationDistribution,
     ConstantVolumeDistribution,
 )
 from CADETPythonSimulator.exception import CADETPythonSimError
 
-component_system = CPSComponentSystem(
+component_system = ComponentSystem(
+    [
+        Component("A", molar_mass=1.0, density=1.0, viscosity=1.0),
+        Component("B", molar_mass=2.0, density=1.0, viscosity=1.0),
+    ],
     name="test_comp",
-    components=2,
-    densities=[1, 1],
-    molecular_weights=[1, 2],
-    viscosities=[1, 1],
-    specific_cake_resistances=[1, 1],
 )
 
 

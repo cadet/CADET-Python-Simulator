@@ -5,8 +5,7 @@ class IonicStrengthModel:
     """Stub demonstrating model-owned auxiliary state declaration.
 
     A real implementation would compute I = 0.5 * sum(c_i * z_i^2) using
-    per-component charges from CPSComponentSystem. Charges are not yet
-    part of CPSComponentSystem, so this stub returns zeros.
+    per-component charges from ComponentSystem.charges.
     """
 
     aux_structures = {"ionic_strength": {"entries": {"I": 1}}}

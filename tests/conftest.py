@@ -3,7 +3,7 @@ from typing import NoReturn, Optional
 import numpy as np
 from addict import Dict
 from CADETProcess.dataStructure import Structure
-from CADETPythonSimulator.componentsystem import CPSComponentSystem
+from CADETPythonSimulator.componentsystem import Component, ComponentSystem
 from CADETPythonSimulator.rejection import StepCutOff
 from CADETPythonSimulator.solver import Solver
 from CADETPythonSimulator.system import FlowSystem
@@ -18,19 +18,12 @@ from CADETPythonSimulator.unit_operation import (
 )
 from CADETPythonSimulator.viscosity import LogarithmicMixingViscosity
 
-
-class TwoComponentFixture(CPSComponentSystem):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.add_component(
-            "A", molecular_weight=1e3, density=1e3, molecular_volume=1, viscosity=1
-        )
-        self.add_component(
-            "B", molecular_weight=10e3, density=1e3, molecular_volume=1, viscosity=1
-        )
-
-
-_two_component_system = TwoComponentFixture()
+_two_component_system = ComponentSystem(
+    [
+        Component("A", molar_mass=1.0, density=1e3, viscosity=1.0),
+        Component("B", molar_mass=10.0, density=1e3, viscosity=1.0),
+    ]
+)
 
 
 class UnitOperationFixture(UnitOperationBase):
@@ -86,17 +79,25 @@ class DeadEndFiltrationFixture(UnitOperationFixture, DeadEndFiltration):
         name="dead_end_filtration",
         membrane_area=1,
         membrane_resistance=1,
-        specific_cake_resistance=1,
+        specific_cake_resistances=None,
         solution_viscosity=1,
         rejection_model=StepCutOff(cutoff_weight=0),
         viscosity_model=LogarithmicMixingViscosity(),
         *args,
         **kwargs,
     ):
-        super().__init__(component_system, name, *args, **kwargs)
+        cs = component_system if component_system is not None else _two_component_system
+        if specific_cake_resistances is None:
+            specific_cake_resistances = [1.0] * cs.n_comp
+        super().__init__(
+            component_system,
+            name,
+            *args,
+            specific_cake_resistances=specific_cake_resistances,
+            **kwargs,
+        )
         self.membrane_area = membrane_area
         self.membrane_resistance = membrane_resistance
-        self.specific_cake_resistance = specific_cake_resistance
         self.rejection_model = rejection_model
         self.solution_viscosity = solution_viscosity
         self.viscosity_model = viscosity_model

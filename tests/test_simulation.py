@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 import xarray as xr
-from CADETPythonSimulator.componentsystem import CPSComponentSystem
+from CADETPythonSimulator.componentsystem import Component, ComponentSystem
 from CADETPythonSimulator.distribution_base import (
     ConstantConcentrationDistribution,
     ConstantVolumeDistribution,
@@ -13,19 +13,19 @@ from CADETPythonSimulator.unit_operation import DeadEndFiltration, DistributionI
 from CADETPythonSimulator.viscosity import LogarithmicMixingViscosity
 
 # ── fixture ───────────────────────────────────────────────────────────────────
-# Component system: 3 components with MW [1e6, 8e4, 18].
-# StepCutOff at 1.6e5: component 0 (MW=1e6) is retained, 1 and 2 pass through.
+# Component system: protein (1000 kg/mol), salt (80 kg/mol), water (0.018 kg/mol).
+# StepCutOff at 160 kg/mol: protein is retained, salt and water pass through.
 
 
 @pytest.fixture(scope="module")
 def filter_solution():
-    component_system = CPSComponentSystem(
+    component_system = ComponentSystem(
+        [
+            Component("protein", molar_mass=1000.0, density=1100),
+            Component("salt", molar_mass=80.0, density=1100),
+            Component("water", molar_mass=0.018, density=1000, viscosity=0.001),
+        ],
         name="test_comp",
-        components=3,
-        densities=[1100, 1100, 1000],
-        molecular_weights=[1e6, 8e4, 18],
-        viscosities=[np.nan, np.nan, 0.001],
-        specific_cake_resistances=[1e6, 1e6, 0],
     )
     concentration_distribution = ConstantVolumeDistribution(
         component_system=component_system, c=[1e-10, 1e-8]
@@ -36,10 +36,11 @@ def filter_solution():
     filter_obj = DeadEndFiltration(
         component_system=component_system,
         name="deadendfilter",
-        rejection_model=StepCutOff(cutoff_weight=2 * 8e4),
+        rejection_model=StepCutOff(cutoff_weight=160.0),
         viscosity_model=LogarithmicMixingViscosity(),
         membrane_area=1,
         membrane_resistance=1,
+        specific_cake_resistances=[1e6, 1e6, 0],
     )
 
     system = FlowSystem(unit_operations=[inlet, filter_obj])

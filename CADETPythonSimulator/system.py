@@ -5,7 +5,7 @@ from typing import NoReturn, Optional
 import numpy as np
 from CADETProcess.dataStructure import Structure
 
-from CADETPythonSimulator.componentsystem import CPSComponentSystem
+from CADETPythonSimulator.componentsystem import ComponentSystem
 from CADETPythonSimulator.coupling_interface import (
     CouplingInterface,
     WeightedAverageCoupling,
@@ -34,7 +34,7 @@ class SystemBase(Structure):
         self._states: Optional[dict[str, State]] = None
         self._state_derivatives: Optional[dict[str, State]] = None
         self._residuals: Optional[dict[str, State]] = None
-        self._component_system: Optional[CPSComponentSystem] = None
+        self._component_system: Optional[ComponentSystem] = None
 
         self._t_zero: Optional[float] = None
 
