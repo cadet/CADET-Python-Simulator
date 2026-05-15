@@ -36,10 +36,12 @@ class State:
         name: str,
         entries: dict[str, int],
         geometry: DiscretizedGeometry,
+        component_names: list[str] | None = None,
     ) -> None:
         self.name = name
         self.entries = entries
         self._geometry = geometry
+        self._component_names = component_names
 
         # ── allocate s (never replaced after this point) ───────────────────
         n_entries_total = sum(entries.values())
@@ -149,9 +151,14 @@ class State:
             data = self._s[..., sl]
             n = self.entries[entry]
             if n > 1:
+                comp_coord = (
+                    self._component_names
+                    if self._component_names is not None
+                    else np.arange(n)
+                )
                 da = xr.DataArray(
                     data,
-                    coords={**coords, "component": np.arange(n)},
+                    coords={**coords, "component": comp_coord},
                     dims=spatial_dims + ["component"],
                     name=entry,
                 )
@@ -206,6 +213,7 @@ def state_factory(
     Create a State, resolving string attribute references on ``instance``.
 
     If no geometry is provided, defaults to a 0-D WellMixed geometry.
+    Component names are taken from ``instance.component_system.names`` when present.
     """
     resolved_entries = {
         entry: (n if isinstance(n, int) else getattr(instance, n))
@@ -213,4 +221,11 @@ def state_factory(
     }
     if geometry is None:
         geometry = DiscretizedGeometry(Cylinder(length=1.0), WellMixed())
-    return State(name=name, entries=resolved_entries, geometry=geometry)
+    cs = getattr(instance, "component_system", None)
+    component_names = cs.names if cs is not None else None
+    return State(
+        name=name,
+        entries=resolved_entries,
+        geometry=geometry,
+        component_names=component_names,
+    )
