@@ -65,6 +65,9 @@ markers = [
     "server_api: marks tests as using the GitLab/GitHub API",
 ]
 
+[tool.setuptools]
+packages = ["CADETPythonSimulator"]
+
 [tool.setuptools.dynamic]
 version = { attr = "CADETPythonSimulator.__version__" }
 

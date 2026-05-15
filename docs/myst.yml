@@ -17,6 +17,7 @@ project:
     - title: Examples
       children:
         - file: examples/index.md
+        - file: examples/dead_end_filtration.ipynb
 
 site:
   template: book-theme
