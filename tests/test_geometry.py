@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-
 from CADETPythonSimulator.geometry import (
     AngularSymmetry,
     AxialAngularSymmetry,
@@ -15,20 +14,23 @@ from CADETPythonSimulator.geometry import (
     WellMixed,
 )
 
-
 # ── Fixtures ───────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def cylinder():
     return Cylinder(length=0.1, radius=0.01)
 
+
 @pytest.fixture
 def hollow_cylinder():
     return HollowCylinder(r_inner=0.005, r_outer=0.02)
 
+
 @pytest.fixture
 def frustum():
     return Frustum(length=0.1, r_inlet=0.01, r_outlet=0.005)
+
 
 @pytest.fixture
 def sphere():
@@ -36,6 +38,7 @@ def sphere():
 
 
 # ── Shape ──────────────────────────────────────────────────────────────────
+
 
 class TestShape:
     def test_tank(self, cylinder):
@@ -51,7 +54,9 @@ class TestShape:
         assert g.shape == (20, 5)
 
     def test_column_3d(self, cylinder):
-        g = DiscretizedGeometry(cylinder, NoSymmetry(), {"axial": 20, "radial": 5, "angular": 8})
+        g = DiscretizedGeometry(
+            cylinder, NoSymmetry(), {"axial": 20, "radial": 5, "angular": 8}
+        )
         assert g.shape == (20, 5, 8)
 
     def test_radial_column(self, hollow_cylinder):
@@ -69,6 +74,7 @@ class TestShape:
 
 # ── n_dof ──────────────────────────────────────────────────────────────────
 
+
 class TestNDof:
     def test_tank(self, cylinder):
         g = DiscretizedGeometry(cylinder, WellMixed())
@@ -84,6 +90,7 @@ class TestNDof:
 
 
 # ── Coordinates ────────────────────────────────────────────────────────────
+
 
 class TestCoordinates:
     def test_tank_has_no_coordinates(self, cylinder):
@@ -116,6 +123,7 @@ class TestCoordinates:
 
 
 # ── External ports ─────────────────────────────────────────────────────────
+
 
 class TestExternalPorts:
     def test_tank_has_inlet_and_outlet(self, cylinder):
@@ -152,6 +160,7 @@ class TestExternalPorts:
 
 # ── Flux interfaces ────────────────────────────────────────────────────────
 
+
 class TestFluxInterfaces:
     def test_column_has_no_flux_interfaces(self, cylinder):
         g = DiscretizedGeometry(cylinder, RadialAngularSymmetry(), {"axial": 20})
@@ -164,6 +173,7 @@ class TestFluxInterfaces:
 
 
 # ── Spatially varying ──────────────────────────────────────────────────────
+
 
 class TestSpatiallyVarying:
     def test_cylinder_has_none(self, cylinder):
@@ -178,11 +188,12 @@ class TestSpatiallyVarying:
     def test_frustum_cross_section_values(self, frustum):
         g = DiscretizedGeometry(frustum, RadialAngularSymmetry(), {"axial": 10})
         A = g.spatially_varying["cross_section"]
-        assert A[0] == pytest.approx(np.pi * frustum.r_inlet ** 2)
-        assert A[-1] == pytest.approx(np.pi * frustum.r_outlet ** 2)
+        assert A[0] == pytest.approx(np.pi * frustum.r_inlet**2)
+        assert A[-1] == pytest.approx(np.pi * frustum.r_outlet**2)
 
 
 # ── Error handling ─────────────────────────────────────────────────────────
+
 
 class TestErrors:
     def test_missing_n_cells_raises(self, cylinder):

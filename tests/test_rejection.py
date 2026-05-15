@@ -1,8 +1,6 @@
 import numpy as np
 import pytest
-
 from CADETPythonSimulator.rejection import StepCutOff
-
 
 TestCaseCutof = {
     "model": StepCutOff,

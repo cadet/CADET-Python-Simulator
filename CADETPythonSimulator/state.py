@@ -52,7 +52,6 @@ class State:
             self._entry_slices[entry] = slice(i, i + n)
             i += n
 
-
     # ── geometry access ────────────────────────────────────────────────────
 
     @property
@@ -172,8 +171,7 @@ class State:
         """Return entry arrays at the named external port (views into s)."""
         idx = self._geometry.external_ports[port_name]
         return {
-            entry: self._s[(*idx, self._entry_slices[entry])]
-            for entry in self.entries
+            entry: self._s[(*idx, self._entry_slices[entry])] for entry in self.entries
         }
 
     def set_port_state(self, port_name: str, values: dict[str, np.ndarray]) -> None:
@@ -196,6 +194,7 @@ class State:
 
 
 # ── factory ────────────────────────────────────────────────────────────────
+
 
 def state_factory(
     instance: Any,

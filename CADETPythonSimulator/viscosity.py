@@ -1,7 +1,6 @@
 from abc import abstractmethod
 
 import numpy as np
-
 from CADETProcess.dataStructure import Structure
 
 

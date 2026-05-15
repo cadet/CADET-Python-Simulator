@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-
 from CADETPythonSimulator.viscosity import (
     AverageViscosity,
     LogarithmicMixingViscosity,

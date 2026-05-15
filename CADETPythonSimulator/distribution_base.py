@@ -1,5 +1,6 @@
 import numpy as np
 import numpy.typing as npt
+
 from CADETPythonSimulator.componentsystem import CPSComponentSystem
 from CADETPythonSimulator.exception import CADETPythonSimError
 

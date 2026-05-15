@@ -2,20 +2,19 @@ from typing import NoReturn, Optional
 
 import numpy as np
 from addict import Dict
-
 from CADETProcess.dataStructure import Structure
 from CADETPythonSimulator.componentsystem import CPSComponentSystem
 from CADETPythonSimulator.rejection import StepCutOff
 from CADETPythonSimulator.solver import Solver
 from CADETPythonSimulator.system import FlowSystem
 from CADETPythonSimulator.unit_operation import (
-    UnitOperationBase,
-    Inlet,
-    Outlet,
+    _2DGRM,
+    CrossFlowFiltration,
     Cstr,
     DeadEndFiltration,
-    CrossFlowFiltration,
-    _2DGRM,
+    Inlet,
+    Outlet,
+    UnitOperationBase,
 )
 from CADETPythonSimulator.viscosity import LogarithmicMixingViscosity
 

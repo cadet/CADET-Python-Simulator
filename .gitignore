@@ -5,6 +5,7 @@ __pycache__/
 debug*
 development/
 docs/_build/
+outline.md
 *.h5
 *.egg-info
 .vscode

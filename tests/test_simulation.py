@@ -1,22 +1,21 @@
 import numpy as np
 import pytest
 import xarray as xr
-
-from CADETPythonSimulator.distribution_base import (
-    ConstantVolumeDistribution,
-    ConstantConcentrationDistribution,
-)
-from CADETPythonSimulator.unit_operation import DistributionInlet, DeadEndFiltration
-from CADETPythonSimulator.system import FlowSystem
-from CADETPythonSimulator.solver import Solver
 from CADETPythonSimulator.componentsystem import CPSComponentSystem
+from CADETPythonSimulator.distribution_base import (
+    ConstantConcentrationDistribution,
+    ConstantVolumeDistribution,
+)
 from CADETPythonSimulator.rejection import StepCutOff
+from CADETPythonSimulator.solver import Solver
+from CADETPythonSimulator.system import FlowSystem
+from CADETPythonSimulator.unit_operation import DeadEndFiltration, DistributionInlet
 from CADETPythonSimulator.viscosity import LogarithmicMixingViscosity
-
 
 # ── fixture ───────────────────────────────────────────────────────────────────
 # Component system: 3 components with MW [1e6, 8e4, 18].
 # StepCutOff at 1.6e5: component 0 (MW=1e6) is retained, 1 and 2 pass through.
+
 
 @pytest.fixture(scope="module")
 def filter_solution():
@@ -50,7 +49,9 @@ def filter_solution():
         component_system=component_system, c=[0, 0]
     )
     system.states["deadendfilter"]["permeate_tank"]["V"] = 1e-9
-    system.states["deadendfilter"]["permeate_tank"]["c"] = condist.get_distribution(0, 0)
+    system.states["deadendfilter"]["permeate_tank"]["c"] = condist.get_distribution(
+        0, 0
+    )
 
     solver = Solver(
         system,
@@ -61,6 +62,7 @@ def filter_solution():
 
 
 # ── output structure ──────────────────────────────────────────────────────────
+
 
 class TestFilterOutputStructure:
     def test_time_has_multiple_points(self, filter_solution):
@@ -104,11 +106,13 @@ class TestFilterOutputStructure:
         for unit, states in sol.items():
             for state, entries in states.items():
                 for entry, da in entries.items():
-                    assert not np.any(np.isnan(da.values)), \
+                    assert not np.any(np.isnan(da.values)), (
                         f"NaN in {unit}.{state}.{entry}"
+                    )
 
 
 # ── physics ───────────────────────────────────────────────────────────────────
+
 
 class TestFilterPhysics:
     def test_retained_component_accumulates_in_cake(self, filter_solution):

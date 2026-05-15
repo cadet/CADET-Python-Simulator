@@ -1,14 +1,12 @@
 import numpy as np
 import pytest
-
-from CADETPythonSimulator.residual import (
-    calculate_residual_volume_cstr,
-    calculate_residual_concentration_cstr,
-    calculate_residual_cake_vol_def,
-    calculate_residual_press_easy_def,
-)
 from CADETPythonSimulator.exception import CADETPythonSimError
-
+from CADETPythonSimulator.residual import (
+    calculate_residual_cake_vol_def,
+    calculate_residual_concentration_cstr,
+    calculate_residual_press_easy_def,
+    calculate_residual_volume_cstr,
+)
 
 # Arbitrary parameter values
 TestCaseCSTRConc_level1 = {

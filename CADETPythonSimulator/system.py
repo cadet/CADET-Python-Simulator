@@ -2,19 +2,17 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import NoReturn, Optional
 
-from addict import Dict
 import numpy as np
+from CADETProcess.dataStructure import Structure
 
-from CADETPythonSimulator.state import State
+from CADETPythonSimulator.componentsystem import CPSComponentSystem
 from CADETPythonSimulator.coupling_interface import (
     CouplingInterface,
     WeightedAverageCoupling,
 )
-
-from CADETProcess.dataStructure import Structure
-from CADETPythonSimulator.exception import NotInitializedError, CADETPythonSimError
+from CADETPythonSimulator.exception import CADETPythonSimError, NotInitializedError
+from CADETPythonSimulator.state import State
 from CADETPythonSimulator.unit_operation import UnitOperationBase
-from CADETPythonSimulator.componentsystem import CPSComponentSystem
 
 
 @dataclass
@@ -273,9 +271,7 @@ class SystemBase(Structure):
             if len(ports) == 1:
                 return unit_name, next(iter(ports))
             if len(ports) == 0:
-                raise ValueError(
-                    f"Unit '{unit_name}' has no {direction} ports."
-                )
+                raise ValueError(f"Unit '{unit_name}' has no {direction} ports.")
             raise ValueError(
                 f"Unit '{unit_name}' has multiple {direction} ports "
                 f"{list(ports)}: specify explicitly as (unit_name, port_name)."

@@ -1,9 +1,9 @@
-from CADETProcess.processModel import ComponentSystem, Component
-from CADETProcess.dataStructure import UnsignedFloat, String, Integer
-from CADETProcess.dataStructure import Structure
+from functools import wraps
+
+from CADETProcess.dataStructure import Integer, String, Structure, UnsignedFloat
+from CADETProcess.processModel import Component, ComponentSystem
 
 from CADETPythonSimulator.exception import CADETPythonSimError
-from functools import wraps
 
 
 class CPSSpecies(Structure):

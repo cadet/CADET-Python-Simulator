@@ -27,6 +27,7 @@ dependencies = [
     "numpy",
     "scipy",
     "matplotlib",
+    "xarray",
     "scikits.odes",
     "cadet-process",
 ]
@@ -47,13 +48,7 @@ testing = [
     "coverage"
 ]
 docs = [
-    "sphinx>=5.3.0",
-    "sphinxcontrib-bibtex>=2.5.0",
-    "sphinx_book_theme>=1.0.0",
-    "sphinx_copybutton>=0.5.1",
-    "sphinx-sitemap>=2.5.0",
-    "numpydoc>=1.5.0",
-    "myst-nb>=0.17.1",
+    "mystmd",
 ]
 dev = [
     {include-group = "testing"},
@@ -63,22 +58,37 @@ dev = [
 
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "server_api: marks tests as using the GitLab/GitHub API"
+    "server_api: marks tests as using the GitLab/GitHub API",
 ]
 
 [tool.setuptools.dynamic]
 version = { attr = "CADETPythonSimulator.__version__" }
 
 [tool.ruff]
-# Same as Black.
 src = ["CADETPythonSimulator", "tests"]
-
 line-length = 88
-indent-width = 4
+fix = true
 
 [tool.ruff.lint]
 preview = true
-select = ["E", "F", "W", "D"]
-ignore = ["D212", "D203", "D100"]
+select = ["E", "F", "W", "D", "I"]
+ignore = ["D100", "D102", "D105", "D203", "D205", "D212"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.pycodestyle]
+max-line-length = 105
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*.py" = [
+    "D",     # docstrings not required in tests
+    "E402",  # imports not required at top in tests
+    "E731",  # lambda assignments allowed in tests
+    "F841",  # unused variables allowed in tests
+]
+"development/*.py" = ["D", "E", "F", "W", "I"]

@@ -1,15 +1,14 @@
 import numpy as np
 import pytest
+from CADETPythonSimulator.system import FlowSystem
 
-from CADETPythonSimulator.system import FlowSystem, SystemBase
 from conftest import (
-    SystemFixture,
+    CrossFlowFiltrationFixture,
+    CstrFixture,
     InletFixture,
     OutletFixture,
-    CstrFixture,
-    CrossFlowFiltrationFixture,
+    SystemFixture,
 )
-
 
 # ── Systems for parametrized connectivity tests ────────────────────────────────
 # Each topology gets its own instance; they are mutated by test_coupling.
@@ -17,27 +16,32 @@ from conftest import (
 _split_system = FlowSystem([InletFixture(), CstrFixture(), OutletFixture()])
 _split_system.initialize_state()
 
-_merge_system = FlowSystem([
-    InletFixture(name="inlet_a"),
-    InletFixture(name="inlet_b"),
-    CstrFixture(),
-    OutletFixture(),
-])
+_merge_system = FlowSystem(
+    [
+        InletFixture(name="inlet_a"),
+        InletFixture(name="inlet_b"),
+        CstrFixture(),
+        OutletFixture(),
+    ]
+)
 _merge_system.initialize_state()
 
 _recycle_system = FlowSystem([InletFixture(), CstrFixture(), OutletFixture()])
 _recycle_system.initialize_state()
 
-_multiport_system = FlowSystem([
-    InletFixture(),
-    CrossFlowFiltrationFixture(),
-    OutletFixture(name="retentate_out"),
-    OutletFixture(name="permeate_out"),
-])
+_multiport_system = FlowSystem(
+    [
+        InletFixture(),
+        CrossFlowFiltrationFixture(),
+        OutletFixture(name="retentate_out"),
+        OutletFixture(name="permeate_out"),
+    ]
+)
 _multiport_system.initialize_state()
 
 
 # ── Structure ──────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.parametrize(
     "system, expected",
@@ -55,6 +59,7 @@ class TestSystem:
 
 # ── Connectivity (port coupling + flow-rate accumulation) ──────────────────────
 
+
 @pytest.mark.parametrize(
     "system, connections, expected_state",
     [
@@ -66,8 +71,35 @@ class TestSystem:
                 ("dead_end_filtration", "outlet", 1e-3),
             ],
             [
-                0, 1, 0, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 22, 23,
+                0,
+                1,
+                0,
+                1,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                22,
+                23,
             ],
         ),
         # split: one source, two destinations — Q_out accumulates
@@ -131,6 +163,7 @@ class TestSystemConnectivity:
 
 # ── Initial value setup ────────────────────────────────────────────────────────
 
+
 @pytest.mark.parametrize(
     "system, connections, initial_values, expected_state",
     [
@@ -141,12 +174,66 @@ class TestSystemConnectivity:
                 ("dead_end_filtration", "outlet", 1e-3),
             ],
             [
-                0, 1, 0, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 22, 23,
+                0,
+                1,
+                0,
+                1,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                22,
+                23,
             ],
             [
-                0, 1, 0, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 22, 23,
+                0,
+                1,
+                0,
+                1,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                22,
+                23,
             ],
         )
     ],

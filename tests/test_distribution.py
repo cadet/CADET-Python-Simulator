@@ -1,9 +1,8 @@
 import pytest
-
 from CADETPythonSimulator.componentsystem import CPSComponentSystem
 from CADETPythonSimulator.distribution_base import (
-    ConstantVolumeDistribution,
     ConstantConcentrationDistribution,
+    ConstantVolumeDistribution,
 )
 from CADETPythonSimulator.exception import CADETPythonSimError
 

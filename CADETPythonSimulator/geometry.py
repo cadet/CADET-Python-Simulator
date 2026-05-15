@@ -5,17 +5,19 @@ from dataclasses import dataclass
 
 import numpy as np
 
-
 # ── Dimension boundary types ───────────────────────────────────────────────
+
 
 @dataclass(frozen=True)
 class DimBoundary:
     """Describes what lives at the low and high face of a dimension."""
-    low: str   # "inlet", "outlet", "symmetry", "wall", "flux_interface"
+
+    low: str  # "inlet", "outlet", "symmetry", "wall", "flux_interface"
     high: str
 
 
 # ── Physical geometries ────────────────────────────────────────────────────
+
 
 class PhysicalGeometry(ABC):
     """Physical shape of a domain. Defines dimensions, extents, and boundaries."""
@@ -34,7 +36,9 @@ class PhysicalGeometry(ABC):
         lo, hi = self.extent(dim)
         return np.linspace(lo, hi, n_cells)
 
-    def spatially_varying(self, n_cells: dict[str, int] | None = None) -> dict[str, np.ndarray]:
+    def spatially_varying(
+        self, n_cells: dict[str, int] | None = None
+    ) -> dict[str, np.ndarray]:
         """Spatially varying physical quantities (e.g. cross-section for Frustum)."""
         return {}
 
@@ -88,7 +92,7 @@ class HollowCylinder(PhysicalGeometry):
 
     def boundary(self, dim: str) -> DimBoundary:
         if dim == "radial":
-            return DimBoundary("outlet", "inlet")   # inner=outlet, outer=inlet
+            return DimBoundary("outlet", "inlet")  # inner=outlet, outer=inlet
         if dim == "axial":
             return DimBoundary("wall", "wall")
         if dim == "angular":
@@ -129,12 +133,14 @@ class Frustum(PhysicalGeometry):
             return DimBoundary("periodic", "periodic")
         raise ValueError(f"Unknown dim: {dim}")
 
-    def spatially_varying(self, n_cells: dict[str, int] | None = None) -> dict[str, np.ndarray]:
+    def spatially_varying(
+        self, n_cells: dict[str, int] | None = None
+    ) -> dict[str, np.ndarray]:
         if not n_cells or "axial" not in n_cells:
             return {}
         z = np.linspace(0, self.length, n_cells["axial"])
         r = self.r_inlet + (self.r_outlet - self.r_inlet) * z / self.length
-        return {"cross_section": np.pi * r ** 2}
+        return {"cross_section": np.pi * r**2}
 
 
 class Sphere(PhysicalGeometry):
@@ -164,6 +170,7 @@ class Sphere(PhysicalGeometry):
 
 # ── Homogenizations ────────────────────────────────────────────────────────
 
+
 class Homogenization(ABC):
     """Which dimensions of the physical geometry are spatially resolved."""
 
@@ -172,43 +179,49 @@ class Homogenization(ABC):
 
 class WellMixed(Homogenization):
     """All dimensions collapsed — 0D."""
+
     resolved_dims = []
 
 
 class RadialAngularSymmetry(Homogenization):
     """Radial and angular symmetry — 1D axial."""
+
     resolved_dims = ["axial"]
 
 
 class AxialAngularSymmetry(Homogenization):
     """Axial and angular symmetry — 1D radial. Used for HollowCylinder."""
+
     resolved_dims = ["radial"]
 
 
 class AngularSymmetry(Homogenization):
     """Angular symmetry — 2D axial + radial."""
+
     resolved_dims = ["axial", "radial"]
 
 
 class NoSymmetry(Homogenization):
     """Fully resolved — 3D."""
+
     resolved_dims = ["axial", "radial", "angular"]
 
 
 class SphericalSymmetry(Homogenization):
     """Spherical symmetry — 1D radial."""
+
     resolved_dims = ["radial"]
 
 
 # ── Discretized geometry ───────────────────────────────────────────────────
 
 _FACE_ROLE = {
-    "inlet":          "external_port",
-    "outlet":         "external_port",
+    "inlet": "external_port",
+    "outlet": "external_port",
     "flux_interface": "flux_interface",
-    "symmetry":       None,
-    "wall":           None,
-    "periodic":       None,
+    "symmetry": None,
+    "wall": None,
+    "periodic": None,
 }
 
 
@@ -256,10 +269,10 @@ class DiscretizedGeometry:
         n = len(resolved)
         for i, dim in enumerate(resolved):
             bnd = self._geometry.boundary(dim)
-            prefix = (slice(None),) * i   # earlier dims: all cells
+            prefix = (slice(None),) * i  # earlier dims: all cells
 
             for face_name, face_idx, face_role_str in [
-                ("low",  0,  bnd.low),
+                ("low", 0, bnd.low),
                 ("high", -1, bnd.high),
             ]:
                 role = _FACE_ROLE.get(face_role_str)
@@ -270,7 +283,7 @@ class DiscretizedGeometry:
                 suffix = (slice(None),) * (n - i - 1)
                 idx = prefix + (face_idx,) + suffix
 
-                port_name = face_role_str   # "inlet", "outlet", "flux_interface"
+                port_name = face_role_str  # "inlet", "outlet", "flux_interface"
 
                 if role == "external_port":
                     self._external_ports[port_name] = idx

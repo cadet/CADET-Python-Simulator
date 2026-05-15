@@ -1,7 +1,6 @@
 from abc import abstractmethod
 
-from CADETProcess.dataStructure import Structure
-from CADETProcess.dataStructure import UnsignedFloat
+from CADETProcess.dataStructure import Structure, UnsignedFloat
 
 
 class CakeCompressibilityBase(Structure):

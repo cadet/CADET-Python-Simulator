@@ -1,11 +1,9 @@
 import numpy as np
 import pytest
 import xarray as xr
-
 from CADETPythonSimulator.solver import Solver
 
-from conftest import SolveDummy, SystemFixture, SolverFixture
-
+from conftest import SolverFixture
 
 # %% State Structure
 solver_fixture_obj = SolverFixture()

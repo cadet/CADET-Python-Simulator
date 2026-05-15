@@ -2,19 +2,16 @@ from typing import NoReturn
 
 import numpy as np
 import pytest
-
 from CADETPythonSimulator.exception import NotInitializedError
 from CADETPythonSimulator.unit_operation import UnitOperationBase
 
 from conftest import (
-    InletFixture,
-    OutletFixture,
+    CrossFlowFiltrationFixture,
     CstrFixture,
     DeadEndFiltrationFixture,
-    CrossFlowFiltrationFixture,
-    _2DGRMFixture,
+    InletFixture,
+    OutletFixture,
 )
-
 
 # %% Unit Operation State Structure
 
@@ -240,10 +237,9 @@ class TestUnitStateStructure:
             [
                 (
                     "calculate_residual_concentration_cstr",
-                    lambda c, c_dot, V, V_dot, Q_in, Q_out, c_in: c_dot * V
-                    + V_dot * c
-                    - Q_in * c_in
-                    + Q_out * c,
+                    lambda c, c_dot, V, V_dot, Q_in, Q_out, c_in: (
+                        c_dot * V + V_dot * c - Q_in * c_in + Q_out * c
+                    ),
                 ),
                 (
                     "calculate_residual_volume_cstr",

@@ -1,17 +1,14 @@
-import pytest
 import numpy as np
+import pytest
 import xarray as xr
-from CADETPythonSimulator.state import State
 from CADETPythonSimulator.geometry import (
+    AngularSymmetry,
     Cylinder,
-    Sphere,
     DiscretizedGeometry,
     RadialAngularSymmetry,
-    SphericalSymmetry,
     WellMixed,
-    AngularSymmetry,
 )
-
+from CADETPythonSimulator.state import State
 
 # %% Tests for geometry-native State interface
 
@@ -20,7 +17,9 @@ class TestStateGeometryInterface:
     """Tests for State constructed with an explicit DiscretizedGeometry."""
 
     def _make_1d(self, n_axial=10):
-        g = DiscretizedGeometry(Cylinder(length=0.1), RadialAngularSymmetry(), {"axial": n_axial})
+        g = DiscretizedGeometry(
+            Cylinder(length=0.1), RadialAngularSymmetry(), {"axial": n_axial}
+        )
         return State(name="bulk", entries={"c": 3, "V": 1}, geometry=g)
 
     def _make_0d(self):
@@ -172,7 +171,9 @@ class TestStateGeometryInterface:
 
     def test_1d_set_port_state_inlet(self):
         state = self._make_1d()
-        state.set_port_state("inlet", {"c": np.array([1.0, 2.0, 3.0]), "V": np.array([4.0])})
+        state.set_port_state(
+            "inlet", {"c": np.array([1.0, 2.0, 3.0]), "V": np.array([4.0])}
+        )
         np.testing.assert_array_equal(state._s[0, :3], [1.0, 2.0, 3.0])
         np.testing.assert_array_equal(state._s[0, 3:4], [4.0])
 
@@ -183,7 +184,9 @@ class TestStateGeometryInterface:
         np.testing.assert_array_equal(port["c"], [1.0, 2.0])
 
     def test_geometry_property(self):
-        g = DiscretizedGeometry(Cylinder(length=0.1), RadialAngularSymmetry(), {"axial": 5})
+        g = DiscretizedGeometry(
+            Cylinder(length=0.1), RadialAngularSymmetry(), {"axial": 5}
+        )
         state = State(name="bulk", entries={"c": 1}, geometry=g)
         assert state.geometry is g
 

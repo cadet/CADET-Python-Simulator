@@ -3,18 +3,18 @@ from typing import NoReturn, Optional
 
 import numpy as np
 import numpy.typing as npt
-
-from CADETProcess.dataStructure import Structure
 from CADETProcess.dataStructure import (
-    Typed,
-    String,
-    UnsignedInteger,
-    UnsignedFloat,
     NdPolynomial,
+    String,
+    Structure,
+    Typed,
+    UnsignedFloat,
+    UnsignedInteger,
 )
 from CADETProcess.dynamicEvents import Section
 
 from CADETPythonSimulator.componentsystem import CPSComponentSystem
+from CADETPythonSimulator.distribution_base import DistributionBase
 from CADETPythonSimulator.exception import NotInitializedError
 from CADETPythonSimulator.geometry import (
     Cylinder,
@@ -22,15 +22,13 @@ from CADETPythonSimulator.geometry import (
     RadialAngularSymmetry,
     WellMixed,
 )
-from CADETPythonSimulator.state import State, state_factory
-from CADETPythonSimulator.residual import (
-    calculate_residual_volume_cstr,
-    calculate_residual_concentration_cstr,
-)
 from CADETPythonSimulator.rejection import RejectionBase
+from CADETPythonSimulator.residual import (
+    calculate_residual_concentration_cstr,
+    calculate_residual_volume_cstr,
+)
+from CADETPythonSimulator.state import State, state_factory
 from CADETPythonSimulator.viscosity import ViscosityBase
-
-from CADETPythonSimulator.distribution_base import DistributionBase
 
 
 class UnitOperationBase(Structure):
@@ -97,13 +95,19 @@ class UnitOperationBase(Structure):
             state_structure = getattr(self, state_block)
             geometry = self._make_state_geometry(state_block)
 
-            state = state_factory(self, state_block, geometry=geometry, **state_structure)
+            state = state_factory(
+                self, state_block, geometry=geometry, **state_structure
+            )
             self._states[state.name] = state
 
-            state_derivative = state_factory(self, state_block, geometry=geometry, **state_structure)
+            state_derivative = state_factory(
+                self, state_block, geometry=geometry, **state_structure
+            )
             self._state_derivatives[state_derivative.name] = state_derivative
 
-            residual = state_factory(self, state_block, geometry=geometry, **state_structure)
+            residual = state_factory(
+                self, state_block, geometry=geometry, **state_structure
+            )
             self._residuals[residual.name] = residual
 
         self._Q_in = np.zeros(self.n_inlet_ports)
