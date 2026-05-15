@@ -92,6 +92,7 @@ class Solver(Structure):
         self._time_list: list[float] = []
         self._y_lists: dict = {}
         self._yd_lists: dict = {}
+        self._y_aux_lists: dict = {}
 
         for unit in self._system.unit_operations.values():
             self._y_lists[unit.name] = {
@@ -100,6 +101,10 @@ class Solver(Structure):
             self._yd_lists[unit.name] = {
                 s: {e: [] for e in state.entries}
                 for s, state in unit.state_derivatives.items()
+            }
+            self._y_aux_lists[unit.name] = {
+                s: {e: [] for e in state.entries}
+                for s, state in unit.aux_states.items()
             }
 
     def write_solution(
@@ -119,6 +124,8 @@ class Solver(Structure):
             self._time_list.append(float(t))
 
             for unit in self._system.unit_operations.values():
+                unit.compute_auxiliary(t)
+
                 for state_name, state in unit.states.items():
                     for entry in state.entries:
                         self._y_lists[unit.name][state_name][entry].append(
@@ -127,6 +134,11 @@ class Solver(Structure):
                 for state_name, state in unit.state_derivatives.items():
                     for entry in state.entries:
                         self._yd_lists[unit.name][state_name][entry].append(
+                            state.field[entry].values.copy()
+                        )
+                for state_name, state in unit.aux_states.items():
+                    for entry in state.entries:
+                        self._y_aux_lists[unit.name][state_name][entry].append(
                             state.field[entry].values.copy()
                         )
 
@@ -140,8 +152,11 @@ class Solver(Structure):
 
     @property
     def unit_solutions(self) -> dict[str, dict[str, dict[str, xr.DataArray]]]:
-        """Recorded state values: unit → state → entry → DataArray(time, ...)."""
-        return self._build_datasets(self._y_lists)
+        """Recorded state values: unit → state → entry → DataArray(time, ...).
+
+        Primary and auxiliary states appear at the same level.
+        """
+        return self._build_datasets(self._y_lists, self._y_aux_lists)
 
     @property
     def unit_derivatives(self) -> dict[str, dict[str, dict[str, xr.DataArray]]]:
@@ -151,17 +166,22 @@ class Solver(Structure):
     def _build_datasets(
         self,
         lists: dict,
+        aux_lists: dict | None = None,
     ) -> dict[str, dict[str, dict[str, xr.DataArray]]]:
         times = self.time_solutions
         result = {}
         for unit in self._system.unit_operations.values():
             result[unit.name] = {}
-            for state_name, state in unit.states.items():
+            all_states = list(unit.states.items())
+            if aux_lists is not None:
+                all_states += list(unit.aux_states.items())
+            for state_name, state in all_states:
                 result[unit.name][state_name] = {}
+                src = lists if state_name in lists[unit.name] else aux_lists
                 sample = state.field
                 for entry in state.entries:
                     da_sample = sample[entry]
-                    stacked = np.stack(lists[unit.name][state_name][entry], axis=0)
+                    stacked = np.stack(src[unit.name][state_name][entry], axis=0)
                     coords = {"time": times, **dict(da_sample.coords)}
                     dims = ["time"] + list(da_sample.dims)
                     result[unit.name][state_name][entry] = xr.DataArray(

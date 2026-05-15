@@ -13,6 +13,7 @@ from CADETProcess.dataStructure import (
 )
 from CADETProcess.dynamicEvents import Section
 
+from CADETPythonSimulator.auxiliary_models import IonicStrengthModel
 from CADETPythonSimulator.componentsystem import CPSComponentSystem
 from CADETPythonSimulator.distribution_base import DistributionBase
 from CADETPythonSimulator.exception import NotInitializedError
@@ -72,6 +73,7 @@ class UnitOperationBase(Structure):
         self._states: Optional[dict[str, State]] = None
         self._state_derivatives: Optional[dict[str, State]] = None
         self._residuals: Optional[dict[str, State]] = None
+        self._aux_states: Optional[dict[str, State]] = None
 
         self._Q_in: Optional[np.ndarray] = None
         self._Q_out: Optional[np.ndarray] = None
@@ -86,8 +88,10 @@ class UnitOperationBase(Structure):
         """int: Number of components."""
         return self.component_system.n_comp
 
+    _aux_structures: list[str] = []
+
     def initialize_state(self) -> NoReturn:
-        """Initialize the unit operation state and residual."""
+        """Initialize the unit operation state, residual, and auxiliary state."""
         self._states = {}
         self._state_derivatives = {}
         self._residuals = {}
@@ -110,8 +114,31 @@ class UnitOperationBase(Structure):
             )
             self._residuals[residual.name] = residual
 
+        self._aux_states = {}
+        for state_block in self._aux_structures:
+            state_structure = getattr(self, state_block)
+            geometry = self._make_state_geometry(state_block)
+            state = state_factory(
+                self, state_block, geometry=geometry, **state_structure
+            )
+            self._aux_states[state.name] = state
+
+        for param_name in self._parameters:
+            model = getattr(self, param_name, None)
+            if model is not None and hasattr(model, "aux_structures"):
+                for state_name, state_structure in model.aux_structures.items():
+                    geometry = self._make_state_geometry(state_name)
+                    state = state_factory(
+                        self, state_name, geometry=geometry, **state_structure
+                    )
+                    self._aux_states[state.name] = state
+
         self._Q_in = np.zeros(self.n_inlet_ports)
         self._Q_out = np.zeros(self.n_outlet_ports)
+
+    def compute_auxiliary(self, t: float) -> None:
+        """Fill auxiliary states from current primary state. No-op by default."""
+        pass
 
     @property
     def states(self) -> dict[str, State]:
@@ -120,6 +147,14 @@ class UnitOperationBase(Structure):
             raise NotInitializedError("Unit operation state is not yet initialized.")
 
         return self._states
+
+    @property
+    def aux_states(self) -> dict[str, State]:
+        """dict: Auxiliary state blocks, indexed by name. Not wired to the DAE buffer."""
+        if self._aux_states is None:
+            raise NotInitializedError("Unit operation state is not yet initialized.")
+
+        return self._aux_states
 
     @property
     def y(self) -> np.ndarray:
@@ -651,6 +686,9 @@ class DeadEndFiltration(UnitOperationBase):
 
     _state_structures = ["inlet", "permeate", "retentate", "cake", "permeate_tank"]
 
+    cake_aux = {"entries": {"cake_height": 1}}
+    _aux_structures = ["cake_aux"]
+
     membrane_area = UnsignedFloat()
     membrane_resistance = UnsignedFloat()
     rejection_model = Typed(ty=RejectionBase)
@@ -781,6 +819,11 @@ class DeadEndFiltration(UnitOperationBase):
         else:
             self.residuals["cake"]["pressure"] = delta_p
 
+    def compute_auxiliary(self, t: float) -> None:
+        """Compute cake height from current cake volume."""
+        V_cake = self.states["cake"]["V"]
+        self.aux_states["cake_aux"]["cake_height"] = V_cake / self.membrane_area
+
     @property
     def y_init(self) -> np.ndarray:
         """np.ndarray: State derivative array flattened into one dimension."""
@@ -906,6 +949,38 @@ class DeadEndFiltration(UnitOperationBase):
             )
         else:
             self.states["cake"]["pressure"] = 0
+
+
+class Column1D(UnitOperationBase):
+    """1D axial column stub.
+
+    Residual is not implemented. Exists to demonstrate model-owned auxiliary
+    state: when an IonicStrengthModel is injected, ionic strength appears in
+    unit_solutions["column"]["ionic_strength"]["I"] without any changes to the
+    framework recording layer.
+    """
+
+    _inlet_ports = {"inlet": "inlet"}
+    _outlet_ports = {"outlet": "bulk"}
+
+    inlet = {"entries": {"c": "n_comp"}}
+    bulk = {"entries": {"c": "n_comp"}}
+    _state_structures = ["inlet", "bulk"]
+
+    ionic_strength_model = Typed(ty=IonicStrengthModel, default=None)
+    _parameters = ["ionic_strength_model"]
+
+    def compute_residual(self, t: float) -> NoReturn:
+        """Not implemented -- Column1D is a stub."""
+        raise NotImplementedError("Column1D residual is not yet implemented.")
+
+    def compute_auxiliary(self, t: float) -> None:
+        """Delegate to the ionic strength model if one is injected."""
+        if self.ionic_strength_model is not None:
+            c = self.states["bulk"]["c"]
+            self.aux_states["ionic_strength"]["I"] = self.ionic_strength_model.compute(
+                c
+            )
 
 
 class CrossFlowFiltration(UnitOperationBase):
