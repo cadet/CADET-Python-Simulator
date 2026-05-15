@@ -351,6 +351,59 @@ class TestUnitResidual:
                 )
 
 
+# ── auxiliary state ───────────────────────────────────────────────────────────
+
+
+class TestAuxiliaryState:
+    def test_no_model_no_aux(self):
+        """Unit op with no aux_structures and no models has empty aux_states."""
+        inlet = InletFixture()
+        inlet.initialize_state()
+        assert inlet.aux_states == {}
+
+    def test_unit_op_owned_aux_present(self):
+        """DeadEndFiltration always has cake_aux regardless of models."""
+        def_unit = DeadEndFiltrationFixture()
+        def_unit.initialize_state()
+        assert "cake_aux" in def_unit.aux_states
+        assert "cake_height" in def_unit.aux_states["cake_aux"].entries
+
+    def test_model_owned_aux_present(self):
+        """Column1D has ionic_strength aux state when IonicStrengthModel is injected."""
+        from CADETPythonSimulator.auxiliary_models import IonicStrengthModel
+        from CADETPythonSimulator.componentsystem import CPSComponentSystem
+        from CADETPythonSimulator.system import FlowSystem
+        from CADETPythonSimulator.unit_operation import Column1D
+
+        cs = CPSComponentSystem(name="t", components=2)
+        col = Column1D(
+            component_system=cs, name="col", ionic_strength_model=IonicStrengthModel()
+        )
+        FlowSystem(unit_operations=[col]).initialize_state()
+        assert "ionic_strength" in col.aux_states
+        assert "I" in col.aux_states["ionic_strength"].entries
+
+    def test_model_owned_aux_absent_without_model(self):
+        """Column1D has no ionic_strength aux state when no model is injected."""
+        from CADETPythonSimulator.componentsystem import CPSComponentSystem
+        from CADETPythonSimulator.system import FlowSystem
+        from CADETPythonSimulator.unit_operation import Column1D
+
+        cs = CPSComponentSystem(name="t", components=2)
+        col = Column1D(component_system=cs, name="col")
+        FlowSystem(unit_operations=[col]).initialize_state()
+        assert "ionic_strength" not in col.aux_states
+
+    def test_compute_auxiliary_fills_cake_height(self):
+        """compute_auxiliary() writes cake_height = V_cake / membrane_area."""
+        unit = DeadEndFiltrationFixture()
+        unit.initialize_state()
+        unit.states["cake"]["V"] = np.array([2.0])
+        unit.compute_auxiliary(0.0)
+        expected = 2.0 / unit.membrane_area
+        np.testing.assert_allclose(unit.aux_states["cake_aux"]["cake_height"], expected)
+
+
 # %% Run tests
 
 if __name__ == "__main__":

@@ -6,6 +6,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Auxiliary state: `aux_states` property and `compute_auxiliary(t)` hook on `UnitOperationBase`; unit-op-owned aux declared via `_aux_structures`, model-owned aux declared via `model.aux_structures` and aggregated in `initialize_state()`
+- `DeadEndFiltration`: `cake_height` aux entry (cake volume / membrane area), always present
+- `IonicStrengthModel` stub in `auxiliary_models.py` demonstrating model-owned aux declaration
+- `Column1D` stub: shows optional aux state -- `ionic_strength` only appears in output when `IonicStrengthModel` is injected
+- Aux states recorded alongside primary states in `unit_solutions` with no API change to the solver
+
+---
+
+### Added (recording overhaul)
 - `DiscretizedGeometry` -- shape, coordinates, external ports, flux interfaces, spatially varying quantities
 - `State` -- geometry-aware buffer with three access lenses: `_s` (raw numpy), `state["entry"]` (numpy slice, hot path), `state.field` (dict of `xr.DataArray`, rebuilt on each access)
 - `wire_to_buffer()` / `wire_states()` -- one-time setup wiring `State._s` as a shaped view into the solver's flat `y` buffer before the first section

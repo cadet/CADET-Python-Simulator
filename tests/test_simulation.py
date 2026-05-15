@@ -135,6 +135,34 @@ class TestFilterPhysics:
         assert np.all(pressure.values > 0)
 
     def test_pressure_increases_with_cake(self, filter_solution):
+        pressure = filter_solution.unit_solutions["deadendfilter"]["cake"]["pressure"]
+        assert np.all(pressure.values[1:] >= pressure.values[:-1])
+
+
+# ── auxiliary state ───────────────────────────────────────────────────────────
+
+
+class TestAuxiliaryState:
+    def test_cake_height_present(self, filter_solution):
+        assert "cake_aux" in filter_solution.unit_solutions["deadendfilter"]
+        assert (
+            "cake_height" in filter_solution.unit_solutions["deadendfilter"]["cake_aux"]
+        )
+
+    def test_cake_height_is_dataarray(self, filter_solution):
+        da = filter_solution.unit_solutions["deadendfilter"]["cake_aux"]["cake_height"]
+        assert isinstance(da, xr.DataArray)
+
+    def test_cake_height_increases(self, filter_solution):
+        # Cake grows monotonically as retained material accumulates.
+        h = filter_solution.unit_solutions["deadendfilter"]["cake_aux"]["cake_height"]
+        assert np.all(h.values[1:] >= h.values[:-1])
+
+    def test_cake_height_no_nans(self, filter_solution):
+        h = filter_solution.unit_solutions["deadendfilter"]["cake_aux"]["cake_height"]
+        assert not np.any(np.isnan(h.values))
+
+    def test_pressure_increases_with_cake(self, filter_solution):
         # As cake resistance grows, pressure should increase monotonically.
         pressure = filter_solution.unit_solutions["deadendfilter"]["cake"]["pressure"]
         assert np.all(pressure.values[1:] >= pressure.values[:-1])
