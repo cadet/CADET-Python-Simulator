@@ -81,7 +81,7 @@ def calculate_residual_cake_vol_def(
     V: float,
     rejection: np.ndarray,
     densities: np.ndarray,
-    molecular_weights: np.ndarray,
+    molar_masses: np.ndarray,
     c_in: np.ndarray,
     V_C: float,
 ) -> float:
@@ -95,16 +95,16 @@ def calculate_residual_cake_vol_def(
     rejection : np.ndarray
         Rejection of the filter
     densities : np.ndarray
-        densities of suspended material
-    molecular_weights : np.ndarray
-        molecular weights of the components
+        Densities of suspended material [kg/m³]
+    molar_masses : np.ndarray
+        Molar masses of the components [kg/mol = kDa]
     c_in : np.array
-        Incoming Concentration
+        Incoming concentration
     V_C : float
-        Cake Volume
+        Cake volume
 
     """
-    return -V_C + V * np.sum(rejection * c_in * molecular_weights / densities)
+    return -V_C + V * np.sum(rejection * c_in * molar_masses / densities)
 
 
 def calculate_residual_press_easy_def(

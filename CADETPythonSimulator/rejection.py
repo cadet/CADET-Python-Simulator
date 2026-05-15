@@ -7,51 +7,36 @@ class RejectionBase(Structure):
     """Base class for rejection curves."""
 
     @abstractmethod
-    def get_rejection(self, mw: float) -> float:
+    def get_rejection(self, molar_mass: float) -> float:
         """
-        Get rejection for a species with specific molecular weight.
+        Return rejection for a species.
 
         Parameters
         ----------
-        mw : float
-            Molecular weight.
+        molar_mass : float
+            Molar mass [kg/mol]. Numerically equal to kDa.
 
         Returns
         -------
         float
-            Rejection for given specific molecular weight.
-
+            Rejection in [0, 1].
         """
         pass
 
 
 class StepCutOff(RejectionBase):
     """
-    Rejection model for step cutoff size.
+    Step rejection model: retain all species at or above a molar mass cutoff.
 
     Attributes
     ----------
     cutoff_weight : float
-        Cutoff size. All molecules smaller than the size will pass through the filter.
-        All molecules larger or equal than the cutoff will be retained.
-
+        Cutoff molar mass [kg/mol = kDa]. Species with molar_mass >= cutoff_weight
+        are fully retained; species below pass through.
     """
 
     cutoff_weight = UnsignedFloat()
 
-    def get_rejection(self, mw: float) -> float:
-        """
-        Get rejection for a species with specific molecular weight.
-
-        Parameters
-        ----------
-        mw : float
-            Molecular weight.
-
-        Returns
-        -------
-        float
-            Rejection for given specific molecular weight.
-
-        """
-        return 0 if mw < self.cutoff_weight else 1
+    def get_rejection(self, molar_mass: float) -> float:
+        """Return 0 (pass) if molar_mass < cutoff_weight, else 1 (retain)."""
+        return 0 if molar_mass < self.cutoff_weight else 1

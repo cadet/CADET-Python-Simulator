@@ -488,10 +488,10 @@ class DistributionInlet(UnitOperationBase):
         c = self.states["outlet"]["c"]
         nr = self.section_number
         xi = self.distribution_function.get_distribution(t, nr)
-        molecular_weights = np.array(self.component_system.molar_masses)
+        molar_masses = np.array(self.component_system.molar_masses)
         densities = np.array(self.component_system.densities)
 
-        ci = xi * densities / molecular_weights
+        ci = xi * densities / molar_masses
 
         self.residuals["outlet"]["c"] = ci - c
 
@@ -507,10 +507,10 @@ class DistributionInlet(UnitOperationBase):
         """
         nr = self.parameters["section_number"]
         xi = self.distribution_function.get_distribution(t_zero, nr)
-        molecular_weights = np.array(self.component_system.molar_masses)
+        molar_masses = np.array(self.component_system.molar_masses)
         densities = np.array(self.component_system.densities)
 
-        ci = xi * densities / molecular_weights
+        ci = xi * densities / molar_masses
 
         self.states["outlet"]["c"] = ci
 
@@ -738,7 +738,7 @@ class DeadEndFiltration(UnitOperationBase):
         vol_PT_dot = self.state_derivatives["permeate_tank"]["V"]
 
         # parameters
-        molecular_weights = np.array(self.component_system.molar_masses)
+        molar_masses = np.array(self.component_system.molar_masses)
         densities = np.array(self.component_system.densities)
         viscosities = np.array(self.component_system.viscosities)
         membrane_area = self.parameters["membrane_area"]
@@ -746,7 +746,7 @@ class DeadEndFiltration(UnitOperationBase):
         specific_cake_resistance = np.array(self.specific_cake_resistances)
 
         rejection = np.array(
-            [self.rejection_model.get_rejection(mw) for mw in molecular_weights]
+            [self.rejection_model.get_rejection(mm) for mm in molar_masses]
         )
 
         # Inlet Equations
@@ -759,10 +759,10 @@ class DeadEndFiltration(UnitOperationBase):
         self.residuals["permeate"]["n"] = n_P_dot - (1 - rejection) * n_in_dot
 
         self.residuals["retentate"]["V"] = Q_R - np.sum(
-            n_R_dot * molecular_weights / densities
+            n_R_dot * molar_masses / densities
         )
         self.residuals["permeate"]["V"] = Q_P - np.sum(
-            n_P_dot * molecular_weights / densities
+            n_P_dot * molar_masses / densities
         )
 
         if Q_R > 1e-16:
@@ -777,9 +777,7 @@ class DeadEndFiltration(UnitOperationBase):
 
         # Cake equations
 
-        self.residuals["cake"]["V"] = vol_cake - np.sum(
-            n_C * molecular_weights / densities
-        )
+        self.residuals["cake"]["V"] = vol_cake - np.sum(n_C * molar_masses / densities)
         self.residuals["cake"]["n"] = n_C_dot - n_R_dot
 
         if vol_cake > 1e-16:
@@ -808,7 +806,7 @@ class DeadEndFiltration(UnitOperationBase):
                 viscosities, fractions
             )
 
-            component_volume = n_C * molecular_weights / densities
+            component_volume = n_C * molar_masses / densities
             cake_resistance = np.sum(
                 specific_cake_resistance * densities * component_volume / membrane_area
             )
@@ -867,7 +865,7 @@ class DeadEndFiltration(UnitOperationBase):
 
     def initialize_initial_values(self, t_zero: float):
         """Initialize the values."""
-        molecular_weights = np.array(self.component_system.molar_masses)
+        molar_masses = np.array(self.component_system.molar_masses)
         densities = np.array(self.component_system.densities)
         viscosities = np.array(self.component_system.viscosities)
         membrane_area = self.parameters["membrane_area"]
@@ -882,14 +880,14 @@ class DeadEndFiltration(UnitOperationBase):
         self.state_derivatives["inlet"]["n"] = n_in_dot
 
         rejection = np.array(
-            [self.rejection_model.get_rejection(mw) for mw in molecular_weights]
+            [self.rejection_model.get_rejection(mm) for mm in molar_masses]
         )
 
         n_cake_dot = rejection * n_in_dot
         self.state_derivatives["retentate"]["n"] = n_cake_dot
         self.state_derivatives["cake"]["n"] = n_cake_dot
 
-        vol_cake_dot = np.sum(molecular_weights * n_cake_dot / densities)
+        vol_cake_dot = np.sum(molar_masses * n_cake_dot / densities)
         self.state_derivatives["cake"]["V"] = vol_cake_dot
         self.state_derivatives["retentate"]["V"] = vol_cake_dot
 
@@ -908,7 +906,7 @@ class DeadEndFiltration(UnitOperationBase):
 
         n_P_dot = (1 - rejection) * n_in_dot
         self.state_derivatives["permeate"]["n"] = n_P_dot
-        Q_P = np.sum(n_P_dot * molecular_weights / densities)
+        Q_P = np.sum(n_P_dot * molar_masses / densities)
 
         self.state_derivatives["permeate"]["V"] = Q_P
 
@@ -938,7 +936,7 @@ class DeadEndFiltration(UnitOperationBase):
             )
 
             n_C = self.states["cake"]["n"]
-            component_volume = n_C * molecular_weights / densities
+            component_volume = n_C * molar_masses / densities
             cake_resistance = np.sum(
                 specific_cake_resistance * densities * component_volume / membrane_area
             )

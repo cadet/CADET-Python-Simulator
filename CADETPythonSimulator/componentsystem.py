@@ -28,10 +28,12 @@ class Species:
 
     name: str
     charge: int = 0
-    molar_mass: Optional[float] = None
-    density: Optional[float] = None
-    viscosity: Optional[float] = None
-    c_ref: Optional[float] = None
+    molar_mass: Optional[float] = (
+        None  # kg/mol (= kDa numerically; e.g. water = 0.018, BSA ≈ 66)
+    )
+    density: Optional[float] = None  # kg/m³
+    viscosity: Optional[float] = None  # Pa·s
+    c_ref: Optional[float] = None  # mol/m³
 
     def __post_init__(self) -> None:
         if self.c_ref is None:
